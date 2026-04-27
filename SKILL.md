@@ -1,6 +1,6 @@
 ---
-name: "ai-company-unified"
-slug: "ai-company-unified"
+name: "ai-company"
+slug: "ai-company"
 version: "1.0.2"
 description: |
   Unified AI Company skill consolidating 16 department skills into one. Provides complete
