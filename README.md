@@ -13,7 +13,7 @@
 
 **AI-Company** is a unified skill that consolidates 16 previously separate department skills into a single, cohesive framework. It provides complete operational capabilities for AI-driven technology companies — from strategic governance and financial management to security compliance and localization.
 
-This skill is designed for the [WorkBuddy](https://www.codebuddy.cn/) platform and follows the AI Company Governance Framework.
+This skill is designed for the [OpenClaw](https://clawhub.ai/)[QClaw](https://qclaw.qq.com/) [WorkBuddy](https://www.codebuddy.cn/) platform and follows the AI Company Governance Framework.
 
 ## Features
 
