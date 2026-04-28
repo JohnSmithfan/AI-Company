@@ -55,6 +55,31 @@ Cover all 16 departments and shared infrastructure.
 | TC-AIGC-02 | JSON with ai_generated: true | PASS |
 | TC-AIGC-03 | Output with no AI disclosure | FW_010 error |
 
+## Integration Tests (Cross-Department)
+
+| ID | Scenario | Departments Involved | Expected Result |
+|----|----------|---------------------|-------------------|
+| TC-INT-01 | CEO escalates crisis to Board | CEO → Board | Board session convened within 48h |
+| TC-INT-02 | CTO requests budget for GPU | CTO → CFO → CEO | Approval workflow completed |
+| TC-INT-03 | CISO detects P0 breach | CISO → CEO + CLO | Incident protocol activated <15min |
+| TC-INT-04 | CQO fails G3 security gate | CQO → CISO | Rejection with remediation steps |
+| TC-INT-05 | CHO extracts knowledge from conversation | CHO → HQ → KB | Knowledge stored + broadcast sent |
+| TC-INT-06 | CMO detects brand violation | CMO → CLO → CISO | Takedown notice sent within 24h |
+| TC-INT-07 | PMGR misses sprint commitment | PMGR → COO | Resource reallocation triggered |
+| TC-INT-08 | Intel collects intelligence | Intel → CISO → HQ | Data verified + stored in library |
+| TC-INT-09 | Translator processes legal doc | TR → CLO | Human review flag set |
+| TC-INT-10 | Finance processes invoice | CFO → CRO → INFO | Risk assessment + payment executed |
+
+## Edge Case Tests
+
+| ID | Test Scenario | Expected Behavior |
+|----|---------------|-------------------|
+| TC-EDG-01 | All agents offline | HQ queues messages, COO alerted |
+| TC-EDG-02 | Simultaneous P0 crises | CEO prioritizes by impact score |
+| TC-EDG-03 | Corrupted audit log | CISO restores from backup within 4h |
+| TC-EDG-04 | License violation detected | CLO halts operation, CEO notified |
+| TC-EDG-05 | Cross-department conflict | HQ mediates within SLA |
+
 ---
 
 *Copy-paste ready for any AI chat window.*

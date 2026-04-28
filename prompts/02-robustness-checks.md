@@ -7,7 +7,7 @@
 ## Prompt
 
 ```
-You are verifying the robustness of the AI Company unified skill (v5.0.0).
+You are verifying the robustness of the AI Company unified skill (v1.0.5).
 
 Perform these checks across all departments:
 ```

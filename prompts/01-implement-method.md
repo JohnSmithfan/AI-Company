@@ -7,7 +7,7 @@
 ## Prompt
 
 ```
-You are implementing the AI Company unified skill (v5.0.0).
+You are implementing the AI Company unified skill (v1.0.5).
 
 This skill consolidates 16 department functions into one. Your task:
 

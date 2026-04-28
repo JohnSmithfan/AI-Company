@@ -49,7 +49,7 @@ This skill is designed for the [OpenClaw](https://clawhub.ai/) [QClaw](https://q
 ai-company/
 ├── SKILL.md                          # Skill manifest & quick reference
 ├── _meta.json                        # Metadata (slug, version, owner)
-├── LICENSE                           # MIT License
+├── LICENSE                           # GNU GPL v3 License
 ├── README.md                         # This file
 ├── prompts/                          # Copy-paste ready prompts
 │   ├── 01-implement-method.md
@@ -163,6 +163,24 @@ This unified skill replaces the following 16 individual skills:
 
 ## License
 
-This project is licensed under the [MIT License](LICENSE).
+This project is licensed under the [GNU GPL v3 License](LICENSE).
 
-Copyright © 2026 JohnSmithfan
+Copyright © 2026 AI Company Team
+
+### License Choice Rationale
+
+This skill uses **GNU GPL v3** for the following reasons:
+
+1. **Copyleft Protection**: Ensures derivatives remain open-source
+2. **Patent Protection**: Includes explicit patent grant (Section 11)
+3. **Anti-Tivoization**: Prevents hardware restrictions on modified software (Section 6)
+4. **Compatibility**: Compatible with most open-source projects
+5. **Enterprise Use**: Allows modification + redistribution with same license
+
+**Implications**:
+- ✅ Free to use, modify, and distribute
+- ✅ Must open-source derivatives under GPL v3
+- ✅ Must include original copyright + license
+- ⚠️ Cannot proprietary-license derivatives
+
+See [LICENSE](LICENSE) file for complete terms.
