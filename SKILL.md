@@ -1,7 +1,7 @@
 ---
 name: "ai-company-unified"
 slug: "ai-company-unified"
-version: "1.0.3"
+version: "1.0.4"
 description: |
   Unified AI Company skill consolidating 16 department skills into one. Provides complete
   governance, finance, technology, security, legal, people, marketing, quality, intelligence,
@@ -10,7 +10,7 @@ description: |
   engineering, CI/CD pipeline, ADR process, AIGC compliance, VirusTotal/ClawHub security
   verification, and progressive disclosure architecture. Use when any AI-Company department
   function is needed — this skill contains all of them.
-license: "MIT-0"
+license: "GPL-3.0"
 author: "AI Company Team"
 tags: [ai-company,governance,finance,technology,security,legal,people,marketing,quality,intelligence,information,translation,framework,L1-L6,compliance]
 dependencies: []
@@ -54,6 +54,10 @@ triggers:
   - quality gate
   - project management
   - intelligence operations
+  - intelligence collection
+  - 收集情报
+  - 情报收集
+  - intelligence library
   - location service
   - weather forecast
   - translation
@@ -211,6 +215,16 @@ interface:
       message: "Classification violation"
     - code: INTEL_005
       message: "Operational security breach"
+    - code: INTEL_006
+      message: "Library structure creation failed"
+    - code: INTEL_007
+      message: "Source registry corrupted"
+    - code: INTEL_008
+      message: "Collection plan missing REQUIREMENTS"
+    - code: INTEL_009
+      message: "Product confidence LOW (<40%)"
+    - code: INTEL_010
+      message: "SITREP generation failed"
     - code: INFO_001
       message: "Location unavailable"
     - code: INFO_002
@@ -266,7 +280,7 @@ metadata:
     - ai-company-translator-3.0.0
 ---
 
-# AI Company v1.1.0
+# AI Company v1.0.4
 
 > Unified AI Company Skill — 16 departments consolidated into one.
 > Full specifications in [references/method-patterns.md](references/method-patterns.md) and [references/departments/](references/departments/).
@@ -334,6 +348,7 @@ pwsh -File "C:\Users\Admin\WorkBuddy\Claw\.workbuddy\scripts\ai-company-auto-upd
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 1.0.4 | 2026-04-29 | Intel: Added Intelligence Library (SOP-L01~L06) with auto-triggered library setup on first collection request; SOP-L01 auto-creates library silently without user prompt; SOP-L06 triggers on any intelligence collection request (收集情报/intelligence collection); Added INTEL_006~INTEL_010 error codes; Updated triggers with 情报收集/intelligence collection/intelligence library |
 | 1.0.3 | 2026-04-28 | Security: Scoped file permissions to WORKSPACE_ROOT (P0 CISO fix); Finance: Added capex policy, working capital DSO/DPO targets, CRO-CFO escalation SLA (P1 CFO/CRO); Risk: Added numeric FAIR thresholds and LEA calculation (P1 CRO); CTO: Added 3-stage deployment gate with rollback triggers (P1); CQO: Added test coverage acceptance threshold 85% (P1); CEO: Added board escalation ladder (P2); COO: Added automated OHS alerting + OKR integration in MEASURE phase (P2); CLO: Added DMCA takedown workflow (P2); Intel: Added 6-phase intelligence cycle (P2); CPO: Added semver enforcement policy (P2) |
 | 1.0.2 | 2026-04-27 | Added auto-update: weekly automation (Sunday 02:00 UTC), PowerShell script with 5-layer security gates, backup/rollback, update log, publisher allowlist |
 | 1.0.1 | 2026-04-27 | CEO review complete: all 7 reference modules verified and rebuilt; added visualization.md, integrations.md, memory.md, data-integration.md, execution.md |

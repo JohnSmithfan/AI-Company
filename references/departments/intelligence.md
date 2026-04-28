@@ -601,6 +601,240 @@ P4 Low -> Monthly report -> Routine channel
 
 ---
 
+## SECTION F: INTELLIGENCE LIBRARY (情报库组建)
+> Added: 2026-04-29 | Per `skill.md` standards (CRISPE/3WEH/Five-Element frameworks)
+
+### SOP-L01: Intelligence Library Structure Setup (情报库结构建立)
+
+```
+Role: Intelligence Archivist
+Task: Establish tiered intelligence library per SOP-O01
+Context: AUTO-TRIGGERED silently on first user intelligence request
+          (also manually callable for library rebuild)
+Format: Directory structure + config files
+Constraint: Follow hot/warm/cold/vault tier model; all paths under WORKSPACE_ROOT
+Note: Runs silently — do NOT ask user confirmation; do NOT mention "library setup"
+      User simply requests intelligence collection; library is created automatically
+
+Steps:
+1. Create base directory: {WORKSPACE_ROOT}/.workbuddy/intelligence/
+2. Create tier dirs: hot/ warm/ cold/ vault/
+3. Create support dirs: sources/ reports/ plans/
+4. Write source-registry.md (per SOP-C01 template)
+5. Validate: All dirs exist, registry file valid Markdown
+```
+
+**Directory Specification:**
+
+| Tier | Path | Classification | Retention | Access Speed |
+|------|------|---------------|-----------|---------------|
+| Hot | `intelligence/hot/` | UNCLASSIFIED | Active | <1s |
+| Warm | `intelligence/warm/` | CONFIDENTIAL | 1 year | <5s |
+| Cold | `intelligence/cold/` | SECRET | Per policy | <1h |
+| Vault | `intelligence/vault/` | TOP SECRET | Permanent | Manual |
+
+**Prompt Template (CRISPE Framework):**
+```
+【Role】 Intelligence Archivist
+【Result】 Tiered intelligence library structure established under {WORKSPACE_ROOT}/.workbuddy/intelligence/
+【Input】 Workspace root path, classification requirements
+【Steps】 Create hot/warm/cold/vault dirs; create sources/reports/plans support dirs; initialize source-registry.md
+【Parameters】 All paths must be under WORKSPACE_ROOT; no external network access required
+【Example】 See: C:\Users\Admin\WorkBuddy\Claw\.workbuddy\intelligence\
+```
+
+---
+
+### SOP-L02: Source Registry Management (源注册表管理)
+
+```
+Role: Collection Lead
+Task: Maintain source-registry.md with all active OSINT/HUMINT/SIGINT sources
+Context: Per SOP-C01 (Source Validation); rating scale A-F
+Format: Markdown table + detailed entries
+Constraint: Re-validate every 72h for C/D ratings
+
+Steps:
+1. Identify new source (URL, API, database)
+2. Assess reliability (A-F scale, per SOP-C01)
+3. Create registry entry (ID, codename, type, domain, rating)
+4. Validate: Cross-check with >=1 other source
+5. Schedule next review (A:90d, B:30d, C:7d, D:3d, F:retire)
+6. Append to source-registry.md
+```
+
+**Source Entry Template (Five-Element Structure):**
+```
+## Source: SRC-XXX - [Codename]
+- Type: [OSINT/HUMINT/SIGINT/TECHINT]
+- Domain: [Sector/Region/Topic]
+- Rating: [A/B/C/D/F] | Last Verified: [DATE] | Next Review: [DATE]
+- Access: [Information types] | Method: [auto/manual/hybrid]
+- Exposure Risk: [L/M/H]
+```
+
+**Quality Gate (per `skill.md` security rules):**
+- No `eval()` / `exec()` / dynamic code execution
+- All source URLs must be whitelisted
+- No credential exfiltration to external servers
+
+---
+
+### SOP-L03: Collection Plan Creation (收集计划制定)
+
+```
+Role: Collection Lead
+Task: Create collection-plan-[DATE].md per SOP-C02
+Context: Phase1 of 6-Phase Intelligence Cycle
+Format: Markdown plan with REQ tables and source allocation
+Constraint: All REQs must map to intelligence consumers (CISO/CTO/CEO/CLO)
+
+Steps:
+1. Receive intelligence requirements from Director + C-Suite
+2. Assign REQ-ID (REQ-XXX)
+3. Prioritize: P1 / P2 / P3 / P4
+4. Map REQ to source(s) in source registry
+5. Define collection method (auto/manual/hybrid)
+6. Set deadline (P1:<24h, P2:<72h, P3:<1w, P4:<1m)
+7. Write to intelligence/plans/collection-plan-[DATE].md
+8. Notify Analysis Lead
+```
+
+**Prompt Template (3WEH Framework):**
+```
+Who: Collection Lead
+What: Create collection plan for [DOMAIN] intelligence
+Why: Feed Phase2 (COLLECTION); support [CONSUMER] decision-making
+How: Markdown plan with REQ table, source allocation; store in intelligence/plans/
+```
+
+---
+
+### SOP-L04: Intelligence Product Generation (情报产品生产)
+
+```
+Role: Intelligence Analyst (Junior/Mid/Senior)
+Task: Generate intelligence assessment product per SOP-A01
+Context: Phase4 of 6-Phase Cycle
+Format: Markdown with metadata header
+Constraint: Confidence MUST be annotated; LOW (<40%) requires 2+ independent sources
+
+Steps:
+1. Receive processed intelligence from Phase3
+2. Select methodology (ACH preferred for complex)
+3. Apply bias checklist (SOP-A05)
+4. Draft product: Key Judgments / Methodology / Source Basis / Assumptions / Alt Scenarios / Gaps / Confidence
+5. Assign confidence: HIGH (>=75%) / MEDIUM (40-74%) / LOW (<40%)
+6. Peer review
+7. Assign Intel ID: INT-[CLASS]-[YYYY]-[TYPE]-[SEQ]
+8. Write to appropriate tier directory
+9. Update collection plan status to COMPLETE
+```
+
+**Product ID Format:** `INT-[CLASS]-[YYYY]-[TYPE]-[SEQ]`
+- CLASS: UNC/CONF/SEC/TOP
+- TYPE: THREAT / AISEC / COMPETE / REGULAT / TECHTREND / CUSTOM
+
+---
+
+### SOP-L05: SITREP Report Generation (SITREP报告生成)
+
+```
+Role: Intelligence Analysis Lead
+Task: Generate daily SITREP report per SOP-A06
+Context: Daily briefing for all leads and HQ
+Format: Markdown report
+Constraint: Must be generated daily; archived in intelligence/reports/
+
+Steps:
+1. Aggregate products generated in last 24h
+2. Update 6-phase cycle status table
+3. Rank findings by priority
+4. List products with metadata
+5. Update source status
+6. Update risk register
+7. Define next actions per consumer
+8. Write SITREP-[YYYY-MM-DD].md to intelligence/reports/
+9. Disseminate via HQ message bus
+```
+
+---
+
+### SOP-L06: 6-Phase Cycle Execution (6阶段循环执行)
+
+```
+Role: Intelligence Director
+Task: Orchestrate full 6-phase cycle
+Trigger: ANY user request for intelligence collection
+         (e.g., 收集情报 / 情报收集 / collect intelligence / 情报需求)
+Auto-Check (Step 0): Silently verify `{WORKSPACE_ROOT}/.workbuddy/intelligence/` exists
+  → If NOT exists: execute SOP-L01 silently (no user prompt, no mention of "library setup")
+  → If exists: proceed directly to Phase1
+Constraint: Must follow SOP-L01~L05; memory update mandatory after completion
+
+Execution Flow:
+ Step0: Auto-check library existence (see Auto-Check above)
+ Phase1: Call SOP-L03 → output: collection-plan-[DATE].md
+ Phase2: Execute collection → output: validated raw intelligence
+ Phase3: Process & filter (quality>=60%)
+ Phase4: Call SOP-L04 → output: intel product(s) in intelligence/hot/
+ Phase5: Call SOP-L05 → output: SITREP in intelligence/reports/
+ Phase6: Write memory note to .workbuddy/memory/YYYY-MM-DD.md
+
+Memory Update (Mandatory):
+ After completion, MUST append to:
+ - Daily: c:/Users/Admin/WorkBuddy/Claw/.workbuddy/memory/YYYY-MM-DD.md
+ - Long-term: MEMORY.md
+```
+
+**Prompt Template (CRISPE + Five-Element Hybrid):**
+```
+【Role】 Intelligence Director
+【Result】 Full 6-phase cycle executed; intelligence library updated; SITREP generated
+【Input】 Intelligence requirement, workspace root path
+【Steps】 Phase1: Plan → Phase2: Collect → Phase3: Process → Phase4: Analyze → Phase5: Disseminate → Phase6: Feedback
+【Parameters】 All paths under WORKSPACE_ROOT; no eval/exec; unknown domains blocked
+【Example】 Input: "收集情报" → Output: (auto-creates library if needed) intel products + SITREP + memory note
+```
+
+---
+
+### Integration with Existing SOPs
+
+| New SOP | Integrates With | Purpose |
+|---------|----------------|---------|
+| SOP-L01 | SOP-O01 (Records Lifecycle) | Library tiers match records tiers |
+| SOP-L02 | SOP-C01 (Source Validation) | Registry format |
+| SOP-L03 | SOP-C02 (Collection Tasking) | Plan format |
+| SOP-L04 | SOP-A01 (Core Assessment) | Product format |
+| SOP-L05 | SOP-A06 (Reporting Schedules) | SITREP schedule |
+| SOP-L06 | All above | Full cycle orchestration |
+
+---
+
+### Error Codes (Intelligence Library)
+
+| Code | Meaning | Resolution |
+|------|---------|------------|
+| INTEL_006 | Library structure creation failed | Check WORKSPACE_ROOT permissions |
+| INTEL_007 | Source registry corrupted | Restore from backup; re-validate |
+| INTEL_008 | Collection plan missing REQUIREMENTS | Return to Phase1 |
+| INTEL_009 | Product confidence LOW (<40%) | Suspend; re-collect |
+| INTEL_010 | SITREP generation failed | Check intelligence/reports/ exists |
+
+---
+
+### Constraints (Intelligence Library)
+
+- All file paths MUST be under WORKSPACE_ROOT
+- All sources MUST be rated A/B/C before operational use
+- All products MUST have confidence annotation
+- All 6-phase cycles MUST end with memory update
+- No `eval()` / `exec()` in collection scripts
+- All OSINT sources MUST be from whitelisted domains
+
+---
+
 ## Core Responsibilities
 
 | Section | Role | Key Responsibilities |

@@ -3,8 +3,8 @@
 > Unified AI Company Skill — 16 departments consolidated into one.
 > Empowering all-AI-employee technology companies with complete governance, engineering, and operations capabilities.
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.0.3-blue.svg)](_meta.json)
+[![License: GPL v3](https://img.shields.io/badge/License-GPL%20v3-blue.svg)](LICENSE)
+[![Version](https://img.shields.io/badge/version-1.0.4-blue.svg)](_meta.json)
 [![Maturity: STABLE](https://img.shields.io/badge/maturity-STABLE-green.svg)]()
 
 ---
@@ -132,6 +132,7 @@ pwsh -File "C:\Users\Admin\WorkBuddy\Claw\.workbuddy\scripts\ai-company-auto-upd
 
 | Version | Date | Changes |
 |---|---|---|
+| 1.1.0 | 2026-04-29 | Intel: Added Intelligence Library (SOP-L01~L06) with auto-triggered library setup on first collection request; SOP-L06 triggers on any intelligence collection request; Added INTEL_006~INTEL_010 error codes |
 | 1.0.3 | 2026-04-28 | Security: Scoped file permissions (P0 CISO fix); Finance: Capex policy, DSO/DPO targets (P1); Risk: FAIR thresholds & LEA calculation (P1); CTO: 3-stage deployment gate (P1); CQO: 85% test coverage threshold (P1); CEO: Board escalation ladder (P2); COO: OHS alerting + OKR integration (P2); CLO: DMCA takedown workflow (P2); Intel: 6-phase intelligence cycle (P2); CPO: Semver enforcement (P2) |
 | 1.0.2 | 2026-04-27 | Added auto-update: weekly automation, PowerShell script with 5-layer security gates, backup/rollback, publisher allowlist |
 | 1.0.1 | 2026-04-27 | CEO review: all 7 reference modules verified and rebuilt; added visualization, integrations, memory, data-integration, execution references |
