@@ -117,21 +117,51 @@ Production Operations Permission Levels:
   | L4-Hotfix | Emergency production fix | CTO approval, CISO post-review |
   | L5-Infrastructure | System config changes | CTO + CEO approval |
 
+3-Stage Deployment Gate (mandatory for all production releases):
+  Stage 1 — Dev Gate:
+    Pass Criteria: All unit tests pass (>=80% coverage); linting clean; peer review approved
+    Gate Owner: Lead developer + CTO
+    Blocker: Any test failure, security lint warning, or schema violation
+
+  Stage 2 — Staging Gate:
+    Pass Criteria: Integration tests pass (>=60% coverage); smoke test successful;
+                   CISO security scan clean (CVSS <4.0 or mitigations approved);
+                   CQO quality review score >=80; performance benchmark within +/-10% baseline
+    Gate Owner: CTO + CISO + CQO
+    Blocker: Security findings, quality score <60, performance regression >20%
+
+  Stage 3 — Production Gate:
+    Pass Criteria: Stage 2 passed; canary deployment healthy for minimum 30min;
+                   error rate <0.1%; latency p99 within SLA; COO sign-off
+    Gate Owner: CTO + COO + CISO
+    Blocker: Any canary metric breach during observation window
+
 Deployment Pipeline:
   1. CODE: Developer writes code
   2. REVIEW: Peer review + automated linting
-  3. TEST: Unit + integration + E2E tests
-  4. STAGE: Deploy to staging, smoke test
+  3. TEST: Unit + integration + E2E tests [Stage 1 Gate]
+  4. STAGE: Deploy to staging, smoke test [Stage 2 Gate]
   5. GATE: CISO security scan + CQO quality check
-  6. RELEASE: Deploy to production with canary
+  6. RELEASE: Deploy to production with canary [Stage 3 Gate]
   7. VERIFY: Monitor metrics for 1h post-deploy
   8. COMPLETE: Mark release as stable
 
 Rollback Protocol:
-  - Automatic: If error rate >5% within 15min of deploy
-  - Manual: CTO or COO can trigger rollback
-  - Full rollback: Revert to previous stable version
-  - Partial rollback: Feature flag off for affected component
+  Automatic Rollback Triggers (no human required):
+    - Error rate >5% within 15min of production deploy
+    - p99 latency degrades >50% vs pre-deploy baseline
+    - Any SEV1 security alert within 30min of deploy
+    - Health check failure on >2 instances
+
+  Manual Rollback Triggers:
+    - CTO or COO judgement call at any time
+    - CISO security concern post-deploy
+
+  Rollback Execution:
+    - Full rollback: Revert to previous stable version (primary path)
+    - Partial rollback: Feature flag off for affected component
+    - Rollback must complete within 10min of trigger
+    - Post-rollback: Mandatory incident review before re-attempt
 ```
 
 ### 3.5 MLOps

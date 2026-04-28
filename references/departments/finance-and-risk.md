@@ -16,11 +16,41 @@ Budget Cycle:
   Weekly: Cash flow monitoring
   Daily: Transaction logging and alert
 
+Financial Close Calendar:
+  | Close Type | Deadline | Owner | Deliverable |
+  |-----------|---------|-------|------------|
+  | Daily Close | EOD | CFO-Ops | Cash position + transaction log |
+  | Weekly Flash | Friday 17:00 | CFO | Revenue/cost/SLA summary |
+  | Monthly Close | M+5 business days | CFO | P&L, Balance Sheet, Cash Flow |
+  | Quarterly Close | Q+10 business days | CFO + CLO | Board package financials |
+  | Annual Close | Jan+20 business days | CFO + CLO + external auditor | Audited financials |
+
 Budget Approval Rules:
   <$1K: Auto-approve with logging
   $1K-$10K: CFO approval required
   $10K-$100K: CFO + CEO dual approval
   >$100K: Board approval required
+
+Capex Approval Policy:
+  Capex Definition: Any infrastructure/hardware purchase with useful life >1 year
+  | Amount | Approver | Documentation Required |
+  |--------|----------|----------------------|
+  | <$5K | CFO | PO + depreciation schedule |
+  | $5K-$50K | CFO + CTO | PO + ROI analysis + depreciation |
+  | $50K-$200K | CFO + CTO + CEO | Full capex proposal + Board summary |
+  | >$200K | Board approval | Full capex proposal + independent review |
+  Depreciation method: Straight-line over useful life (hardware 3yr, software 1yr)
+  Capex register maintained by CFO; reviewed quarterly by Board
+
+Working Capital Policy:
+  | Metric | Target | Alert Threshold | Action on Breach |
+  |--------|--------|----------------|-----------------|
+  | DSO (Days Sales Outstanding) | <=30 days | >45 days | Collections escalation to CLO |
+  | DPO (Days Payable Outstanding) | 30-45 days | <20 days | Payment rescheduling review |
+  | DIO (Days Inventory Outstanding) | <=7 days | >14 days | Inventory reduction sprint |
+  | Current Ratio | >=1.5 | <1.2 | CRO notification + liquidity plan |
+  | Cash Runway | >=12 months | <6 months | Board emergency session |
+  Working capital reviewed monthly by CFO; anomalies trigger CRO notification within 4h.
 
 Compute Cost Mapping:
   | Traditional Cost | Compute Cost Equivalent |
@@ -35,6 +65,15 @@ Dynamic Budget Allocation:
   Traffic > Baseline * 1.2 -> Compute Budget +15%, Trigger GPU Scale Up
   Traffic < Baseline * 0.7 -> Compute Budget -20%, Return GPU to Pool
   Otherwise -> Maintain current budget
+
+Freemium Cost Attribution:
+  Free-tier compute is tracked separately as "Customer Acquisition Cost (CAC) pool"
+  | Metric | Target | Alert |
+  |--------|--------|-------|
+  | Free-tier compute % of total | <=15% | >20% triggers review |
+  | Free-to-paid conversion rate | >=5% | <3% triggers CMO review |
+  | CAC payback period | <=12 months | >18 months triggers CFO+CMO review |
+  Monthly free-tier cost report sent to CEO + CMO.
 ```
 
 ### 3.2 Pricing Models
@@ -193,12 +232,44 @@ FAIR Model:
     Primary: Productivity + Response + Replacement
     Secondary: Fine/Judgment + Reputation + Competitive
 
-  | Risk Level | ALE Range | Action |
-  |-----------|-----------|--------|
-  | Critical | >$1M/yr | Immediate treatment, CEO+Board |
-  | High | $100K-$1M/yr | Treatment plan within 30 days |
-  | Medium | $10K-$100K/yr | Monitor, plan within 90 days |
-  | Low | <$10K/yr | Accept and monitor |
+  Loss Exposure Amount (LEA) Calculation:
+    LEA = ALE * Exposure_Factor
+    Exposure_Factor = Asset_Value * Vulnerability_Score (0.0-1.0)
+    Example: Asset $500K * Vuln 0.4 = Exposure $200K; if ALE = $200K/yr then LEA = $200K
+    LEA Review: Quarterly FAIR recalibration with actuals vs. estimates (+/-20% tolerance)
+    Back-test Cadence: Annual review of prior-year FAIR estimates vs. actual losses
+
+  | Risk Level | ALE Range | LEA Action | Escalation |
+  |-----------|-----------|-----------|-----------|
+  | Critical | >$1M/yr | Immediate treatment | CEO + Board within 2h |
+  | High | $100K-$1M/yr | Treatment plan within 30 days | CEO within 24h |
+  | Medium | $10K-$100K/yr | Monitor, plan within 90 days | CFO notification |
+  | Low | <$10K/yr | Accept and monitor | Quarterly review |
+
+CRO-CFO Escalation SLA:
+  - CRO_001 triggered (Risk threshold exceeded): CFO notified within 4h
+  - L2-Orange circuit breaker: CFO + CEO notified within 1h
+  - L3-Red circuit breaker: CFO + CEO + Board notified within 30min
+  - L4-Emergency: Immediate CFO + CEO + Board notification
+  - Monthly risk summary sent from CRO to CFO for financial provisioning
+
+Numeric Risk Thresholds (Risk Appetite Statement):
+  | Category | Acceptable | Warning | Unacceptable |
+  |----------|-----------|---------|-------------|
+  | Strategic ALE | <$500K/yr | $500K-$1M/yr | >$1M/yr |
+  | Financial (unhedged exposure) | <$200K | $200K-$500K | >$500K |
+  | Operational (data loss incidents) | 0 | Any single event | N/A (zero tolerance) |
+  | Compliance violations | 0/quarter | N/A | Any single violation |
+  | Reputational incidents | 0 | 1 minor/quarter | Any major incident |
+  All thresholds reviewed annually by CRO + Board; mid-year adjustment if market conditions change.
+
+Stress Testing:
+  | Scenario | Trigger | Analysis | Output |
+  |----------|---------|----------|--------|
+  | Base | Current trajectory | Standard FAIR | Monthly report |
+  | Bear | Revenue -30%, Costs +20% | Stress FAIR | Quarterly board |
+  | Stress | Revenue -50%, major incident | Crisis FAIR | Annual + on-demand |
+  Stress test results reviewed by CFO + CRO quarterly; Board annually.
 ```
 
 ### 3.3 Circuit Breaker
@@ -221,6 +292,14 @@ Indicators:
   | Compliance violations | >1/quarter | >1/month | >1/week |
 
 Recovery: CONTAIN -> ANALYZE -> REMEDIATE -> VERIFY -> RESTORE -> REVIEW -> PREVENT
+
+Circuit Breaker Test Schedule:
+  | Test Type | Frequency | Scope | Owner |
+  |-----------|-----------|-------|-------|
+  | Tabletop Exercise | Quarterly | L1-L3 scenarios | CRO + dept heads |
+  | Live Drill (non-prod) | Semi-annual | L1-L2 injection | CRO + CTO |
+  | Full Crisis Simulation | Annual | L3-L4 scenario | CRO + CEO + Board |
+  Test results documented and reviewed; improvements tracked in risk register.
 ```
 
 ### 3.4 Milestone Risk Gates

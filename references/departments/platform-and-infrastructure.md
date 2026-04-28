@@ -17,6 +17,19 @@ Naming Conventions:
   Versions: semver (MAJOR.MINOR.PATCH)
   Files: kebab-case.md, kebab-case.py
 
+Semver Enforcement Policy (Mandatory for all published skills):
+  | Change Type | Version Increment | Requires | Example |
+  |------------|------------------|----------|---------|
+  | Breaking API/interface change | MAJOR (X.0.0) | Board awareness + migration guide | 1.x.x -> 2.0.0 |
+  | New feature, backward compatible | MINOR (x.Y.0) | CQO review | 1.0.x -> 1.1.0 |
+  | Bug fix, security patch | PATCH (x.y.Z) | CISO sign-off for security patches | 1.0.0 -> 1.0.1 |
+  Rules:
+    - NEVER publish a skill without a semver version field in frontmatter
+    - NEVER re-use a version number once published to ClawHub
+    - Pre-release tags allowed: 1.1.0-alpha.1, 1.1.0-rc.1 (must NOT be distributed as stable)
+    - All MAJOR version increments require a migration guide in references/migration/
+    - Breaking changes require 90-day deprecation notice for MINOR version (see interoperability rules)
+
 Schema Standards (ClawHub v1.0):
   Required Frontmatter:
     name, slug, version, description, license, tags,

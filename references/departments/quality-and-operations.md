@@ -37,6 +37,13 @@ G4 - Idempotency & Robustness:
   - Boundary condition handling
   - Pass: All test cases pass
 
+  Skill Acceptance Test Coverage Threshold:
+    Unit test coverage: >=85% of documented behaviors
+    Error code coverage: 100% of defined error codes exercised
+    Boundary condition coverage: >=70%
+    Integration test coverage: >=60% of cross-department interfaces
+    Skills scoring below 85% unit coverage on G4 are REJECTED until remediated.
+
 G5 - ClawHub Acceptance:
   - VirusTotal scan clean
   - Content policy compliant

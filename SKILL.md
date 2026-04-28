@@ -1,7 +1,7 @@
 ---
-name: "ai-company"
-slug: "ai-company"
-version: "1.0.2"
+name: "ai-company-unified"
+slug: "ai-company-unified"
+version: "1.0.3"
 description: |
   Unified AI Company skill consolidating 16 department skills into one. Provides complete
   governance, finance, technology, security, legal, people, marketing, quality, intelligence,
@@ -230,7 +230,10 @@ interface:
     - code: TR_004
       message: "AIGC translation label missing"
 permissions:
-  files: [read, write]
+  files:
+    read: ["{WORKSPACE_ROOT}/**", "{SKILL_DIR}/**"]
+    write: ["{WORKSPACE_ROOT}/**"]
+    deny: ["~/.ssh/**", "~/.aws/**", "~/.config/**", "/etc/**", "C:/Windows/**"]
   network: [api]
   commands: []
   mcp: [sessions_send, subagents]
@@ -263,7 +266,7 @@ metadata:
     - ai-company-translator-3.0.0
 ---
 
-# AI Company v1.0.2
+# AI Company v1.1.0
 
 > Unified AI Company Skill — 16 departments consolidated into one.
 > Full specifications in [references/method-patterns.md](references/method-patterns.md) and [references/departments/](references/departments/).
@@ -331,8 +334,9 @@ pwsh -File "C:\Users\Admin\WorkBuddy\Claw\.workbuddy\scripts\ai-company-auto-upd
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 1.0.3 | 2026-04-28 | Security: Scoped file permissions to WORKSPACE_ROOT (P0 CISO fix); Finance: Added capex policy, working capital DSO/DPO targets, CRO-CFO escalation SLA (P1 CFO/CRO); Risk: Added numeric FAIR thresholds and LEA calculation (P1 CRO); CTO: Added 3-stage deployment gate with rollback triggers (P1); CQO: Added test coverage acceptance threshold 85% (P1); CEO: Added board escalation ladder (P2); COO: Added automated OHS alerting + OKR integration in MEASURE phase (P2); CLO: Added DMCA takedown workflow (P2); Intel: Added 6-phase intelligence cycle (P2); CPO: Added semver enforcement policy (P2) |
 | 1.0.2 | 2026-04-27 | Added auto-update: weekly automation (Sunday 02:00 UTC), PowerShell script with 5-layer security gates, backup/rollback, update log, publisher allowlist |
-| 8.0.0 | 2026-04-27 | CEO review complete: all 7 reference modules verified and rebuilt; added visualization.md, integrations.md, memory.md, data-integration.md, execution.md |
+| 1.0.1 | 2026-04-27 | CEO review complete: all 7 reference modules verified and rebuilt; added visualization.md, integrations.md, memory.md, data-integration.md, execution.md |
 | 1.0.0 | 2026-04-27 | Initial release to ClawHub as unified AI Company skill; 16 departments consolidated |
 
 ---

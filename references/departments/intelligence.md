@@ -500,32 +500,99 @@ No significant harm → UNCLASSIFIED
 
 ## CROSS-CUTTING: Integration Decision Trees
 
+### Standard 6-Phase Intelligence Cycle (Mandatory Framework)
+
+```
+Phase 1 — PLANNING & DIRECTION:
+  - Identify intelligence requirements (from Director + C-Suite)
+  - Define collection priorities and resource allocation
+  - Set analysis timelines and dissemination targets
+  - Output: Collection Plan (per SOP-C02)
+
+Phase 2 — COLLECTION:
+  - Execute collection tasks via OSINT/HUMINT/SIGINT channels
+  - Validate sources per SOP-C01 (reliability >= B before use)
+  - Apply OSINT validation checklist per SOP-C03
+  - Output: Validated raw intelligence items
+
+Phase 3 — PROCESSING & EXPLOITATION:
+  - Translate, filter, and normalize raw intelligence
+  - Apply quality scoring per SOP-C05
+  - Discard items below quality threshold (score <60%)
+  - Output: Processed intelligence corpus
+
+Phase 4 — ANALYSIS & PRODUCTION:
+  - Apply analytical methodology (ACH preferred for complex assessments)
+  - Assign confidence levels per standard:
+      HIGH (>=75%): Multiple sources, direct evidence, recent
+      MEDIUM (40-74%): Limited sources, indirect evidence, or aging
+      LOW (<40%): Single source, inference only, or unverifiable
+  - Mandatory analytical bias check per SOP-A05
+  - Output: Intelligence assessment products
+
+Phase 5 — DISSEMINATION:
+  - Route assessments to authorized consumers per classification
+  - Apply need-to-know filter (SOP-S04 classification)
+  - Deliver via HQ message bus using P1-P3 priority channels
+  - Record dissemination in audit trail
+  - Output: Delivered intelligence products
+
+Phase 6 — FEEDBACK & EVALUATION:
+  - Collect consumer feedback within 7 days of dissemination
+  - Track prediction accuracy (6-month post-assessment review)
+  - Update source reliability ratings based on outcome
+  - Feed lessons learned back to Phase 1 (Planning)
+  - Output: Updated source registry + collection plan improvements
+
+Cycle Timing:
+  | Intelligence Type | Full Cycle Time | Cadence |
+  |------------------|----------------|---------|
+  | Tactical (SITREP) | <24h | Daily |
+  | Operational (threat) | <72h | Weekly |
+  | Strategic (estimate) | 1-2 weeks | Monthly |
+  | Flash (urgent) | <4h | As needed |
+```
+
+### Analysis Confidence Thresholds (INTEL_002 Resolution)
+
+```
+Confidence Level Definitions:
+  HIGH (>=75%): Use without qualification; act on assessment
+  MEDIUM (40-74%): Use with caveats noted; seek additional collection before action
+  LOW (<40%): Do NOT act on alone; mandatory corroboration from 2+ independent sources
+
+INTEL_002 Trigger: Confidence score computed below 40% on assessment
+  -> Action: Suspend dissemination
+  -> Notify: Collection Lead to generate additional collection tasks
+  -> Re-assess after new collection; escalate to Director if gap persists >72h
+```
+
 ### Intelligence Cycle
 
 ```
-COLLECTION → Raw intel received?
-  YES → PROCESSING → Source reliability >= B?
-    YES → ANALYSIS → Methodology selected?
-      YES → Apply → Multiple hypotheses?
-        YES → ACH matrix → Confidence HIGH?
-          YES → DISSEMINATE
-          NO (MED) → Note gaps, proceed
-          NO (LOW) → Re-collection → Success?
-            YES → Re-analyze
-            NO → Escalate to Lead
-        NO → Identify gaps, broaden
-      NO → Default to Structured Analytic Techniques
-    NO → Flag for corroboration
-  NO → Return to Collection with gap report
+COLLECTION -> Raw intel received?
+  YES -> PROCESSING -> Source reliability >= B?
+    YES -> ANALYSIS -> Methodology selected?
+      YES -> Apply -> Multiple hypotheses?
+        YES -> ACH matrix -> Confidence HIGH?
+          YES -> DISSEMINATE
+          NO (MED) -> Note gaps, proceed
+          NO (LOW) -> Re-collection -> Success?
+            YES -> Re-analyze
+            NO -> Escalate to Lead
+        NO -> Identify gaps, broaden
+      NO -> Default to Structured Analytic Techniques
+    NO -> Flag for corroboration
+  NO -> Return to Collection with gap report
 ```
 
 ### Escalation to HQ
 
 ```
-P1 Critical → HQ within 1h → Director directly involved
-P2 High → HQ within 4h → Director oversight
-P3 Medium → Weekly summary → Director informed
-P4 Low → Monthly report → Routine channel
+P1 Critical -> HQ within 1h -> Director directly involved
+P2 High -> HQ within 4h -> Director oversight
+P3 Medium -> Weekly summary -> Director informed
+P4 Low -> Monthly report -> Routine channel
 ```
 
 ---

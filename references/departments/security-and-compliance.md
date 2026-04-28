@@ -137,13 +137,45 @@ ML Security Controls:
   | Monitoring | Adversarial detection | Input anomaly detection |
 ```
 
+### 3.6 Permission Model Policy
+
+```
+File Permission Scoping (Least Privilege Enforcement):
+  ALL skills and agents must follow these permission boundaries:
+
+  Allowed Read Paths:
+    - {WORKSPACE_ROOT}/**  (project files)
+    - {SKILL_DIR}/**       (own skill resources)
+
+  Allowed Write Paths:
+    - {WORKSPACE_ROOT}/**  (project output only)
+
+  Explicitly Denied Paths (CISO hard block):
+    - ~/.ssh/**            (SSH credentials)
+    - ~/.aws/**            (Cloud credentials)
+    - ~/.config/**         (System configuration)
+    - /etc/**              (System configuration)
+    - C:/Windows/**        (Windows system)
+    - Any path outside WORKSPACE_ROOT unless explicitly approved by CISO
+
+  Network Permissions:
+    - Only whitelisted API domains
+    - No arbitrary curl/wget to unknown URLs
+    - All external calls logged via HQ audit
+
+  Permission Change Process:
+    1. Agent requests expanded permission via CISO_003 gate
+    2. CISO reviews STRIDE implications within 24h
+    3. Board approval required for system-wide permission changes
+    4. All approved expansions time-limited and reviewed quarterly
+
+  CVSS Impact of Broad Permissions:
+    files: [read, write] (unrestricted) = Attack Vector: Local, Scope: Changed, Confidentiality: High
+    Estimated CVSS: 7.5 (High) -> REJECTED without scoping
+    files scoped to WORKSPACE_ROOT = Estimated CVSS: 3.8 (Low) -> APPROVED
+```
+
 ---
-
-## 4. Error Codes
-
-| Code | Meaning | Resolution |
-|------|---------|------------|
-| CISO_E001 | Security gate rejected | Address findings, resubmit |
 | CISO_E002 | STRIDE analysis required | Complete threat model |
 | CISO_E003 | CVSS exceeds threshold | Redesign or mitigate |
 | CISO_E004 | Incident detected | Execute incident protocol |
@@ -247,6 +279,32 @@ AI-Specific IP Considerations:
   - Model weights: Trade secret protection + access control
   - Prompt engineering: Trade secret + access restriction
   - Output ownership: Defined in ToS + customer agreements
+
+DMCA / Copyright Takedown Workflow:
+  Outbound (protecting our IP):
+    1. DETECT: CMO or CLO identifies unauthorized use of company IP
+    2. DOCUMENT: Screenshot, URL, timestamp, ownership evidence
+    3. DRAFT: CLO prepares DMCA takedown notice per 17 U.S.C. § 512(c)
+    4. SEND: Submit to platform/hosting provider (response window: 14 days)
+    5. ESCALATE: If no response after 14 days, engage external counsel
+    6. LOG: Track all takedowns in IP register
+
+  Inbound (responding to claims against us):
+    1. RECEIVE: Platform forwards takedown notice to CLO
+    2. ASSESS: CLO reviews claim within 48h (valid / invalid / dispute)
+    3. RESPOND: If valid — remove content + notify CMO; If invalid — file counter-notice
+    4. COUNTER-NOTICE: Drafted by CLO, sent within 14 days if content is legitimate
+    5. LITIGATION: If dispute escalates, CEO + Board notified for legal budget approval
+    6. LOG: All inbound claims tracked in compliance register
+
+Jurisdiction-Specific Compliance Checklist:
+  | Region | Key Rules | Check Frequency | Responsible |
+  |--------|-----------|----------------|-------------|
+  | EU | GDPR Art.17 right-to-erasure; AI Act prohibited practices | Continuous | CLO-EU |
+  | US | DMCA, CCPA consumer rights, state AI laws | Monthly | CLO-US |
+  | China | PIPL deletion rights, CAAC AI content rules | Continuous | CLO-CN |
+  | Global | ISO 27001, SOC 2 Type II | Annual | CLO-Global |
+  Any jurisdiction-specific violation: most restrictive rule applies; CLO escalates to CEO within 24h.
 ```
 
 ### 3.4 Legal Operations (from LEGAL)

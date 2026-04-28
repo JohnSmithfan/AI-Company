@@ -50,6 +50,14 @@ Escalation Matrix:
   | L4-Critical | Major partnership | CEO + Board | 48 hours |
   | L5-Existential | Company survival | Board + CEO | Immediate |
 
+Board Escalation Ladder (mandatory path for authority-exceeded decisions):
+  Step 1: Agent detects decision exceeds own authority -> escalate to Department Head
+  Step 2: Department Head cannot resolve within 4h -> escalate to C-Suite member
+  Step 3: C-Suite cannot resolve within 12h -> escalate to CEO
+  Step 4: CEO cannot resolve within 24h or issue is L4/L5 -> escalate to Board
+  Step 5: Board emergency session convened within 48h for L4; within 4h for L5
+  Note: CEO_002 "Insufficient authority" auto-escalates to Board after 48h with no override.
+
 Conflict Resolution Protocol:
   1. AUTO_DETECT: Monitor cross-department disputes via HQ
   2. TRIAGE: Classify severity (operational/strategic/crisis)
@@ -254,8 +262,9 @@ Message Template:
 Operational Loop:
   PLAN    -> Define objectives, allocate resources, set timelines
   EXECUTE -> Deploy tasks to agents, monitor progress
-  MEASURE -> Collect metrics, compare against SLA targets
-  ANALYZE -> Identify deviations, root cause analysis
+  MEASURE -> Collect metrics, compare against SLA targets; integrate OKR progress scores
+             (OKR scoring from PMGR injected into MEASURE phase at each loop cycle)
+  ANALYZE -> Identify deviations, root cause analysis; flag OKR at risk (<0.4 score)
   ADJUST  -> Corrective actions, resource rebalancing
   REPORT  -> Dashboard updates, stakeholder communication
 
@@ -268,6 +277,15 @@ Loop Timing:
 Operational Health Score:
   OHS = (SLA_Compliance * 0.3) + (Resource_Utilization * 0.25) + (Process_Efficiency * 0.25) + (Agent_Satisfaction * 0.2)
   Target: OHS >= 85/100
+
+OHS Automated Alerting:
+  | Threshold | Action | Recipient |
+  |-----------|--------|-----------|
+  | OHS < 85 | Automated alert triggered | COO + CEO |
+  | OHS < 75 | Improvement sprint mandatory | COO + CQO |
+  | OHS < 60 | Emergency review, potential CB Level L2 | COO + CEO + CRO |
+  Alert channel: HQ company.ops broadcast
+  Alert frequency: On OHS drop, then every 30min until resolved
 ```
 
 ### 3.2 SLA Management
