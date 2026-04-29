@@ -29,8 +29,9 @@ The REST pattern requires three key parameters: the exchange code identifying th
 Authentication for financial data APIs typically employs API key-based authentication passed via the Authorization header:
 
 ```
-Authorization: Bearer {api_key}
-X-API-Key: {api_key}
+<!-- TEMPLATE ONLY: {REDACTED} placeholders below — never substitute real credentials -->
+Authorization: Bearer {REDACTED}
+X-API-Key: {REDACTED}
 ```
 
 Rate limiting for stock data APIs generally allows between 100 and 1000 requests per minute depending on the subscription tier. Implementations should track request counts and implement exponential backoff when encountering rate limit responses (HTTP 429).
@@ -1996,7 +1997,7 @@ describe('DataProvider Integration', () => {
     provider = new DataProviderAdapter({
       name: 'test_provider',
       baseUrl: 'https://api.test-provider.com',
-      apiKey: process.env.TEST_API_KEY,
+      apiKey: process.env.TEST_API_KEY, // TEMPLATE: env var reference only — no real key
       rateLimit: { maxRequests: 10, windowMs: 1000 },
       cacheConfig: { enabled: true, ttlSeconds: 60 }
     });
@@ -2086,8 +2087,8 @@ API keys should never be hardcoded or logged. Use environment variables or secre
 // CORRECT: Environment variable
 const apiKey = process.env.PROVIDER_API_KEY;
 
-// INCORRECT: Hardcoded key
-const apiKey = 'sk_live_abc123xyz';
+// INCORRECT: Hardcoded key (REDACTED — never embed real credentials)
+const apiKey = 'REDACTED_EXAMPLE';
 ```
 
 ### Input Sanitization

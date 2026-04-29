@@ -44,6 +44,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Updated `prompts/04-documentation.md` error code ranges
   - Total: 103 unique error codes across 16 role-based prefixes, all consistent between main and nested files
 
+- **API key placeholder sanitization (CISO-001 fix)**
+  - `references/data-integration.md`: Replaced `{api_key}` with `{REDACTED}` in HTTP header templates (lines 32-33) and added "TEMPLATE ONLY" comment
+  - `references/data-integration.md`: Added inline `// TEMPLATE:` annotation to `process.env.TEST_API_KEY` test example (line 1999)
+  - `references/data-integration.md`: Replaced hardcoded anti-pattern `'sk_live_abc123xyz'` with `'REDACTED_EXAMPLE'` and added "REDACTED — never embed real credentials" annotation (line 2090)
+  - Prevents automated security scanner false positives while preserving educational value of code examples
+
 - **Version number consolidation**
   - Removed `version: "1.0.0"` from all 11 nested `references/departments/*/SKILL.md` frontmatter
   - Removed `v1.0.0` from all nested SKILL.md titles
@@ -58,23 +64,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ---
 
 ## [1.0.5] - 2026-04-29
-
-### 🔧 Fixed (P0 - Critical)
-
-- **sentiment-analysis-team sub-skill integration**
-  - Added `sentiment-analysis-team` to SKILL.md `enum` (line 73)
-  - Added `Sentiment Analysis Team` to Department Index table (line 308)
-  - Sub-skill now properly referenced and discoverable
-
-- **Chinese content violation (G1 rule)**
-  - Translated all Chinese content to English in `sentiment-analysis-team/`:
-    - `method-patterns.md`: 情报部门 → Intelligence, 舆情分析小组 → Sentiment Analysis Team
-    - `departments/query-engine.md`: 新闻搜索与数据采集 → News Searcher
-    - `departments/media-engine.md`: 多模态内容分析 → Multimodal Analyst
-    - `departments/insight-engine.md`: 数据库挖掘与NLP → Insight Miner
-    - `departments/report-engine.md`: 报告生成 → Report Generator
-    - `departments/forum-engine.md`: 协作讨论 → Forum Moderator
-  - Removed Chinese trigger words from SKILL.md (lines 58-59: 收集情报, 情报收集)
 
 ### 🔧 Fixed (P0 - Critical)
 
