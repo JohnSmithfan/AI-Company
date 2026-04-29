@@ -2102,7 +2102,7 @@ The HTML Dashboard provides a full-featured, interactive layout combining multip
     <aside class="sidebar">
       <div class="sidebar-header">
         <h1>Command Center</h1>
-        <div class="subtitle">AI-Company v5.0.0</div>
+        <div class="subtitle">AI-Company</div>
       </div>
       <nav>
         <div class="nav-item active">
@@ -3085,7 +3085,7 @@ All generated visualizations must include audit metadata:
 const auditMetadata = {
   generatedAt: new Date().toISOString(),
   generator: 'AI-Company Visualization Module v1.0',
-  version: '1.0.0',
+  version: '{{VERSION}}',
   template: 'chart-bar',
   dataSource: 'internal-dashboard',
   aigcContent: true,
@@ -3244,9 +3244,7 @@ Chart.defaults.maintainAspectRatio = false;
 
 ## Revision History
 
-| Version | Date | Author | Changes |
-|---------|------|--------|---------|
-| 1.0.0 | 2026-04-27 | CTO-viz | Initial release for AI-Company v5.0.0 |
+> Version history is maintained in the root CHANGELOG.md file.
 
 ---
 
@@ -3256,5 +3254,5 @@ Chart.defaults.maintainAspectRatio = false;
 
 ---
 
-*AIGC Generated Content | AI-Company Visualization Module | v1.0.0*  
+*AIGC Generated Content | AI-Company Visualization Module*  
 *For questions or updates, contact the CTO visualization team.*

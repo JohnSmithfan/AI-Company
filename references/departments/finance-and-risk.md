@@ -203,14 +203,14 @@ raw data retained 90 days, aggregated indefinitely, CISO approves exports.
 
 | Code | Meaning | Resolution |
 |------|---------|------------|
-| CFO_E001 | Budget overrun | Alert department head, request justification |
-| CFO_E002 | Pricing below cost floor | Block, require manual review |
-| CFO_E003 | Break-even target missed | Cost reduction sprint, notify CEO |
-| CFO_E004 | Data sanitization failure | Quarantine data, alert CISO |
-| CFO_E005 | Settlement discrepancy | Reconcile with CTO within 48h |
-| CFO_E006 | Contribution score anomaly | Flag for CHO review |
-| CFO_E007 | Report generation failed | Retry with degraded data |
-| CFO_E008 | Tax compliance violation | CLO notification, freeze transactions |
+| CFO_001 | Budget overrun | Alert department head, request justification |
+| CFO_002 | Pricing below cost floor | Block, require manual review |
+| CFO_003 | Break-even target missed | Cost reduction sprint, notify CEO |
+| CFO_004 | Data sanitization failure | Quarantine data, alert CISO |
+| CFO_005 | Settlement discrepancy | Reconcile with CTO within 48h |
+| CFO_006 | Contribution score anomaly | Flag for CHO review |
+| CFO_007 | Report generation failed | Retry with degraded data |
+| CFO_008 | Tax compliance violation | CLO notification, freeze transactions |
 
 ---
 
@@ -360,12 +360,12 @@ Gate 5 - Completion: Final assessment, lessons captured, residual risks document
 
 | Code | Meaning | Resolution |
 |------|---------|------------|
-| CRO_E001 | Risk indicator breach | Activate circuit breaker level |
-| CRO_E002 | FAIR analysis incomplete | Flag for manual completion |
-| CRO_E003 | Gate failure | HOLD initiative, remediate |
-| CRO_E004 | Risk register stale | Force quarterly update |
-| CRO_E005 | Circuit breaker triggered | Execute recovery protocol |
-| CRO_E006 | Residual risk exceeds appetite | Escalate to CEO |
+| CRO_001 | Risk indicator breach | Activate circuit breaker level |
+| CRO_002 | FAIR analysis incomplete | Flag for manual completion |
+| CRO_003 | Gate failure | HOLD initiative, remediate |
+| CRO_004 | Risk register stale | Force quarterly update |
+| CRO_005 | Circuit breaker triggered | Execute recovery protocol |
+| CRO_006 | Residual risk exceeds appetite | Escalate to CEO |
 
 ---
 

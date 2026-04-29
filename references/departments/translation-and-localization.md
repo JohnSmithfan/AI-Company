@@ -102,13 +102,13 @@ CISO Security for Translation:
 
 | Code | Meaning | Resolution |
 |------|---------|------------|
-| TR_E001 | Translation quality below threshold | Human review required |
-| TR_E002 | Unsupported language | Route to external translation service |
-| TR_E003 | Translation memory conflict | Manual resolution, update TM |
-| TR_E004 | AIGC label missing | Apply label, log gap |
-| TR_E005 | PII detected in source | Sanitize, re-route |
-| TR_E006 | Turnaround SLA breach | Escalate to TR-COORD, add resources |
-| TR_E007 | Terminology inconsistency | Update term base, re-translate affected |
+| TR_001 | Translation quality below threshold | Human review required |
+| TR_002 | Unsupported language | Route to external translation service |
+| TR_003 | Translation memory conflict | Manual resolution, update TM |
+| TR_004 | AIGC label missing | Apply label, log gap |
+| TR_005 | PII detected in source | Sanitize, re-route |
+| TR_006 | Turnaround SLA breach | Escalate to TR-COORD, add resources |
+| TR_007 | Terminology inconsistency | Update term base, re-translate affected |
 
 ---
 

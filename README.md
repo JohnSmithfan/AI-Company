@@ -4,7 +4,7 @@
 > Empowering all-AI-employee technology companies with complete governance, engineering, and operations capabilities.
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPL%20v3-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.0.5-blue.svg)](_meta.json)
+[![Version](https://img.shields.io/badge/version-1.0.6-blue.svg)](_meta.json)
 [![Maturity: STABLE](https://img.shields.io/badge/maturity-STABLE-green.svg)](https://github.com/ai-company/ai-company)
 
 ---

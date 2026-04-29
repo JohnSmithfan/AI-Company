@@ -176,13 +176,13 @@ File Permission Scoping (Least Privilege Enforcement):
 ```
 
 ---
-| CISO_E002 | STRIDE analysis required | Complete threat model |
-| CISO_E003 | CVSS exceeds threshold | Redesign or mitigate |
-| CISO_E004 | Incident detected | Execute incident protocol |
-| CISO_E005 | Credential exposure | Rotate immediately, audit access |
-| CISO_E006 | Model security violation | Halt deployment, remediate |
-| CISO_E007 | Audit log tampering | Alert CEO+Board, forensic analysis |
-| CISO_E008 | Permission escalation attempt | Block, investigate, notify |
+| CISO_002 | STRIDE analysis required | Complete threat model |
+| CISO_003 | CVSS exceeds threshold | Redesign or mitigate |
+| CISO_004 | Incident detected | Execute incident protocol |
+| CISO_005 | Credential exposure | Rotate immediately, audit access |
+| CISO_006 | Model security violation | Halt deployment, remediate |
+| CISO_007 | Audit log tampering | Alert CEO+Board, forensic analysis |
+| CISO_008 | Permission escalation attempt | Block, investigate, notify |
 
 ---
 
@@ -369,14 +369,14 @@ Ethics Assessment Framework:
 
 | Code | Meaning | Resolution |
 |------|---------|------------|
-| CLO_E001 | Compliance violation detected | Immediate remediation, notify CISO |
-| CLO_E002 | AIGC review failed | Block content, flag for manual review |
-| CLO_E003 | IP infringement suspected | Investigate, notify CTO, legal action |
-| CLO_E004 | Contract review failed | Revise terms, renegotiate |
-| CLO_E005 | Regulatory change detected | Assess impact, update procedures |
-| CLO_E006 | Ethics review required | Schedule ethics board session |
-| CLO_E007 | Data protection breach | Activate incident protocol |
-| CLO_E008 | Jurisdiction conflict | Apply most restrictive rule |
+| CLO_001 | Compliance violation detected | Immediate remediation, notify CISO |
+| CLO_002 | AIGC review failed | Block content, flag for manual review |
+| CLO_003 | IP infringement suspected | Investigate, notify CTO, legal action |
+| CLO_004 | Contract review failed | Revise terms, renegotiate |
+| CLO_005 | Regulatory change detected | Assess impact, update procedures |
+| CLO_006 | Ethics review required | Schedule ethics board session |
+| CLO_007 | Data protection breach | Activate incident protocol |
+| CLO_008 | Jurisdiction conflict | Apply most restrictive rule |
 
 ---
 

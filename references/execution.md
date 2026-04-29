@@ -1749,7 +1749,7 @@ Workflow templates are reusable execution patterns for common operational scenar
 {
   "template_id": "WFT-001",
   "template_name": "Data Collection Pipeline",
-  "version": "1.0.0",
+  "version": "{{VERSION}}",
   "description": "Multi-source data collection with validation and storage",
   "execution_mode": "hybrid",
   "trigger": {
@@ -1860,7 +1860,7 @@ Workflow templates are reusable execution patterns for common operational scenar
 {
   "template_id": "WFT-002",
   "template_name": "Report Generation Pipeline",
-  "version": "1.0.0",
+  "version": "{{VERSION}}",
   "description": "Structured report generation with quality review and publication",
   "execution_mode": "hybrid",
   "trigger": {
@@ -1994,7 +1994,7 @@ Workflow templates are reusable execution patterns for common operational scenar
 {
   "template_id": "WFT-003",
   "template_name": "Alert Response Pipeline",
-  "version": "1.0.0",
+  "version": "{{VERSION}}",
   "description": "Automated alert response with investigation, mitigation, and verification",
   "execution_mode": "hybrid",
   "trigger": {

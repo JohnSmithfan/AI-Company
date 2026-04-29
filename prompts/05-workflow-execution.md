@@ -7,7 +7,7 @@
 ## Prompt
 
 ```
-Execute the AI Company unified skill (v1.0.5) workflow for the specified task.
+Execute the AI Company unified skill workflow for the specified task.
 
 Workflow:
   1. DEPARTMENT SELECT: Identify which department handles this task

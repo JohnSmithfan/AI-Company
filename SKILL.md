@@ -1,13 +1,13 @@
 ---
 name: "ai-company-unified"
 slug: "ai-company-unified"
-version: "1.0.5"
+version: "1.0.6"
 description: |
   Unified AI Company skill consolidating 16 department skills into one. Provides complete
-  governance, finance, technology, security, legal, people, marketing, quality, intelligence,
-  information, and translation capabilities for all-AI-employee technology companies. Includes
-  10 core code templates, 3 prompt frameworks (CRISPE/3WEH/Five-Element), L1-L6 harness
-  engineering, CI/CD pipeline, ADR process, AIGC compliance, VirusTotal/ClawHub security
+  governance, finance, technology, security, legal, people, marketing, quality, intelligence
+  (including Sentiment Analysis Team), information, and translation capabilities for all-AI-employee
+  technology companies. Includes 10 core code templates, 3 prompt frameworks (CRISPE/3WEH/Five-Element),
+  L1-L6 harness engineering, CI/CD pipeline, ADR process, AIGC compliance, VirusTotal/ClawHub security
   verification, and progressive disclosure architecture. Use when any AI-Company department
   function is needed — this skill contains all of them.
 license: "GPL-3.0"
@@ -70,7 +70,7 @@ interface:
           description: Task description
         department:
           type: string
-          enum: [governance-and-strategy, finance-and-risk, technology-and-engineering, platform-and-infrastructure, security-and-compliance, people-and-culture, marketing-and-partnerships, quality-and-operations, intelligence, information, translation-and-localization, sentiment-analysis-team, auto]
+          enum: [governance-and-strategy, finance-and-risk, technology-and-engineering, platform-and-infrastructure, security-and-compliance, people-and-culture, marketing-and-partnerships, quality-and-operations, intelligence, information, translation-and-localization, auto]
           description: Which department to invoke
         context:
           type: object
@@ -97,12 +97,20 @@ interface:
       message: "Cross-agent conflict"
     - code: CEO_004
       message: "Orchestration pipeline failed"
+    - code: CEO_005
+      message: "Crisis protocol activation failed"
+    - code: CEO_006
+      message: "Strategic alignment check failed"
+    - code: CEO_007
+      message: "Escalation timeout"
     - code: COO_001
       message: "SLA breach detected"
     - code: COO_002
       message: "Resource conflict"
     - code: COO_003
       message: "OKR misalignment"
+    - code: COO_004
+      message: "Resource allocation failed"
     - code: HQ_001
       message: "Agent conflict unresolved"
     - code: HQ_002
@@ -111,6 +119,8 @@ interface:
       message: "Audit trail broken"
     - code: HQ_004
       message: "Scheduling deadlock"
+    - code: HQ_005
+      message: "Cross-agent routing failed"
     - code: CFO_001
       message: "Budget overrun"
     - code: CFO_002
@@ -123,6 +133,8 @@ interface:
       message: "Circuit breaker triggered"
     - code: CRO_003
       message: "FAIR assessment incomplete"
+    - code: CRO_004
+      message: "Gate failure"
     - code: CTO_001
       message: "Architecture violation"
     - code: CTO_002
@@ -133,6 +145,8 @@ interface:
       message: "Production operation denied"
     - code: CTO_005
       message: "MLOps pipeline error"
+    - code: CTO_006
+      message: "Deployment failed"
     - code: FW_001
       message: "Schema validation failed"
     - code: FW_002
@@ -171,6 +185,8 @@ interface:
       message: "IP protection required"
     - code: CLO_005
       message: "Ethics review required"
+    - code: CLO_006
+      message: "AIGC review failed"
     - code: CHO_001
       message: "Agent onboarding failed"
     - code: CHO_002
@@ -179,6 +195,10 @@ interface:
       message: "Knowledge extraction failed"
     - code: CHO_004
       message: "Lifecycle violation"
+    - code: CHO_005
+      message: "Ethics violation"
+    - code: CHO_006
+      message: "Culture audit failed"
     - code: CMO_001
       message: "Brand violation"
     - code: CMO_002
@@ -187,6 +207,12 @@ interface:
       message: "Discovery pipeline failed"
     - code: CMO_004
       message: "Data protection violation"
+    - code: CMO_005
+      message: "GTM strategy missing"
+    - code: CMO_006
+      message: "Partnership conflict"
+    - code: CMO_007
+      message: "NPS below target"
     - code: CQO_001
       message: "Quality gate failed"
     - code: CQO_002
@@ -195,6 +221,8 @@ interface:
       message: "Review rejected"
     - code: CQO_004
       message: "Documentation incomplete"
+    - code: CQO_005
+      message: "DORA metric breach"
     - code: PMGR_001
       message: "Project deadline missed"
     - code: PMGR_002
@@ -203,6 +231,12 @@ interface:
       message: "Customer escalation"
     - code: PMGR_004
       message: "Sprint commitment failed"
+    - code: PMGR_005
+      message: "Task decomposition failed"
+    - code: PMGR_006
+      message: "NPS threshold breach"
+    - code: PMGR_007
+      message: "Ticket SLA violation"
     - code: INTEL_001
       message: "Intelligence collection failed"
     - code: INTEL_002
@@ -223,6 +257,14 @@ interface:
       message: "Product confidence LOW (<40%)"
     - code: INTEL_010
       message: "SITREP generation failed"
+    - code: INTEL_011
+      message: "Component degraded"
+    - code: INTEL_012
+      message: "Security violation"
+    - code: INTEL_013
+      message: "Source compromised"
+    - code: INTEL_014
+      message: "Classification breach"
     - code: INFO_001
       message: "Location unavailable"
     - code: INFO_002
@@ -233,6 +275,16 @@ interface:
       message: "Multi-source fusion failed"
     - code: INFO_005
       message: "API rate limit exceeded"
+    - code: INFO_006
+      message: "No location source available"
+    - code: INFO_007
+      message: "Weather API request failed"
+    - code: INFO_008
+      message: "Time source unavailable"
+    - code: INFO_009
+      message: "Required API credentials missing"
+    - code: INFO_010
+      message: "Invalid coordinates format"
     - code: TR_001
       message: "Translation quality below threshold"
     - code: TR_002
@@ -241,6 +293,8 @@ interface:
       message: "Cultural adaptation required"
     - code: TR_004
       message: "AIGC translation label missing"
+    - code: TR_005
+      message: "Language routing error"
 permissions:
   files:
     read: ["{WORKSPACE_ROOT}/**", "{SKILL_DIR}/**"]
@@ -278,7 +332,7 @@ metadata:
     - ai-company-translator-3.0.0
 ---
 
-# AI Company v1.0.5
+# AI Company v1.0.6
 
 > Unified AI Company Skill — 16 departments consolidated into one.
 > Full specifications in [references/method-patterns.md](references/method-patterns.md) and [references/departments/](references/departments/).
@@ -303,7 +357,7 @@ Complete AI company operations: governance, finance, technology, security, legal
 | Intelligence | Intel | [intelligence.md](references/departments/intelligence.md) |
 | Information Services | Information | [information.md](references/departments/information.md) |
 | Translation & Localization | Translator | [translation-and-localization.md](references/departments/translation-and-localization.md) |
-| Sentiment Analysis Team | QueryEngine, MediaEngine, InsightEngine, ReportEngine, ForumEngine | [sentiment-analysis-team/method-patterns.md](references/departments/sentiment-analysis-team/method-patterns.md) |
+| Sentiment Analysis Team | QueryEngine, MediaEngine, InsightEngine, ReportEngine, ForumEngine | [intelligence/method-patterns.md](references/departments/intelligence/references/method-patterns.md) |
 
 ## Shared Resources
 
@@ -313,7 +367,7 @@ Complete AI company operations: governance, finance, technology, security, legal
 
 ## Error Codes
 
-All error codes use department prefix (e.g., CEO_001, CFO_001, CISO_001). See individual department files for complete error code reference and resolution steps.
+All error codes use role-based prefix (e.g., CEO_001, CFO_001, CISO_001). See individual department files for complete error code reference and resolution steps.
 
 ## Prompts
 

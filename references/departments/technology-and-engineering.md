@@ -227,14 +227,14 @@ Model Security Requirements:
 
 | Code | Meaning | Resolution |
 |------|---------|------------|
-| CTO_E001 | Architecture violation detected | Review ADR, remediate |
-| CTO_E002 | Agent creation failed | Check template, retry |
-| CTO_E003 | Skill schema invalid | Fix schema, re-validate |
-| CTO_E004 | Deployment failed | Rollback, investigate |
-| CTO_E005 | Production incident | Execute incident protocol |
-| CTO_E006 | Model drift detected | Schedule retraining |
-| CTO_E007 | Resource exhaustion | Scale up, notify COO+CFO |
-| CTO_E008 | Security gate blocked | Address CISO findings |
+| CTO_001 | Architecture violation detected | Review ADR, remediate |
+| CTO_002 | Agent creation failed | Check template, retry |
+| CTO_003 | Skill schema invalid | Fix schema, re-validate |
+| CTO_004 | Deployment failed | Rollback, investigate |
+| CTO_005 | Production incident | Execute incident protocol |
+| CTO_006 | Model drift detected | Schedule retraining |
+| CTO_007 | Resource exhaustion | Scale up, notify COO+CFO |
+| CTO_008 | Security gate blocked | Address CISO findings |
 
 ---
 

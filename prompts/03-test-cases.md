@@ -7,7 +7,7 @@
 ## Prompt
 
 ```
-Generate comprehensive test cases for the AI Company unified skill (v1.0.4).
+Generate comprehensive test cases for the AI Company unified skill.
 Cover all 16 departments and shared infrastructure.
 ```
 

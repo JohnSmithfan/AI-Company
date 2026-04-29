@@ -61,7 +61,7 @@ Steps:
 #### 3.1.4 Fallback Chain
 
 ```
-GPS → System → IP → WiFi → Cellular → Error(INFO_001)
+GPS → System → IP → WiFi → Cellular → Error(INFO_006)
 ```
 
 Each step attempts for up to 5 seconds before proceeding to next method.
@@ -149,8 +149,8 @@ User Request → Geolocation → Weather Lookup → Multi-Source Fusion → Outp
 |-------|--------|----------|
 | No location available | Use IP-based location | Default to configured city |
 | Weather API timeout | Retry with alternate source | Return partial data |
-| All sources failed | Return Error(INFO_002) | Include last-known if available |
-| Invalid coordinates | Return Error(INFO_005) | Suggest city-name input |
+| All sources failed | Return Error(INFO_007) | Include last-known if available |
+| Invalid coordinates | Return Error(INFO_010) | Suggest city-name input |
 
 #### 3.2.6 Cache Policy
 
@@ -307,11 +307,11 @@ Overall confidence = minimum confidence across all sub-results.
 
 | Code | Message | Recovery |
 |------|---------|----------|
-| INFO_001 | No location source available | Try manual city input |
-| INFO_002 | Weather API request failed | Retry with alternate source |
-| INFO_003 | Time source unavailable | Use system clock as fallback |
-| INFO_004 | Required API credentials missing | Configure API keys in environment |
-| INFO_005 | Invalid coordinates format | Use "lat,lon" format (e.g. "39.9,116.4") |
+| INFO_006 | No location source available | Try manual city input |
+| INFO_007 | Weather API request failed | Retry with alternate source |
+| INFO_008 | Time source unavailable | Use system clock as fallback |
+| INFO_009 | Required API credentials missing | Configure API keys in environment |
+| INFO_010 | Invalid coordinates format | Use "lat,lon" format (e.g. "39.9,116.4") |
 
 ---
 

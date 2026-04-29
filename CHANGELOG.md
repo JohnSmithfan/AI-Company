@@ -7,6 +7,56 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.0.6] - 2026-04-30
+
+### 🔧 Fixed (P0 - Critical)
+
+- **sentiment-analysis-team fully merged into intelligence department**
+  - Removed `sentiment-analysis-team` from SKILL.md `enum` (now part of intelligence)
+  - Updated Department Index table path from `sentiment-analysis-team/` to `intelligence/`
+  - Created `intelligence/departments/` with 5 agent specs (query-engine, media-engine, insight-engine, report-engine, forum-engine)
+  - Added 3 sentiment-specific prompts to `intelligence/prompts/` (s03-s05)
+  - Added Section G (SOP-SENT01~SENT10) to `intelligence/references/method-patterns.md`
+  - Updated `intelligence/SKILL.md` changelog (v1.1.0) and merged_from list
+  - Deleted standalone `sentiment-analysis-team/` directory
+
+- **Internal path references fixed**
+  - `departments/intelligence.md`: Updated subdirectory reference
+  - `main SKILL.md`: Updated Department Index path
+
+- **Version triple synchronization (CTO-001 fix)**
+  - `_meta.json`: Updated version from 1.0.5 to 1.0.6
+  - `.clawhub/origin.json`: Updated installedVersion from 1.0.1 to 1.0.6
+  - `README.md`: Updated version badge from 1.0.5 to 1.0.6
+
+- **License consistency fix (CLO-001 fix)**
+  - All 11 nested `references/departments/*/SKILL.md` files: Replaced `license: "MIT-0"` → `license: "GPL-3.0"` (22 occurrences)
+  - Ensures GPL-3.0 copyleft consistency across entire skill per GPL-3.0 Section 5(c)
+
+- **Prompt file version drift fix (CTO-002 fix)**
+  - Removed version references from all prompt files (version only in root CHANGELOG.md)
+
+- **Error code prefix standardization (CTO-003 fix)**
+  - Replaced all department-based error code prefixes (GOV_, FIN_, TECH_, PLAT_, SEC_, PEOP_, MKT_, QUAL_, TRANS_) with role-based prefixes (CEO_, CFO_, CTO_, FW_, CISO_, CLO_, CHO_, CMO_, CQO_, PMGR_, TR_) across 11 nested SKILL.md files and all reference files
+  - Added 28 new error codes to main SKILL.md to cover nested-specific errors: CEO_005-007, COO_004, HQ_005, CRO_004, CTO_006, CLO_006, CHO_005-006, CMO_005-007, CQO_005, PMGR_005-007, INTEL_011-014, INFO_006-010, TR_005
+  - Aligned all error messages between main and nested SKILL.md files (6 message wording fixes)
+  - Replaced CFO_E/CRO_E/CTO_E/CISO_E/CLO_E/TR_E format with standard CFO_/CRO_/CTO_/CISO_/CLO_/TR_ format in reference files
+  - Updated `prompts/04-documentation.md` error code ranges
+  - Total: 103 unique error codes across 16 role-based prefixes, all consistent between main and nested files
+
+- **Version number consolidation**
+  - Removed `version: "1.0.0"` from all 11 nested `references/departments/*/SKILL.md` frontmatter
+  - Removed `v1.0.0` from all nested SKILL.md titles
+  - Removed `## Changelog` sections from all 11 nested SKILL.md files (consolidated to root CHANGELOG.md)
+  - Removed version numbers from all `prompts/*.md` files
+  - Removed version numbers from `intelligence/departments/*.md` footer lines
+  - Removed version numbers from `intelligence/prompts/s*.md` footer lines and zip filenames
+  - Replaced hardcoded `"version": "1.0.0"` with `"version": "{{VERSION}}"` in code templates (execution.md, visualization.md)
+  - Removed Revision History table from visualization.md (consolidated to root CHANGELOG.md)
+  - **Policy**: Version numbers only in SKILL.md (frontmatter), _meta.json, origin.json, README.md (badge), and CHANGELOG.md
+
+---
+
 ## [1.0.5] - 2026-04-29
 
 ### 🔧 Fixed (P0 - Critical)

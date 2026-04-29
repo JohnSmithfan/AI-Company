@@ -7,7 +7,7 @@
 ## Prompt
 
 ```
-Generate documentation for the AI Company unified skill (v5.0.0).
+Generate documentation for the AI Company unified skill.
 
 Structure the documentation as follows:
 ```
@@ -29,17 +29,17 @@ For each department, document:
 
 | Department | Roles | Key Error Codes |
 |-----------|-------|----------------|
-| Governance & Strategy | CEO, COO, HQ | CEO_001-004, COO_001-003, HQ_001-004 |
-| Finance & Risk | CFO, CRO | CFO_001-003, CRO_001-003 |
-| Technology & Engineering | CTO | CTO_001-005 |
+| Governance & Strategy | CEO, COO, HQ | CEO_001-007, COO_001-004, HQ_001-005 |
+| Finance & Risk | CFO, CRO | CFO_001-003, CRO_001-004 |
+| Technology & Engineering | CTO | CTO_001-006 |
 | Platform & Infrastructure | Framework | FW_001-010 |
-| Security & Compliance | CISO, CLO | CISO_001-004, CLO_001-005 |
-| People & Culture | CHO | CHO_001-004 |
-| Marketing & Partnerships | CMO | CMO_001-004 |
-| Quality & Operations | CQO, PMGR | CQO_001-004, PMGR_001-004 |
-| Intelligence | Intel | INTEL_001-005 |
-| Information Services | Info | INFO_001-005 |
-| Translation & Localization | Translator | TR_001-004 |
+| Security & Compliance | CISO, CLO | CISO_001-004, CLO_001-006 |
+| People & Culture | CHO | CHO_001-006 |
+| Marketing & Partnerships | CMO | CMO_001-007 |
+| Quality & Operations | CQO, PMGR | CQO_001-005, PMGR_001-007 |
+| Intelligence | Intel | INTEL_001-014 |
+| Information Services | Info | INFO_001-010 |
+| Translation & Localization | Translator | TR_001-005 |
 
 ## 3. Shared Code Templates Reference
 

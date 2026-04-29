@@ -1,7 +1,7 @@
 ## SECTION G: SENTIMENT ANALYSIS TEAM
 
 > Added: 2026-04-29 | Per AI Company Governance Framework
-> Full specifications in [sentiment-analysis-team/](sentiment-analysis-team/) subdirectory.
+> Full specifications in [intelligence/SKILL.md](references/departments/intelligence/SKILL.md) and [intelligence/departments/](references/departments/intelligence/departments/) directory.
 
 ### SOP-SENT01: Team Overview
 
@@ -376,4 +376,4 @@ Integration Points:
 ---
 
 *Sentiment Analysis Team added: 2026-04-29 | Integrated with 6-Phase Intelligence Cycle*
-*AI Company v1.0.5 | Intelligence Department | AI Company Governance Framework*
+*AI Company | Intelligence Department | AI Company Governance Framework*
