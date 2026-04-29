@@ -246,7 +246,7 @@ permissions:
     read: ["{WORKSPACE_ROOT}/**", "{SKILL_DIR}/**"]
     write: ["{WORKSPACE_ROOT}/**"]
     deny: ["~/.ssh/**", "~/.aws/**", "~/.config/**", "/etc/**", "{WINDOWS_DIR}/**"]
-  network: [api]
+  network: []  # Sub-skills declare their own network needs
   commands: []
   mcp: [sessions_send, subagents]
 quality:
@@ -278,7 +278,7 @@ metadata:
     - ai-company-translator-3.0.0
 ---
 
-# AI Company v1.0.4
+# AI Company v1.0.5
 
 > Unified AI Company Skill — 16 departments consolidated into one.
 > Full specifications in [references/method-patterns.md](references/method-patterns.md) and [references/departments/](references/departments/).

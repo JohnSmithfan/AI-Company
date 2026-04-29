@@ -1,13 +1,3 @@
-## Changelog
-
-| Version | Date | Changes |
-|---------|------|---------|
-| 1.0.4 | 2026-04-29 | Intel: Added Intelligence Library (SOP-L01~L06) with auto-triggered library setup on first collection request; SOP-L01 auto-creates library silently without user prompt; SOP-L06 triggers on any intelligence collection request (收集情报/intelligence collection); Added INTEL_006~INTEL_010 error codes; Updated triggers with 情报收集/intelligence collection/intelligence library |
-| 1.0.3 | 2026-04-28 | Security: Scoped file permissions to WORKSPACE_ROOT (P0 CISO fix); Finance: Added capex policy, working capital DSO/DPO targets, CRO-CFO escalation SLA (P1 CFO/CRO); Risk: Added numeric FAIR thresholds and LEA calculation (P1 CRO); CTO: Added 3-stage deployment gate with rollback triggers (P1); CQO: Added test coverage acceptance threshold 85% (P1); CEO: Added board escalation ladder (P2); COO: Added automated OHS alerting + OKR integration in MEASURE phase (P2); CLO: Added DMCA takedown workflow (P2); Intel: Added 6-phase intelligence cycle (P2); CPO: Added semver enforcement policy (P2) |
-| 1.0.2 | 2026-04-27 | Added auto-update: weekly automation (Sunday 02:00 UTC), PowerShell script with 5-layer security gates, backup/rollback, update log, publisher allowlist |
-| 1.0.1 | 2026-04-27 | CEO review complete: all 7 reference modules verified and rebuilt; added visualization.md, integrations.md, memory.md, data-integration.md, execution.md |
-| 1.0.0 | 2026-04-27 | Initial release to ClawHub as unified AI Company skill; 16 departments consolidated |
-
 # Changelog
 
 All notable changes to the AI Company Unified skill are documented in this file.
@@ -18,6 +8,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ---
 
 ## [1.0.5] - 2026-04-29
+
+### 🔧 Fixed (P0 - Critical)
+
+- **sentiment-analysis-team sub-skill integration**
+  - Added `sentiment-analysis-team` to SKILL.md `enum` (line 73)
+  - Added `Sentiment Analysis Team` to Department Index table (line 308)
+  - Sub-skill now properly referenced and discoverable
+
+- **Chinese content violation (G1 rule)**
+  - Translated all Chinese content to English in `sentiment-analysis-team/`:
+    - `method-patterns.md`: 情报部门 → Intelligence, 舆情分析小组 → Sentiment Analysis Team
+    - `departments/query-engine.md`: 新闻搜索与数据采集 → News Searcher
+    - `departments/media-engine.md`: 多模态内容分析 → Multimodal Analyst
+    - `departments/insight-engine.md`: 数据库挖掘与NLP → Insight Miner
+    - `departments/report-engine.md`: 报告生成 → Report Generator
+    - `departments/forum-engine.md`: 协作讨论 → Forum Moderator
+  - Removed Chinese trigger words from SKILL.md (lines 58-59: 收集情报, 情报收集)
 
 ### 🔧 Fixed (P0 - Critical)
 
