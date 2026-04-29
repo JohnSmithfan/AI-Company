@@ -50,6 +50,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `references/data-integration.md`: Replaced hardcoded anti-pattern `'sk_live_abc123xyz'` with `'REDACTED_EXAMPLE'` and added "REDACTED — never embed real credentials" annotation (line 2090)
   - Prevents automated security scanner false positives while preserving educational value of code examples
 
+- **CHANGELOG duplicate entry removal (CQO-004 fix)**
+  - Removed duplicate `### 🔧 Fixed (P0 - Critical)` section in v1.0.5 (copy-paste error: identical P0 block appeared twice, lines 85-100 were duplicate of lines 68-83)
+  - v1.0.5 section now has clean structure: P0 → P1 → P2
+
 - **Version number consolidation**
   - Removed `version: "1.0.0"` from all 11 nested `references/departments/*/SKILL.md` frontmatter
   - Removed `v1.0.0` from all nested SKILL.md titles
