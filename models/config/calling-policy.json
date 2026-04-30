@@ -1,0 +1,81 @@
+{
+  "schema_version": "1.0",
+  "last_updated": "2026-05-01T03:00:00Z",
+  "global_policies": {
+    "require_authentication": true,
+    "audit_all_calls": true,
+    "enforce_rate_limits": true,
+    "allow_local_fallback": true
+  },
+  "cost_control": {
+    "enabled": true,
+    "tracking": {
+      "per_department": true,
+      "per_model": true,
+      "per_user": false
+    },
+    "budgets": {
+      "daily_limit_usd": 100.0,
+      "monthly_limit_usd": 1000.0,
+      "per_department": {
+        "DEFAULT": 200.0,
+        "governance-and-strategy": 500.0,
+        "technology-and-engineering": 300.0
+      }
+    },
+    "alerts": {
+      "threshold_percentage": 80,
+      "notify_roles": ["CFO", "CTO"]
+    }
+  },
+  "rate_limiting": {
+    "per_model": {
+      "gpt-4o": {
+        "requests_per_minute": 500,
+        "tokens_per_minute": 30000
+      },
+      "claude-3-5-sonnet": {
+        "requests_per_minute": 400,
+        "tokens_per_minute": 40000
+      }
+    },
+    "per_department": {
+      "DEFAULT": {
+        "requests_per_hour": 1000
+      }
+    }
+  },
+  "permissions": {
+    "check_permissions": true,
+    "permission_denied_action": "block",
+    "superuser_roles": ["CEO", "CTO"],
+    "default_permission": "DENY_ALL"
+  },
+  "security": {
+    "scan_local_models": true,
+    "validate_api_keys": true,
+    "encrypt_credentials": true,
+    "credential_storage": "environment_variables",
+    "allowed_api_domains": [
+      "api.openai.com",
+      "api.anthropic.com"
+    ]
+  },
+  "fallback": {
+    "enabled": true,
+    "strategy": "lower_cost_model",
+    "max_retries": 3,
+    "retry_delay_ms": 1000,
+    "fallback_chain": {
+      "gpt-4o": ["gpt-4-turbo", "llama-3.3-70b"],
+      "claude-3-5-sonnet": ["llama-3.3-70b"]
+    }
+  },
+  "audit": {
+    "log_success": true,
+    "log_failure": true,
+    "log_retries": true,
+    "retention_days": 90,
+    "audit_log_path": "logs/model-audit.log"
+  }
+}

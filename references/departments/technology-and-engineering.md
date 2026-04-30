@@ -398,6 +398,119 @@ CEO Decision Criteria for Rollout:
 
 ---
 
+### 3.8 Model Management Architecture (模型管理架构)
+
+```
+Model Management System (models/ folder):
+  Purpose: Enable Skills to autonomously discover, configure, and invoke LLMs
+  Location: {SKILL_DIR}/models/
+
+Folder Structure:
+  | Path | Purpose |
+  |------|---------|
+  | models/README.md | Model management documentation |
+  | models/config/models-registry.json | Model registry (catalog) |
+  | models/config/calling-policy.json | Calling policies and constraints |
+  | models/local/{model-name}/ | Local model configurations |
+  | models/api/{provider}/ | API model configurations |
+  | models/adapters/ | Model calling adapters |
+
+Model Registry (models-registry.json):
+  Purpose: Central catalog of all available models
+  Fields:
+    - id: Unique model identifier (e.g., "gpt-4o")
+    - name: Human-readable name
+    - type: "local" or "api"
+    - provider: "openai", "anthropic", "meta", etc.
+    - config_path: Path to model-specific config
+    - capabilities: ["text", "vision", "function-calling"]
+    - context_window: Max input tokens
+    - max_output_tokens: Max output tokens
+    - cost_per_1k_tokens: Cost per 1k tokens (for API models)
+    - enabled: true/false
+    - permissions: Which roles/departments can call this model
+    - tags: ["production", "multimodal", "local", etc.]
+
+Calling Policy (calling-policy.json):
+  Purpose: Enforce governance on model usage
+  Policies:
+    - Cost Control: Track token usage, enforce budget limits
+    - Rate Limiting: Per-model and per-department rate limits
+    - Permissions: Check model access permissions
+    - Security: Scan local models, validate API keys
+    - Fallback: Retry with lower-cost model on failure
+    - Audit: Log all model invocations
+
+Model Adapters (adapters/):
+  Purpose: Unified interface for calling different models
+  Adapters:
+    - openai-adapter.py: Call OpenAI API (GPT-4o, etc.)
+    - anthropic-adapter.py: Call Anthropic API (Claude, etc.)
+    - local-adapter.py: Call local models (llama.cpp, Ollama, etc.)
+  Interface:
+    def call_model(model_id, messages, role, **kwargs):
+        # Returns: {"success": True, "response": "...", "usage": {...}}
+        # Errors: Returns {"success": False, "error": "...", "error_code": "..."}
+
+Usage from Skills:
+  1. Check model registry for available models
+  2. Verify permissions in calling-policy.json
+  3. Call model via adapter interface
+  4. Handle response and errors
+  5. Log usage for audit
+
+Example (from Skill):
+  ```python
+  import sys
+  sys.path.append('{SKILL_DIR}/models/adapters')
+  from adapter-interface import call_model
+
+  result = call_model(
+      model_id='gpt-4o',
+      messages=[{"role": "user", "content": "Hello"}],
+      role='CEO',
+      temperature=0.7
+  )
+
+  if result['success']:
+      print(result['response'])
+  else:
+      print(f"Error: {result['error_code']}")
+  ```
+
+Integration with Departments:
+  - CTO: Design and maintain model architecture
+  - CEO: Set model governance policies
+  - CISO: Security scan local models, validate API endpoints
+  - CFO: Cost tracking and budget enforcement
+  - ALL: Use models via adapter interface
+
+Model Lifecycle:
+  1. REGISTER: Add model to registry
+  2. CONFIGURE: Create config file in local/ or api/
+  3. TEST: Validate adapter can call model
+  4. ENABLE: Set enabled=true in registry
+  5. MONITOR: Track usage, cost, performance
+  6. DEPRECATE: Set enabled=false, notify users
+  7. REMOVE: Delete config files, remove from registry
+```
+
+Model Error Codes:
+  | Code | Meaning | Resolution |
+  |------|---------|------------|
+  | CTO_016 | Model not found in registry | Check `models-registry.json` |
+  | CTO_017 | Model config file missing | Create config at specified `config_path` |
+  | CTO_018 | Model disabled | Enable model in registry or check permissions |
+  | CTO_019 | API key missing | Set required environment variable |
+  | CTO_020 | Rate limit exceeded | Implement exponential backoff |
+  | CTO_021 | Model invocation failed | Check model health, review error logs |
+  | CTO_022 | Model permission denied | Check permissions in registry |
+  | CTO_023 | Model health check failed | Check if model service is running |
+  | CTO_024 | Invalid model response | Check model output format |
+  | CTO_025 | Model config invalid | Validate config against schema |
+
+---
+
 ## 4. Error Codes
 
 | Code | Meaning | Resolution |
@@ -414,8 +527,18 @@ CEO Decision Criteria for Rollout:
 | CTO_010 | Branch permission escalation | CISO review, CEO decision |
 | CTO_011 | Branch-HQ sync failed | Retry with exponential backoff |
 | CTO_012 | Branch autonomy violation | HQ override, branch demotion |
+| CTO_016 | Model not found in registry | Check `models-registry.json` |
+| CTO_017 | Model config file missing | Create config at specified `config_path` |
+| CTO_018 | Model disabled | Enable model in registry or check permissions |
+| CTO_019 | API key missing | Set required environment variable |
+| CTO_020 | Rate limit exceeded | Implement exponential backoff |
+| CTO_021 | Model invocation failed | Check model health, review error logs |
+| CTO_022 | Model permission denied | Check permissions in registry |
+| CTO_023 | Model health check failed | Check if model service is running |
+| CTO_024 | Invalid model response | Check model output format |
+| CTO_025 | Model config invalid | Validate config against schema |
 
-Constraints: No production deploy without CISO gate; No agent creation without CTO+CISO review; No architecture change without ADR; ENGR L4+ ops need dual approval; All models must pass bias test.
+Constraints: No production deploy without CISO gate; No agent creation without CTO+CISO review; No architecture change without ADR; ENGR L4+ ops need dual approval; All models must pass bias test; No model call without permission check; No API keys in config files.
 
 | Metric | Target |
 |--------|--------|

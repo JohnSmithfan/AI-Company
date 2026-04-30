@@ -1,0 +1,62 @@
+{
+  "schema_version": "1.0",
+  "last_updated": "2026-05-01T03:00:00Z",
+  "models": [
+    {
+      "id": "gpt-4o",
+      "name": "GPT-4o",
+      "type": "api",
+      "provider": "openai",
+      "config_path": "api/openai/gpt-4o.json",
+      "capabilities": ["text", "vision", "function-calling"],
+      "context_window": 128000,
+      "max_output_tokens": 16384,
+      "cost_per_1k_input_tokens": 0.005,
+      "cost_per_1k_output_tokens": 0.015,
+      "enabled": true,
+      "permissions": ["CEO", "CTO", "CFO", "CISO", "ALL_DEPARTMENTS"],
+      "tags": ["production", "multimodal", "function-calling"]
+    },
+    {
+      "id": "claude-3-5-sonnet",
+      "name": "Claude 3.5 Sonnet",
+      "type": "api",
+      "provider": "anthropic",
+      "config_path": "api/anthropic/claude-3-5-sonnet.json",
+      "capabilities": ["text", "vision", "safety"],
+      "context_window": 200000,
+      "max_output_tokens": 8192,
+      "cost_per_1k_input_tokens": 0.003,
+      "cost_per_1k_output_tokens": 0.015,
+      "enabled": true,
+      "permissions": ["CEO", "CTO", "ALL_DEPARTMENTS"],
+      "tags": ["production", "safety-focused", "long-context"]
+    },
+    {
+      "id": "llama-3.3-70b",
+      "name": "Llama 3.3 70B",
+      "type": "local",
+      "provider": "meta",
+      "config_path": "local/llama-3.3-70b/config.json",
+      "capabilities": ["text", "code-generation"],
+      "context_window": 131072,
+      "max_output_tokens": 8192,
+      "cost_per_1k_tokens": 0,
+      "enabled": false,
+      "permissions": ["CTO", "SECURITY_AUDIT_REQUIRED"],
+      "tags": ["local", "open-weights", "self-hosted"]
+    }
+  ],
+  "default_models": {
+    "text_generation": "gpt-4o",
+    "code_generation": "gpt-4o",
+    "safety_review": "claude-3-5-sonnet",
+    "local_fallback": "llama-3.3-70b"
+  },
+  "adapter_mapping": {
+    "openai": "adapters/openai-adapter.js",
+    "anthropic": "adapters/anthropic-adapter.js",
+    "meta": "adapters/local-adapter.js",
+    "default": "adapters/openai-adapter.js"
+  }
+}

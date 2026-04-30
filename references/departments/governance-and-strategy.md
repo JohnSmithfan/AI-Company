@@ -349,6 +349,118 @@ Remote-Specific Error Codes:
 
 ---
 
+### 3.9 Model Governance & Access Control (模型治理与访问控制)
+
+```
+Model Governance Framework:
+  Purpose: Ensure secure, cost-effective, and compliant use of LLMs
+  Owner: CEO (strategic governance), CTO (technical implementation)
+
+Access Control:
+  Permission Levels:
+    - L1-Viewer: Can view model registry and documentation
+    - L2-Operator: Can call models (with restrictions)
+    - L3-Manager: Can manage department model usage and budgets
+    - L4-Executive: Can approve new models and set policies
+    - L5-Infrastructure: Full access (CEO, CTO, CISO)
+
+  Permission Assignment:
+    - Per-model permissions in models-registry.json
+    - Default: DENY_ALL (explicit grant required)
+    - Superuser roles: CEO, CTO (bypass permission checks)
+
+  Access Audit:
+    - All model calls logged (who, when, which model, tokens used)
+    - Monthly access review by CEO + CISO
+    - Quarterly access certification (remove unused permissions)
+
+Cost Control:
+  Budget Management:
+    - Per-department budgets in calling-policy.json
+    - Track token usage per model per department
+    - Alert at 80% budget utilization
+    - Block calls when budget exhausted (override requires CEO approval)
+
+  Cost Optimization:
+    - Prefer local models when quality acceptable
+    - Use cheaper models for non-critical tasks
+    - Implement caching for repeated prompts
+    - Batch requests when possible
+
+  Cost Allocation:
+    - Chargeback to departments based on usage
+    - Quarterly cost reports to CFO
+    - ROI analysis for model deployments
+
+Security & Compliance:
+  Model Security:
+    - Local models: Malware scan before loading (CISO gate)
+    - API models: Validate endpoint SSL certificates
+    - API keys: Stored in environment variables only (never in config files)
+    - Data privacy: No PII sent to external APIs without CLO approval
+
+  Compliance Requirements:
+    - AIGC labeling: All AI-generated content must be labeled
+    - Data residency: Use local models for sensitive data
+    - Cross-border transfer: CLO pre-clearance required (GDPR, PIPL)
+    - Audit trail: All model calls logged for 90 days
+
+  Security Incidents:
+    - API key compromise: Rotate immediately, notify CISO
+    - Model poisoning: Rollback to previous version, CISO investigation
+    - Data leak: CISO + CLO immediate response, CEO notification
+
+Model Lifecycle Governance:
+  1. PROPOSE: Department proposes new model (business case + risk assessment)
+  2. REVIEW: CTO (technical) + CISO (security) + CLO (compliance) review
+  3. APPROVE: CEO approves (L4+ models) or CTO approves (L1-L3)
+  4. DEPLOY: CTO deploys, adds to registry, enables for authorized roles
+  5. MONITOR: Track usage, cost, performance, security
+  6. REVIEW: Quarterly review (continue, modify, deprecate)
+  7. RETIRE: CEO approval, notify users, remove from registry
+
+Model Performance Management:
+  Quality Metrics:
+    - Response accuracy (human evaluation)
+    - Response time (p50, p95, p99)
+    - Error rate (% failed calls)
+    - Cost per successful response
+
+  Performance Review:
+    - Monthly: CTO reviews model performance
+    - Quarterly: CEO reviews model ROI
+    - Annual: Board reviews model strategy
+
+  Model Retraining/Replacement:
+    - Trigger: Quality drops >10% from baseline
+    - Process: CTO evaluates alternatives, CEO decides
+    - Rollout: Pilot → Staged → Full (same as branch rollout)
+
+Crisis Management (Model-Related):
+  Crisis Scenarios:
+    - Model hallucination causing business harm: Immediate rollback, CISO investigation
+    - API outage: Failover to backup model, CTO notification
+    - Cost overrun: CFO alert, CEO decision on budget increase or model restriction
+    - Security breach: CISO leads incident response, CEO notification
+
+  Escalation Path:
+    L1: Model returns error → Retry (exponential backoff)
+    L2: Model quality degradation → CTO review, possibly switch models
+    L3: Cost/privacy/security issue → CEO + CISO + CLO decision
+    L4: Company reputation harm → CEO + Board decision
+```
+
+Model Governance Error Codes:
+  | Code | Meaning | Resolution |
+  |------|---------|------------|
+  | CEO_E016 | Model access denied | Check model permissions in registry |
+  | CEO_E017 | Model budget exceeded | Request budget increase or use alternative model |
+  | CEO_E018 | Model security scan failed | Review CISO report, do not use model |
+  | CEO_E019 | Cross-border model transfer violation | CLO investigation, immediate remediation |
+  | CEO_E020 | Model lifecycle review overdue | Schedule review immediately |
+
+---
+
 ## 4. Error Codes
 
 | Code | Meaning | Resolution |
@@ -363,6 +475,11 @@ Remote-Specific Error Codes:
 | CEO_E008 | Crisis blacklist violation attempted | Log to CISO, block action, notify Board |
 | CEO_E009 | Branch rollout criteria not met | Extend current phase or rollback |
 | CEO_E010 | Branch autonomy violation detected | Auto-rollback + CEO review within 24h |
+| CEO_E016 | Model access denied | Check model permissions in registry |
+| CEO_E017 | Model budget exceeded | Request budget increase or use alternative model |
+| CEO_E018 | Model security scan failed | Review CISO report, do not use model |
+| CEO_E019 | Cross-border model transfer violation | CLO investigation, immediate remediation |
+| CEO_E020 | Model lifecycle review overdue | Schedule review immediately |
 
 ---
 

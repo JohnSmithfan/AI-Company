@@ -70,6 +70,12 @@ triggers:
   - remote governance
   - cross-border compliance
   - branch remote connection
+  - model management
+  - LLM integration
+  - model calling
+  - model registry
+  - model governance
+  - model access control
 interface:
   inputs:
     type: object
@@ -130,6 +136,16 @@ interface:
       message: "Branch emergency remote authority abused"
     - code: CEO_015
       message: "Video conference recording failed"
+    - code: CEO_E016
+      message: "Model access denied"
+    - code: CEO_E017
+      message: "Model budget exceeded"
+    - code: CEO_E018
+      message: "Model security scan failed"
+    - code: CEO_E019
+      message: "Cross-border model transfer violation"
+    - code: CEO_E020
+      message: "Model lifecycle review overdue"
     - code: COO_001
       message: "SLA breach detected"
     - code: COO_002
@@ -188,6 +204,26 @@ interface:
       message: "Cross-region latency >SLA"
     - code: CTO_015
       message: "Branch communication timeout"
+    - code: CTO_016
+      message: "Model not found in registry"
+    - code: CTO_017
+      message: "Model config file missing"
+    - code: CTO_018
+      message: "Model disabled"
+    - code: CTO_019
+      message: "API key missing"
+    - code: CTO_020
+      message: "Rate limit exceeded"
+    - code: CTO_021
+      message: "Model invocation failed"
+    - code: CTO_022
+      message: "Model permission denied"
+    - code: CTO_023
+      message: "Model health check failed"
+    - code: CTO_024
+      message: "Invalid model response"
+    - code: CTO_025
+      message: "Model config invalid"
     - code: FW_001
       message: "Schema validation failed"
     - code: FW_002
@@ -216,6 +252,8 @@ interface:
       message: "STRIDE threat detected"
     - code: CISO_004
       message: "Incident response required"
+    - code: CISO_005
+      message: "Model security scan failed"
     - code: CLO_001
       message: "Compliance violation"
     - code: CLO_002

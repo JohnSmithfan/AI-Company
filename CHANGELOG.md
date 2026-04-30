@@ -46,6 +46,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added error codes: CTO_013~CTO_015 (remote connection, latency, timeout), CEO_011~CEO_015 (remote decision, cross-border, audit, authority, video recording)
   - Updated main SKILL.md and nested SKILL.md files with remote-related triggers
 
+- **Model Management Architecture (模型管理架构)**
+  - Created `models/` folder with configuration files and adapters
+    - `models/README.md`: Model management documentation
+    - `models/config/models-registry.json`: Model registry (catalog of available models)
+    - `models/config/calling-policy.json`: Calling policies (cost control, rate limits, permissions)
+    - `models/local/template/config.json`: Local model configuration template
+    - `models/api/template/config.json`: API model configuration template
+    - `models/adapters/adapter-interface.py`: Unified model calling interface
+  - Added `### 3.8 Model Management Architecture (模型管理架构)` to `technology-and-engineering.md`
+    - Model registry structure and fields
+    - Calling policy (cost control, rate limiting, permissions, security, fallback, audit)
+    - Model adapters (openai-adapter, anthropic-adapter, local-adapter)
+    - Usage from Skills (example code)
+    - Model lifecycle (register → configure → test → enable → monitor → deprecate → remove)
+  - Added `### 3.9 Model Governance & Access Control (模型治理与访问控制)` to `governance-and-strategy.md`
+    - Access control (permission levels L1-L5, permission assignment, access audit)
+    - Cost control (budget management, cost optimization, cost allocation)
+    - Security & compliance (model security, compliance requirements, security incidents)
+    - Model lifecycle governance (propose → review → approve → deploy → monitor → review → retire)
+    - Model performance management (quality metrics, performance review, retraining/replacement)
+    - Crisis management (model-related crisis scenarios, escalation path)
+  - Created example model configurations:
+    - `models/api/openai/gpt-4o.json`: OpenAI GPT-4o configuration
+    - `models/api/anthropic/claude-3-5-sonnet.json`: Anthropic Claude 3.5 Sonnet configuration
+  - Added error codes: CTO_016~CTO_025 (model not found, config missing, disabled, API key missing, rate limit, invocation failed, permission denied, health check failed, invalid response, config invalid), CEO_E016~CEO_E020 (model access denied, budget exceeded, security scan failed, cross-border transfer violation, lifecycle review overdue), CISO_005 (model security scan failed)
+  - Updated main SKILL.md with model-related triggers and error codes
+
 ---
 
 ## [1.0.6] - 2026-04-30
