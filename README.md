@@ -26,6 +26,8 @@ This skill is designed for the [OpenClaw](https://clawhub.ai/) [QClaw](https://q
 - **AIGC Compliance** — AI-generated content labeling
 - **5-Layer Security Gates** — VirusTotal / ClawHub verification for auto-updates
 - **Progressive Disclosure** — Context-aware information delivery
+- **Headquarters-Branch Model** — Multi-layer HQ-branch architecture with CEO-gated rollout phases
+- **Remote Communication Architecture** — Cross-region deployment with secure remote communication, latency optimization, and fault tolerance
 
 ## Department Index
 
@@ -132,6 +134,7 @@ pwsh -File "C:\Users\Admin\WorkBuddy\Claw\.workbuddy\scripts\ai-company-auto-upd
 
 | Version | Date | Changes |
 |---|---|---|
+| 1.0.6 | 2026-05-01 | Headquarters-Branch Architecture (总分公司模式): 3-layer HQ-Branch-Local model; 4 branch types (Regional/Departmental/Functional/Hybrid); CEO-gated 5-phase rollout; Branch lifecycle (8 stages); Auto-rollback triggers; CTO_009-012, CEO_009-010 error codes; Remote Communication Architecture (远程通信架构): Network topology options, gRPC/WebSocket/QUIC protocols, mTLS security, latency optimization, cross-region data sync, remote governance, cross-border compliance |
 | 1.1.0 | 2026-04-29 | Intel: Added Intelligence Library (SOP-L01~L06) with auto-triggered library setup on first collection request; SOP-L06 triggers on any intelligence collection request; Added INTEL_006~INTEL_010 error codes |
 | 1.0.3 | 2026-04-28 | Security: Scoped file permissions (P0 CISO fix); Finance: Capex policy, DSO/DPO targets (P1); Risk: FAIR thresholds & LEA calculation (P1); CTO: 3-stage deployment gate (P1); CQO: 85% test coverage threshold (P1); CEO: Board escalation ladder (P2); COO: OHS alerting + OKR integration (P2); CLO: DMCA takedown workflow (P2); Intel: 6-phase intelligence cycle (P2); CPO: Semver enforcement (P2) |
 | 1.0.2 | 2026-04-27 | Added auto-update: weekly automation, PowerShell script with 5-layer security gates, backup/rollback, publisher allowlist |
@@ -386,6 +389,17 @@ All integrations follow **zero secrets in code**, **idempotent operations**, and
 - **Intelligence (P2)**: 6-phase intelligence cycle, Intelligence Library (SOP-L01~L06)
 - **Sentiment Analysis Team**: 5-agent pipeline (QueryEngine → MediaEngine → InsightEngine → ReportEngine → ForumEngine)
 - **Audit Pass**: All departments passed formal audit (95/100 overall score)
+
+#### Phase 2.5: Headquarters-Branch Model (v1.0.7) — Completed
+
+**Date**: 2026-05-01
+
+- **Headquarters-Branch Architecture (总分公司模式)**: 3-layer HQ-Branch-Local model with 4 branch types
+- **CEO-Gated Rollout**: 5-phase decision framework (PROPOSE → PILOT → STAGED → FULL → DELEGATE)
+- **Branch Lifecycle**: 8-stage process from proposal to retirement
+- **Branch Permission Model**: Scoped operations matrix (HQ/Branch/Local)
+- **Auto-Rollback**: Safety triggers for error rate, SLA breach, security incidents
+- **New Error Codes**: CTO_009–CTO_012 (branch-specific), CEO_009–CEO_010 (rollout-specific)
 
 #### Phase 3: Intelligence Augmentation (v1.1.x) — Planned
 

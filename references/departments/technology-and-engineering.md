@@ -221,6 +221,181 @@ Model Security Requirements:
   - Bias testing required before production deployment
 ```
 
+### 3.6 Headquarters-Branch Architecture (总分公司模式)
+
+```
+Headquarters-Branch Model (总公司-分公司模式):
+  - HQ (Headquarters/总公司): Central AI agents, L4-L5 permissions, strategic control
+  - Branch Offices (分公司): Regional/departmental AI agents, L2-L3 permissions, local execution
+  - Authority Chain: Board → CEO → HQ → Branch → Local Agents
+  - Use Cases: Multi-region deployment, departmental autonomy, load distribution
+
+Architecture Layers:
+  | Layer | Name | Permission | Responsibility | SLA Tier |
+  |-------|------|-----------|-----------------|----------|
+  | L1-HQ | Headquarters (总公司) | L5 | Strategy, policy, global config | Platinum |
+  | L2-Branch | Branch Office (分公司) | L3 | Regional execution, local adaptation | Gold |
+  | L3-Local | Local Agent (本地代理) | L1-L2 | Task execution, data collection | Silver/Bronze |
+
+Branch Office Types:
+  | Type | Scope | Example | HQ Oversight |
+  |------|-------|---------|--------------|
+  | Regional (区域) | Geographic region | Asia-Pacific Branch | Monthly report |
+  | Departmental (部门) | Business function | Marketing Branch | Weekly report |
+  | Functional (职能) | Technical domain | ML-Ops Branch | Daily report |
+  | Hybrid (混合) | Region + function | EU-Marketing Branch | Custom report |
+
+Branch Lifecycle:
+  1. PROPOSE: HQ proposes new branch (strategic need)
+  2. EVALUATE: CEO + COO + CTO review (resource, risk, SLA)
+  3. APPROVE: CEO decision (Stage-gate: Stage 1 = proposal, Stage 2 = pilot, Stage 3 = full)
+  4. CREATE: CTO deploys branch agent with scoped permissions
+  5. PILOT: Branch operates in shadow mode (100% HQ override) for 30 days
+  6. PROMOTE: CEO promotes to autonomous mode (branch can make L3 decisions)
+  7. MONITOR: HQ receives daily telemetry; can override any branch decision
+  8. RETIRE: CEO dissolves branch (archive agents, merge state to HQ)
+
+Branch Permission Model:
+  | Operation | HQ | Branch | Local Agent |
+  |-----------|----|--------|-------------|
+  | Read global state | ✅ Full | ✅ Regional only | ✅ Own tasks |
+  | Write global state | ✅ Full | ❌ (HQ proxy only) | ❌ |
+  | Deploy agents | ✅ All | ✅ Branch-scoped | ❌ |
+  | Modify policy | ✅ All | ❌ (propose only) | ❌ |
+  | Override decisions | ✅ All | ✅ Branch-scoped | ❌ |
+  | Access audit log | ✅ All | ✅ Branch-scoped | ✅ Own actions |
+
+Branch-Specific Error Codes:
+  | Code | Meaning | Resolution |
+  |------|---------|------------|
+  | CTO_009 | Branch creation failed | Check HQ approval, retry |
+  | CTO_010 | Branch permission escalation | CISO review, CEO decision |
+  | CTO_011 | Branch-HQ sync failed | Retry with exponential backoff |
+  | CTO_012 | Branch autonomy violation | HQ override, branch demotion |
+  | CTO_013 | Remote connection failed | Check network, VPN, firewall |
+  | CTO_014 | Cross-region latency >SLA | Optimize routing, use CDN |
+  | CTO_015 | Branch communication timeout | Check bandwidth, retry with backoff |
+
+### 3.7 Remote Communication Architecture (远程通信架构)
+
+```
+Remote Communication for Distributed HQ-Branch Deployment:
+  - Challenge: Branches may be in different regions/countries from HQ
+  - Requirement: Reliable, secure, low-latency communication
+  - Patterns: Hub-Spoke, Mesh, Hybrid
+
+Network Topology Options:
+  | Topology | Use Case | Latency | Fault Tolerance | Cost |
+  |----------|----------|--------|-----------------|------|
+  | Hub-Spoke (Star) | Centralized control | Medium | Low (HQ SPOF) | Low |
+  | Full Mesh | Peer-to-peer branches | Low | High | High |
+  | Hybrid | HQ + regional hubs | Low-Medium | High | Medium |
+  | CDN-Assisted | Global distribution | Very Low | High | Medium |
+
+Communication Protocols:
+  | Protocol | Use Case | HQ-Branch Fit | Latency | Overhead |
+  |----------|----------|----------------|--------|---------|
+  | gRPC (HTTP/2) | Real-time RPCs | ✅ Primary | Low | Low |
+  | WebSocket | Persistent bidirectional | ✅ Streaming | Very Low | Low |
+  | Message Queue (Kafka, Pulsar) | Async event propagation | ✅ Event bus | Medium | Medium |
+  | HTTP/REST | Simple CRUD | ⚠️ Fallback only | High | High |
+  | QUIC (HTTP/3) | High-loss networks | ✅ Mobile/edge | Very Low | Low |
+
+Connection Establishment:
+  1. BRANCH_BOOT: Branch agent starts, reads HQ endpoint from config
+  2. AUTHENTICATE: mTLS handshake with HQ certificate authority
+  3. REGISTER: Branch sends capability advertisement to HQ
+  4. SYNC_CONFIG: HQ pushes latest policies, permissions, routing table
+  5. HEARTBEAT: Branch sends keepalive every 30s (configurable)
+  6. OPERATE: Normal operation with continuous telemetry
+
+Remote Communication Security (CISO Gate):
+  - [ ] mTLS for all HQ-Branch communication (mutual authentication)
+  - [ ] Certificate rotation every 90 days (automated via HQ)
+  - [ ] Encrypted tunnel (WireGuard/OpenVPN) for management traffic
+  - [ ] IP whitelist: Branch egress IPs registered in HQ firewall
+  - [ ] DDoS protection: Rate limiting at HQ ingress (10,000 req/s per branch)
+  - [ ] Intrusion detection: Anomaly detection on branch traffic patterns
+  - [ ] Data residency: Ensure cross-border data transfer complies with GDPR/PIPL
+
+Latency Optimization:
+  Strategy 1 — Regional HQ Mirrors:
+    - Deploy read-only HQ mirrors in branch regions
+    - Branch reads from local mirror (latency <10ms)
+    - Writes still go to primary HQ (latency 50-200ms depending on region)
+  
+  Strategy 2 — Edge Caching:
+    - Cache static configs, policies, model weights at branch edge
+    - TTL-based invalidation (push invalidation from HQ on critical updates)
+    - Cache hit ratio target: >85%
+  
+  Strategy 3 — Async Operations:
+    - Non-critical operations: Branch queues locally, HQ processes async
+    - Critical operations: Synchronous with HQ, but branch has local fallback
+    - Example: Local agent task execution (async) vs. policy update (sync)
+
+Bandwidth Management:
+  | Traffic Type | Priority | Bandwidth Cap | QoS |
+  |--------------|----------|---------------|-----|
+  | Heartbeat/Telemetry | P1 (High) | 1 Mbps | DSCP EF |
+  | Policy Sync | P1 (High) | 10 Mbps | DSCP EF |
+  | Agent Task Data | P2 (Medium) | 50 Mbps | DSCP AF31 |
+  | Model Weights Download | P3 (Low) | 100 Mbps (off-peak) | DSCP AF11 |
+  | Log Upload | P3 (Low) | 5 Mbps | DSCP AF11 |
+
+Failure Detection & Recovery:
+  Failure Modes:
+    1. HQ unreachable: Branch continues in "autonomous mode" (if phase >=2)
+    2. Branch unreachable: HQ marks branch as "degraded", alerts CEO
+    3. Network partition: Both HQ and branch operate independently (split-brain)
+    4. High latency (>500ms): Branch switches to async mode, queues operations
+  
+  Automatic Recovery:
+    - HQ failover: DNS failover to secondary HQ (RTO <30s)
+    - Branch reconnection: Exponential backoff (1s, 2s, 4s, ... max 300s)
+    - State reconciliation: Branch fetches missed updates from HQ upon reconnect
+    - Split-brain resolution: HQ wins (authoritative source), branch state merged
+
+Cross-Region Data Sync:
+  Sync Strategies:
+    | Strategy | Consistency | Latency | Use Case |
+    |----------|-------------|--------|----------|
+    | Synchronous (2PC) | Strong | High (200ms+) | Critical configs, auth |
+    | Asynchronous (Eventual) | Eventual | Low | Telemetry, logs |
+    | Hybrid (Quorum) | Tunable | Medium | Policy updates |
+  
+  Conflict Resolution:
+    - HQ always wins (authoritative)
+    - Branch local state preserved in separate branch-local DB
+    - Merge strategy: Last-Writer-Wins (LWW) with vector clocks
+    - Manual conflict resolution: Alert CTO + CEO for policy conflicts
+
+Remote Communication SLA:
+  | Metric | Target | Measurement |
+  |--------|--------|-------------|
+  | HQ-Branch latency (same region) | <20ms | p50 |
+  | HQ-Branch latency (cross-region) | <150ms | p50 |
+  | Connection establishment time | <5s | from branch boot |
+  | Heartbeat success rate | >99.9% | over 7 days |
+  | Data sync lag (async) | <5min | p95 |
+  | Failover time (HQ secondary) | <30s | RTO |
+```
+
+Rollout Phase Decision (CEO Decision Framework):
+  | Phase | Mode | Branch Autonomy | HQ Oversight | Decision Authority |
+  |-------|------|-------------------|--------------|---------------------|
+  | Phase 1 (Pilot) | Shadow mode | 0% (HQ overrides all) | Real-time | HQ only |
+  | Phase 2 (Staged) | Hybrid mode | 30% (L1-L2 only) | Daily review | HQ + Branch |
+  | Phase 3 (Full) | Autonomous mode | 70% (L1-L3) | Weekly report | Branch + HQ audit |
+  | Phase 4 (Delegate) | Full autonomy | 100% (L1-L4, excl. HQ policy) | Monthly report | Branch only |
+
+CEO Decision Criteria for Rollout:
+  - Phase 1 → Phase 2: Branch shadow mode success rate ≥95% for 30 days
+  - Phase 2 → Phase 3: Branch autonomous decisions accuracy ≥90% for 60 days
+  - Phase 3 → Phase 4: Branch operates without HQ intervention for 90 days
+  - Rollback Trigger: Any phase — branch error rate >5% → auto-rollback to previous phase
+```
+
 ---
 
 ## 4. Error Codes
@@ -235,10 +410,10 @@ Model Security Requirements:
 | CTO_006 | Model drift detected | Schedule retraining |
 | CTO_007 | Resource exhaustion | Scale up, notify COO+CFO |
 | CTO_008 | Security gate blocked | Address CISO findings |
-
----
-
-## 5. Constraints & Metrics
+| CTO_009 | Branch creation failed | Check HQ approval, retry |
+| CTO_010 | Branch permission escalation | CISO review, CEO decision |
+| CTO_011 | Branch-HQ sync failed | Retry with exponential backoff |
+| CTO_012 | Branch autonomy violation | HQ override, branch demotion |
 
 Constraints: No production deploy without CISO gate; No agent creation without CTO+CISO review; No architecture change without ADR; ENGR L4+ ops need dual approval; All models must pass bias test.
 

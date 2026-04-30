@@ -7,6 +7,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.0.6] - 2026-05-01
+
+### ✨ Added (2026-05-01)
+
+- **Headquarters-Branch Architecture (总分公司模式)**
+  - Added `### 3.6 Headquarters-Branch Architecture (总分公司模式)` to `technology-and-engineering.md`
+    - 3-layer architecture: L1-HQ (总公司), L2-Branch (分公司), L3-Local Agent (本地代理)
+    - 4 branch types: Regional (区域), Departmental (部门), Functional (职能), Hybrid (混合)
+    - Branch lifecycle: PROPOSE → EVALUATE → APPROVE → CREATE → PILOT → PROMOTE → MONITOR → RETIRE
+    - Branch permission model: HQ/Branch/Local scoped operations matrix
+    - 4-phase rollout: Pilot → Staged → Full → Delegate with CEO decision criteria
+    - Auto-rollback triggers: error rate >5%, SLA breach, security incident, OHS <70
+  - Added `### 3.7 Branch Office Rollout Decision Framework (总分公司模式上线决策)` to `governance-and-strategy.md`
+    - 5-phase CEO decision process: PROPOSE → PILOT → STAGED → FULL → DELEGATE
+    - Quantitative success criteria per phase (success rate ≥95% → accuracy ≥90% → OHS ≥85)
+    - Rollback triggers with auto-rollback (no CEO required for safety-critical)
+    - CEO Decision Document Template (BPD format)
+  - Added error codes: CTO_009~CTO_012 (branch-specific), CEO_E009~CEO_E010 (rollout-specific)
+
+- **Remote Communication Architecture (远程通信架构)**
+  - Added `### 3.7 Remote Communication Architecture (远程通信架构)` to `technology-and-engineering.md`
+    - Network topology options: Hub-Spoke, Full Mesh, Hybrid, CDN-Assisted
+    - Communication protocols: gRPC (HTTP/2), WebSocket, Message Queue (Kafka/Pulsar), HTTP/REST, QUIC (HTTP/3)
+    - Connection establishment: mTLS authentication, capability advertisement, config sync, heartbeat
+    - Latency optimization: Regional HQ mirrors, edge caching, async operations
+    - Bandwidth management: Traffic prioritization (P1-P3), QoS marking
+    - Failure detection & recovery: HQ/branch failure modes, automatic recovery, split-brain resolution
+    - Cross-region data sync: Synchronous (2PC), Asynchronous (Eventual), Hybrid (Quorum)
+    - Remote communication SLA: Latency targets, connection time, heartbeat success rate, failover RTO
+  - Added `### 3.8 Remote Governance & Decision-Making (远程治理与决策)` to `governance-and-strategy.md`
+    - Remote decision-making protocol: Notify → Context → Review → Discuss → Vote → Document → Communicate
+    - Remote audit & compliance: Financial, Operational, Security, Compliance, Strategic audit methods
+    - Cross-border data transfer compliance: GDPR (SCC), PIPL (CAC approval), CCPA, data residency
+    - Remote crisis management: Detection → Escalation → Assessment → Decision → Execution → Recovery
+    - Remote branch performance metrics: Decision turnaround, video availability, audit completion
+    - Remote communication SLA (CEO-branch): HQ Portal, Video Conference, Emergency Hotline, Email, Slack/Teams
+  - Added error codes: CTO_013~CTO_015 (remote connection, latency, timeout), CEO_011~CEO_015 (remote decision, cross-border, audit, authority, video recording)
+  - Updated main SKILL.md and nested SKILL.md files with remote-related triggers
+
+---
+
 ## [1.0.6] - 2026-04-30
 
 ### 🔧 Fixed (P0 - Critical)

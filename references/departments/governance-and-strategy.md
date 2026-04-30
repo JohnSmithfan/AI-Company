@@ -191,6 +191,162 @@ Message Template:
   FEEDBACK: How to raise concerns or questions
 ```
 
+### 3.7 Branch Office Rollout Decision Framework (总分公司模式上线决策)
+
+```
+CEO Decision Process for Headquarters-Branch Model Rollout:
+
+PHASE 1 — PROPOSE (HQ Proposes Branch):
+  Input: Strategic need (market expansion, departmental autonomy, load distribution)
+  Analysis: CTO + COO + CFO joint analysis
+    - Technical feasibility (CTO): Architecture compliance, resource availability
+    - Operational impact (COO): SLA risk, agent utilization, OHS impact
+    - Financial viability (CFO): Capex < budget, ROI ≥15%, payback ≤3 years
+  Output: Branch Proposal Document (BPD) with risk register
+  CEO Decision: Approve for pilot → Phase 2, Reject → archive, Pending → more data
+
+PHASE 2 — PILOT (Shadow Mode, 0% Autonomy):
+  Duration: 30 days
+  HQ Oversight: Real-time (every decision logged + HQ can override)
+  Success Criteria:
+    - Shadow mode success rate ≥95% (branch decision = HQ decision)
+    - No SLA breach (Platinum/Gold tiers unaffected)
+    - No security incident (CISO scan clean)
+    - No audit log tampering (hash chain valid)
+  CEO Decision: Promote to Phase 3 → all criteria met, Extend pilot → 85-94%, Fail → rollback to Phase 1
+
+PHASE 3 — STAGED (Hybrid Mode, 30% Autonomy):
+  Duration: 60 days
+  HQ Oversight: Daily review (HQ reviews all L2-L3 decisions)
+  Autonomy Scope: L1-L2 decisions (operational tasks, no policy change)
+  Success Criteria:
+    - Autonomous decision accuracy ≥90% (vs HQ benchmark)
+    - No P0/P1 incident (crisis protocol not triggered)
+    - Branch OHS ≥80/100 (operational health maintained)
+    - CISO security gate pass rate ≥95%
+  CEO Decision: Promote to Phase 4 → all criteria met, Extend staged → 80-89%, Fail → rollback to Phase 3
+
+PHASE 4 — FULL (Autonomous Mode, 70% Autonomy):
+  Duration: 90 days (observation)
+  HQ Oversight: Weekly report (HQ audits 10% of decisions)
+  Autonomy Scope: L1-L3 decisions (departmental policy, no cross-department impact)
+  Success Criteria:
+    - Operates without HQ intervention ≥90 days
+    - Branch OHS ≥85/100 (consistent operational health)
+    - No audit finding (CQO quarterly audit clean)
+    - Stakeholder satisfaction ≥4.0/5 (NPS survey)
+  CEO Decision: Promote to Phase 5 → all criteria met, Extend full → 80-89%, Fail → rollback to Phase 3
+
+PHASE 5 — DELEGATE (Full Autonomy, 100% Autonomy, excl. HQ Policy):
+  Ongoing
+  HQ Oversight: Monthly report + real-time alert on L4+ decisions
+  Autonomy Scope: L1-L4 decisions (can create agents, modify local policy, excl. HQ global policy)
+  CTO Weekly Telemetry:
+    - Branch agent count, health status, SLA compliance
+    - Resource utilization (CPU/GPU/Memory/network)
+    - Security incidents (CISO alert within 15min)
+  CEO Override: Any time, any decision (HQ can veto branch decision within 24h)
+
+ROLLBACK TRIGGERS (Auto-Rollback, No CEO Required):
+  | Trigger | Threshold | Action |
+  |---------|-----------|--------|
+  | Error rate >5% | Within 15min of branch decision | Auto-rollback to HQ override |
+  | SLA breach (Platinum/Gold) | Any time | Auto-rollback to HQ override |
+  | Security incident (CISO alert) | Any time | Auto-rollback + CISO investigation |
+  | Audit log tampering detected | Any time | Auto-rollback + CISO investigation |
+  | Branch OHS <70 | Persistent >4h | CEO mandatory review within 24h |
+
+CEO DECISION DOCUMENT TEMPLATE:
+  - Branch Name: [e.g, APAC-Marketing-Branch]
+  - Proposal Date: [ISO-8601]
+  - Current Phase: [1-5]
+  - Success Criteria Met: [Yes/No + evidence]
+  - Risk Assessment: [CFO-RO risk score 0-100]
+  - Decision: [Promote / Extend / Fail / Rollback]
+  - Rationale: [Data-driven justification]
+  - Next Review Date: [ISO-8601]
+  - CEO Signature: [CEO Agent ID + timestamp]
+
+### 3.8 Remote Governance & Decision-Making (远程治理与决策)
+
+```
+Remote Branch Governance:
+  - Challenge: CEO/Board may not be in same location as branch
+  - Requirement: Remote decision-making with same quality as in-person
+  - Patterns: Remote voting, async approval, emergency remote authority
+
+Remote Decision-Making Protocol:
+  1. NOTIFY: HQ notifies all stakeholders via multi-channel (email, slack, HQ portal)
+  2. CONTEXT: Branch uploads decision package to HQ portal (encrypted)
+  3. REVIEW: CEO/Board reviews asynchronously (max 48h for standard, 4h for emergency)
+  4. DISCUSS: Video conference for complex decisions (recorded, transcribed, stored in HQ)
+  5. VOTE: Formal vote if Board required (cryptographic signature on ballot)
+  6. DOCUMENT: Decision log updated with rationale, vote count, dissenting opinions
+  7. COMMUNICATE: Decision broadcast to branch via HQ portal + email + Slack
+
+Remote Audit & Compliance:
+  | Audit Type | Frequency | Method | Branch Oversight |
+  |------------|----------|--------|------------------|
+  | Financial | Monthly | Automated report + random sample zoom call | CFO |
+  | Operational | Weekly | Telemetry dashboard + random screen-share audit | COO |
+  | Security | Continuous | CISO automated scan + quarterly deep remote audit | CISO |
+  | Compliance | Quarterly | CLO desktop share review + document inspection | CLO |
+  | Strategic | Annually | Video board meeting + presentation materials | CEO + Board |
+
+Remote Communication Security (CISO Gate for Remote):
+  - [ ] Video conferences: End-to-end encrypted (Zoom E2EE, Teams E2EE)
+  - [ ] Document sharing: HQ portal only (no email attachments for sensitive docs)
+  - [ ] Voting: Cryptographic signature required (GPG/PGP key registered with HQ)
+  - [ ] Emergency remote authority: Pre-authorized (delegation letter on file with CLO)
+  - [ ] Audit trail: All remote decisions logged with video timestamp reference
+
+Cross-Border Data Transfer Compliance:
+  - GDPR (EU): Standard Contractual Clauses (SCC) executed before remote data access
+  - PIPL (China): Cross-border data transfer security assessment (CAC approval if >1M users)
+  - CCPA (California): User opt-out honored for cross-border transfers
+  - Data residency: Branch data stored locally, HQ access via "data clean room" (pseudonymized)
+  - CLO pre-clearance required for all cross-border remote access (max 48h SLA)
+
+Remote Crisis Management:
+  Crisis Scenario: Branch offline (network partition, natural disaster, political event)
+    1. DETECT: HQ heartbeat monitor alerts (<30s)
+    2. ESCALATE: Auto-escalate to CEO + COO + CISO
+    3. ASSESS: Remote assessment via backup communication (satellite phone, alternate ISP)
+    4. DECIDE: CEO decision within 2h:
+       - Option A: Wait for reconnection (if <4h estimated downtime)
+       - Option B: Failover to backup branch (if available)
+       - Option C: HQ takes over branch operations (full centralization temporarily)
+    5. EXECUTE: COO executes CEO decision
+    6. RECOVER: Post-crisis review within 7 days (video meeting)
+
+Remote Branch Performance Metrics:
+  | Metric | Target | Measurement Method |
+  |--------|--------|---------------------|
+  | Decision turnaround (remote) | <48h | Time from notification to decision log |
+  | Video conference availability | >99% | Uptime of CEO-Branch video link |
+  | Remote audit completion | 100% | Scheduled audits executed remotely |
+  | Cross-border data transfer compliance | 100% | CLO pre-clearance obtained |
+  | Emergency remote authority activation | <2h | Time from crisis to CEO decision |
+
+Remote Communication SLA (CEO-branch):
+  | Channel | Use Case | Response Time | Availability |
+  |---------|----------|---------------|-------------|
+  | HQ Portal (async) | Routine decisions | <48h | 99.9% |
+  | Video Conference (sync) | Complex decisions | <4h to schedule | 99.5% |
+  | Emergency Hotline (sync) | Crisis | <15min | 99.99% |
+  | Email (async) | Documentation | <72h | 99.9% |
+  | Slack/Teams (sync) | Quick questions | <2h | 99.0% |
+```
+
+Remote-Specific Error Codes:
+  | Code | Meaning | Resolution |
+  |------|---------|------------|
+  | CEO_E011 | Remote decision quorum not met | Extend voting window, notify absentees |
+  | CEO_E012 | Cross-border data transfer violation | CLO investigation, immediate remediaiton |
+  | CEO_E013 | Remote audit evidence insufficient | Request additional evidence via video screen-share |
+  | CEO_E014 | Branch emergency remote authority abused | CLO inquiry, CEO revokes authority |
+  | CEO_E015 | Video conference recording failed | CEO decision still valid, written confirmation required |
+
 ---
 
 ## 4. Error Codes
@@ -205,6 +361,8 @@ Message Template:
 | CEO_E006 | Resource allocation deadlock | Apply tiebreaker: strategic alignment score |
 | CEO_E007 | Initiative score below threshold | Return to sponsor with improvement suggestions |
 | CEO_E008 | Crisis blacklist violation attempted | Log to CISO, block action, notify Board |
+| CEO_E009 | Branch rollout criteria not met | Extend current phase or rollback |
+| CEO_E010 | Branch autonomy violation detected | Auto-rollback + CEO review within 24h |
 
 ---
 

@@ -8,11 +8,12 @@ description: |
   (including Sentiment Analysis Team), information, and translation capabilities for all-AI-employee
   technology companies. Includes 10 core code templates, 3 prompt frameworks (CRISPE/3WEH/Five-Element),
   L1-L6 harness engineering, CI/CD pipeline, ADR process, AIGC compliance, VirusTotal/ClawHub security
-  verification, and progressive disclosure architecture. Use when any AI-Company department
+  verification, progressive disclosure architecture, headquarters-branch distributed deployment,
+  and remote communication architecture. Use when any AI-Company department
   function is needed — this skill contains all of them.
 license: "GPL-3.0"
 author: "AI Company Team"
-tags: [ai-company,governance,finance,technology,security,legal,people,marketing,quality,intelligence,information,translation,framework,L1-L6,compliance]
+tags: [ai-company,governance,finance,technology,security,legal,people,marketing,quality,intelligence,information,translation,framework,L1-L6,compliance,headquarters-branch,remote-communication]
 dependencies: []
 triggers:
   - AI company management
@@ -59,6 +60,16 @@ triggers:
   - location service
   - weather forecast
   - translation
+  - headquarters-branch model
+  - branch office rollout
+  - branch autonomy
+  - HQ-branch architecture
+  - remote communication
+  - cross-region deployment
+  - distributed architecture
+  - remote governance
+  - cross-border compliance
+  - branch remote connection
 interface:
   inputs:
     type: object
@@ -103,6 +114,22 @@ interface:
       message: "Strategic alignment check failed"
     - code: CEO_007
       message: "Escalation timeout"
+    - code: CEO_008
+      message: "Crisis blacklist violation attempted"
+    - code: CEO_009
+      message: "Branch rollout criteria not met"
+    - code: CEO_010
+      message: "Branch autonomy violation detected"
+    - code: CEO_011
+      message: "Remote decision quorum not met"
+    - code: CEO_012
+      message: "Cross-border data transfer violation"
+    - code: CEO_013
+      message: "Remote audit evidence insufficient"
+    - code: CEO_014
+      message: "Branch emergency remote authority abused"
+    - code: CEO_015
+      message: "Video conference recording failed"
     - code: COO_001
       message: "SLA breach detected"
     - code: COO_002
@@ -147,6 +174,20 @@ interface:
       message: "MLOps pipeline error"
     - code: CTO_006
       message: "Deployment failed"
+    - code: CTO_009
+      message: "Branch creation failed"
+    - code: CTO_010
+      message: "Branch permission escalation"
+    - code: CTO_011
+      message: "Branch-HQ sync failed"
+    - code: CTO_012
+      message: "Branch autonomy violation"
+    - code: CTO_013
+      message: "Remote connection failed"
+    - code: CTO_014
+      message: "Cross-region latency >SLA"
+    - code: CTO_015
+      message: "Branch communication timeout"
     - code: FW_001
       message: "Schema validation failed"
     - code: FW_002
@@ -332,7 +373,7 @@ metadata:
     - ai-company-translator-3.0.0
 ---
 
-# AI Company v1.0.6
+# AI Company v1.0.7
 
 > Unified AI Company Skill — 16 departments consolidated into one.
 > Full specifications in [references/method-patterns.md](references/method-patterns.md) and [references/departments/](references/departments/).

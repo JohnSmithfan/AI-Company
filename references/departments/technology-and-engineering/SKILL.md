@@ -13,7 +13,7 @@ dependencies:
   runtime:
     - python3.9+
   skills: ["ai-company-governance-and-strategy", "ai-company-framework"]
-tags: [ai-company,technology,engineering,cto,architecture,mlops,agent-factory,skill-builder]
+tags: [ai-company,technology,engineering,cto,architecture,mlops,agent-factory,skill-builder,remote-communication]
 triggers:
   - technology and engineering
   - technical architecture
@@ -23,6 +23,12 @@ triggers:
   - skill builder
   - software engineering
   - production deployment
+  - headquarters-branch model
+  - branch office rollout
+  - branch autonomy
+  - remote communication
+  - cross-region deployment
+  - distributed architecture
 interface:
   inputs:
     type: object
@@ -59,6 +65,20 @@ interface:
       message: "MLOps pipeline error"
     - code: CTO_006
       message: "Deployment failed"
+    - code: CTO_009
+      message: "Branch creation failed"
+    - code: CTO_010
+      message: "Branch permission escalation"
+    - code: CTO_011
+      message: "Branch-HQ sync failed"
+    - code: CTO_012
+      message: "Branch autonomy violation"
+    - code: CTO_013
+      message: "Remote connection failed"
+    - code: CTO_014
+      message: "Cross-region latency >SLA"
+    - code: CTO_015
+      message: "Branch communication timeout"
 permissions:
   files:
     read: ["{WORKSPACE_ROOT}/**", "{SKILL_DIR}/**"]
@@ -119,6 +139,10 @@ See frontmatter `dependencies.skills` for complete dependency list.
 | CTO_003 | Skill build failed |
 | CTO_005 | MLOps pipeline error |
 | CTO_006 | Deployment failed |
+| CTO_009 | Branch creation failed |
+| CTO_010 | Branch permission escalation |
+| CTO_011 | Branch-HQ sync failed |
+| CTO_012 | Branch autonomy violation |
 
 ## Prompts
 

@@ -13,7 +13,7 @@ dependencies:
   runtime:
     - python3.9+
   skills: ["ai-company-framework"]
-tags: [ai-company,governance,strategy,ceo,coo,hq,crisis,orchestration,sla]
+tags: [ai-company,governance,strategy,ceo,coo,hq,crisis,orchestration,sla,remote-governance]
 triggers:
   - governance and strategy
   - strategic planning
@@ -24,6 +24,11 @@ triggers:
   - board governance
   - SLA management
   - resource scheduling
+  - branch office rollout
+  - branch autonomy decision
+  - remote governance
+  - remote decision-making
+  - cross-border compliance
 interface:
   inputs:
     type: object
@@ -58,6 +63,20 @@ interface:
       message: "Strategic alignment check failed"
     - code: CEO_007
       message: "Escalation timeout"
+    - code: CEO_009
+      message: "Branch rollout criteria not met"
+    - code: CEO_010
+      message: "Branch autonomy violation detected"
+    - code: CEO_011
+      message: "Remote decision quorum not met"
+    - code: CEO_012
+      message: "Cross-border data transfer violation"
+    - code: CEO_013
+      message: "Remote audit evidence insufficient"
+    - code: CEO_014
+      message: "Branch emergency remote authority abused"
+    - code: CEO_015
+      message: "Video conference recording failed"
     - code: COO_001
       message: "SLA breach detected"
     - code: HQ_001
@@ -129,6 +148,8 @@ See frontmatter `dependencies.skills` for complete dependency list.
 |------|---------|------|
 | CEO_006 | Strategic alignment check failed | CEO |
 | CEO_007 | Escalation timeout | CEO |
+| CEO_009 | Branch rollout criteria not met | CEO |
+| CEO_010 | Branch autonomy violation detected | CEO |
 | COO_001 | SLA breach detected | COO |
 | HQ_001 | Agent conflict unresolved | HQ |
 | HQ_002 | Knowledge base sync failed | HQ |
