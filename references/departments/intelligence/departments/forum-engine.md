@@ -1,6 +1,6 @@
-# ForumEngine — 协作讨论
+# ForumEngine — Collaborative Discussion
 
-> Agent 5/5: Forum Moderator | 论坛主持人
+> Agent 5/5: Forum Moderator | Collaborative Discussion Host
 > Engine: Qwen3-235B | Pipeline Stage 5: Validation
 
 ---

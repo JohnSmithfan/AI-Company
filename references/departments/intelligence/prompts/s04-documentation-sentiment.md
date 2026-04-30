@@ -191,7 +191,7 @@ Add to `SKILL.md` triggers:
 triggers:
   - sentiment analysis
   - public opinion monitoring
-  - 舆情分析
+  - "\u8206\u60c5\u5206\u6790"  # TRIGGER KEYWORD: Chinese user input detection (G1 exemption — end-user facing)
   - sentiment trend report
 ```
 

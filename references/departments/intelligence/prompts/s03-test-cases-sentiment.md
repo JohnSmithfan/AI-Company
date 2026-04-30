@@ -1,6 +1,7 @@
 # Sentiment Analysis Team — Test Cases
 
 > Unit tests and integration tests for all 5 agents.
+> <!-- TEST FIXTURE: Test data below uses English domain strings as G1-compliant equivalents. Original Chinese domain fixtures are available in s03-test-cases-sentiment.zh.md for locale-specific testing. -->
 
 ---
 
@@ -13,7 +14,7 @@
 import pytest
 
 def test_valid_query():
-    result = query_engine.execute(query="品牌声誉", platforms=["all"])
+    result = query_engine.execute(query="brand reputation", platforms=["all"])
     assert len(result) >= 5
     assert result[0]["source"] is not None
     assert result[0]["url"] is not None
@@ -24,9 +25,9 @@ def test_empty_query():
     assert exc.value.code == "QUERY_001"
 
 def test_keyword_optimization():
-    keywords = query_engine.optimize_keywords("品牌声誉")
-    assert "品牌" in keywords
-    assert "声誉" in keywords
+    keywords = query_engine.optimize_keywords("brand reputation")
+    assert "brand" in keywords
+    assert "reputation" in keywords
 
 def test_deduplication():
     raw_data = [{"url": "a.com"}, {"url": "a.com"}, {"url": "b.com"}]
@@ -41,7 +42,7 @@ def test_deduplication():
 import pytest
 
 def test_text_sentiment():
-    result = media_engine.analyze_text("这个产品太差了")
+    result = media_engine.analyze_text("This product is terrible")
     assert result["sentiment"]["label"] in ["positive", "negative", "neutral"]
     assert -1 <= result["sentiment"]["score"] <= 1
 
@@ -51,7 +52,7 @@ def test_image_sentiment():
     assert result["modality"] == "image"
 
 def test_crisis_detection():
-    result = media_engine.analyze_text("质量问题引发大规模投诉")
+    result = media_engine.analyze_text("Quality issues trigger mass complaints")
     assert result["crisis_indicators"]["detected"] == True
     assert result["crisis_indicators"]["severity"] in ["attention", "critical"]
 ```
@@ -73,9 +74,9 @@ def test_trend_identification():
     assert result["trends"][0]["direction"] in ["positive", "negative", "neutral"]
 
 def test_entity_extraction():
-    result = insight_engine.extract_entities(text="华为发布新手机")
+    result = insight_engine.extract_entities(text="TechCorp releases new phone")
     assert "entities" in result
-    assert any(e["name"] == "华为" for e in result["entities"])
+    assert any(e["name"] == "TechCorp" for e in result["entities"])
 ```
 
 ### ReportEngine Unit Tests
@@ -136,7 +137,7 @@ import pytest
 def test_sentiment_analysis_pipeline():
     # Step 1: QueryEngine
     raw_data = query_engine.execute(
-        query="品牌声誉",
+        query="brand reputation",
         platforms=["weibo", "xiaohongshu"],
         date_range={"start": "2026-04-22", "end": "2026-04-29"}
     )

@@ -64,8 +64,10 @@ interface:
     - code: PMGR_007
       message: "Ticket SLA violation"
 permissions:
-  files: [read, write]
-  network: [api]
+  files:
+    read: ["{WORKSPACE_ROOT}/**", "{SKILL_DIR}/**"]
+    write: ["{WORKSPACE_ROOT}/**"]
+  network: []  # Network access delegated to parent ai-company skill
   commands: []
   mcp: [sessions_send, subagents]
 quality:

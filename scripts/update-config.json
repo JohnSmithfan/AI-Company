@@ -1,0 +1,9 @@
+{
+  "mode": "none",
+  "schedule": "FREQ=WEEKLY;BYDAY=SU;BYHOUR=2;BYMINUTE=0",
+  "backupRetention": 1,
+  "lastCheck": null,
+  "lastUpdate": null,
+  "lastNotified": null,
+  "notificationFile": null
+}

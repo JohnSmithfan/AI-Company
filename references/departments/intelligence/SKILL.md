@@ -63,8 +63,9 @@ interface:
     - code: INTEL_014
       message: "Classification breach"
 permissions:
-  files: [read]
-  network: [api]
+  files:
+    read: ["{WORKSPACE_ROOT}/**", "{SKILL_DIR}/**"]
+  network: []  # Network access delegated to parent ai-company skill
   commands: []
   mcp: [sessions_send, subagents]
 quality:

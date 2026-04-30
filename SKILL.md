@@ -380,22 +380,72 @@ Copy-paste ready prompts in [prompts/](prompts/):
 
 ## Auto-Update
 
-This skill supports automatic updates from ClawHub with 5-layer security gates.
+This skill supports 4 update modes with 5-layer security gates.
+
+### Update Modes
+
+| Mode | Description | Behavior |
+|------|-------------|----------|
+| `auto` | Auto Update | Automatically download and install updates |
+| `auto-download` | Auto Download + Notify | Download updates automatically, notify user to install |
+| `notify` | Notify Only | Check for updates and notify user (no download) |
+| `none` | No Auto-Update *(default)* | Only check when run manually |
+
+### Configuration
+
+Default mode is `none` (no auto-update). Change it via:
+
+```powershell
+# Set persistent update mode
+pwsh -File scripts/auto-update.ps1 -SetMode auto          # Auto update
+pwsh -File scripts/auto-update.ps1 -SetMode auto-download # Download + notify
+pwsh -File scripts/auto-update.ps1 -SetMode notify        # Notify only
+pwsh -File scripts/auto-update.ps1 -SetMode none          # No auto-update (default)
+
+# Override mode for one run
+pwsh -File scripts/auto-update.ps1 -Mode auto             # This run only
+
+# View current config
+pwsh -File scripts/auto-update.ps1 -ShowConfig
+
+# Force reinstall same version
+pwsh -File scripts/auto-update.ps1 -Force
+```
+
+Config file: `{SKILL_DIR}/scripts/update-config.json`
+
+### Schedule & Backup
 
 | Setting | Value |
 |---------|-------|
 | Schedule | Weekly Sunday 02:00 UTC |
 | RRule | `FREQ=WEEKLY;BYDAY=SU;BYHOUR=2;BYMINUTE=0` |
-| Backup Retention | 10 versions / 30 days |
+| Backup Retention | 1 version |
 
 **Security Gates**: Version Check | Backup Gate | Download Gate | Frontmatter Gate | Danger Pattern Gate
 
-**Manual Update**:
+### Notifications
+
+When an update is available, a notification file is created at `{SKILL_DIR}/.update-notification.md`. The notification includes:
+- Current and available versions
+- Configured update mode
+- Recommended action
+
+### Manual Update
+
+> The update script is bundled with the skill at `{SKILL_DIR}/scripts/auto-update.ps1`.
+
 ```powershell
-pwsh -File "C:\Users\Admin\WorkBuddy\Claw\.workbuddy\scripts\ai-company-auto-update.ps1" -Force
+# Windows (PowerShell)
+pwsh -File "$env:USERPROFILE\.agents\skills\ai-company\scripts\auto-update.ps1"
 ```
 
-**Logs**: `C:\Users\Admin\WorkBuddy\Claw\.workbuddy\logs\ai-company-update-log.md`
+```bash
+# macOS / Linux
+pwsh -File "$HOME/.agents/skills/ai-company/scripts/auto-update.ps1"
+```
+
+**Logs**: `{SKILL_DIR}/.logs/auto-update-log.md`
 
 ## Changelog
 

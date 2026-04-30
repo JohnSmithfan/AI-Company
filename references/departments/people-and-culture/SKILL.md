@@ -59,8 +59,10 @@ interface:
     - code: CHO_006
       message: "Culture audit failed"
 permissions:
-  files: [read, write]
-  network: [api]
+  files:
+    read: ["{WORKSPACE_ROOT}/**", "{SKILL_DIR}/**"]
+    write: ["{WORKSPACE_ROOT}/**"]
+  network: []  # Network access delegated to parent ai-company skill
   commands: []
   mcp: [sessions_send, subagents]
 quality:
