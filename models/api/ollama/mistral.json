@@ -1,0 +1,26 @@
+{
+  "model_id": "mistral:latest",
+  "model_name": "mistral:latest",
+  "provider": "ollama",
+  "type": "local",
+  "api": {
+    "base_url": "http://localhost:11434/v1",
+    "api_key": "ollama",
+    "endpoint": "http://localhost:11434/v1/chat/completions",
+    "health_check": "http://localhost:11434/api/tags"
+  },
+  "default_parameters": {
+    "temperature": 0.7,
+    "top_p": 0.95,
+    "num_predict": 4096,
+    "stream": false
+  },
+  "capabilities": [
+    "text",
+    "code-generation",
+    "fast-inference"
+  ],
+  "context_window": 32768,
+  "cost_per_1k_tokens": 0,
+  "notes": "Mistral 7B - Fast inference, good balance of speed and quality. Pull with: ollama pull mistral"
+}

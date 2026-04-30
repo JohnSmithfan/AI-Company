@@ -19,12 +19,14 @@ models/
 │   └── {model-name}/             # Individual model configurations
 ├── api/                            # API-based model configurations
 │   ├── template/                  # Template for adding new API models
-│   └── {provider}/               # Individual provider configurations (openai, anthropic, etc.)
+│   ├── openai/                   # OpenAI model configurations
+│   ├── anthropic/                 # Anthropic model configurations
+│   └── ollama/                   # Ollama model configurations (local LLMs)
 └── adapters/                      # Model calling adapters
     ├── openai-adapter.js          # OpenAI API adapter
     ├── anthropic-adapter.js      # Anthropic API adapter
     ├── local-adapter.js           # Local model adapter (llama.cpp, etc.)
-    └── adapter-interface.js      # Standard adapter interface
+    └── adapter-interface.js      # Standard adapter interface (Python)
 ```
 
 ## Quick Start
@@ -85,6 +87,86 @@ const response = await adapter.callModel('gpt-4o', {
   temperature: 0.7
 });
 ```
+
+## Ollama Support
+
+Ollama is a local LLM runner that provides an OpenAI-compatible API. This framework supports calling models hosted on Ollama.
+
+### Prerequisites
+
+1. **Install Ollama**: Download from [ollama.com](https://ollama.com)
+2. **Start Ollama service**: Ollama runs on `http://localhost:11434`
+3. **Pull models**:
+   ```bash
+   ollama pull llama3.3      # Meta Llama 3.3 70B
+   ollama pull mistral        # Mistral 7B (fast)
+   ollama pull codellama      # Code Llama (code-specialized)
+   ollama pull phi3           # Microsoft Phi-3 (lightweight)
+   ```
+
+### Configuration
+
+Ollama models are configured in `api/ollama/`. Example configuration (`api/ollama/llama3.3.json`):
+
+```json
+{
+  "model_id": "llama3.3:latest",
+  "model_name": "llama3.3:latest",
+  "provider": "ollama",
+  "type": "local",
+  "api": {
+    "base_url": "http://localhost:11434/v1",
+    "api_key": "ollama",
+    "endpoint": "http://localhost:11434/v1/chat/completions",
+    "health_check": "http://localhost:11434/api/tags"
+  },
+  "default_parameters": {
+    "temperature": 0.7,
+    "top_p": 0.9,
+    "num_predict": 2048,
+    "stream": false
+  },
+  "capabilities": ["text", "code-generation", "reasoning"],
+  "context_window": 131072,
+  "cost_per_1k_tokens": 0
+}
+```
+
+### Using Ollama Models
+
+```python
+from adapters.adapter-interface import call_model
+
+# Call Ollama Llama 3.3
+result = call_model(
+    model_id='ollama-llama3.3',
+    messages=[{"role": "user", "content": "Explain quantum computing"}],
+    role='CEO',
+    temperature=0.7
+)
+
+if result['success']:
+    print(result['response'])
+```
+
+### Available Ollama Configurations
+
+| Config File | Model | Context Window | Capabilities |
+|-------------|-------|----------------|--------------|
+| `llama3.3.json` | Llama 3.3 70B | 131072 | text, code-generation, reasoning |
+| `mistral.json` | Mistral 7B | 32768 | text, code-generation, fast-inference |
+| `codellama.json` | Code Llama | 16384 | text, code-generation, code-completion |
+| `phi3.json` | Phi-3 | 131072 | text, reasoning, lightweight |
+
+### Adapter Function
+
+Ollama models are called via the `call_ollama()` function in `adapters/adapter-interface.py`. This function:
+- Uses OpenAI-compatible API format
+- Connects to `http://localhost:11434/v1`
+- Requires no API key (uses placeholder)
+- Returns standardized response format
+
+---
 
 ## Model Types
 

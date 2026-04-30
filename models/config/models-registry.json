@@ -45,18 +45,78 @@
       "enabled": false,
       "permissions": ["CTO", "SECURITY_AUDIT_REQUIRED"],
       "tags": ["local", "open-weights", "self-hosted"]
+    },
+    {
+      "id": "ollama-llama3.3",
+      "name": "Ollama Llama 3.3",
+      "type": "local",
+      "provider": "ollama",
+      "config_path": "api/ollama/llama3.3.json",
+      "capabilities": ["text", "code-generation", "reasoning"],
+      "context_window": 131072,
+      "max_output_tokens": 2048,
+      "cost_per_1k_tokens": 0,
+      "enabled": true,
+      "permissions": ["CEO", "CTO", "ALL_DEPARTMENTS"],
+      "tags": ["local", "ollama", "meta", "production-ready"]
+    },
+    {
+      "id": "ollama-mistral",
+      "name": "Ollama Mistral",
+      "type": "local",
+      "provider": "ollama",
+      "config_path": "api/ollama/mistral.json",
+      "capabilities": ["text", "code-generation", "fast-inference"],
+      "context_window": 32768,
+      "max_output_tokens": 4096,
+      "cost_per_1k_tokens": 0,
+      "enabled": true,
+      "permissions": ["CEO", "CTO", "ALL_DEPARTMENTS"],
+      "tags": ["local", "ollama", "mistral", "fast"]
+    },
+    {
+      "id": "ollama-codellama",
+      "name": "Ollama Code Llama",
+      "type": "local",
+      "provider": "ollama",
+      "config_path": "api/ollama/codellama.json",
+      "capabilities": ["text", "code-generation", "code-completion"],
+      "context_window": 16384,
+      "max_output_tokens": 4096,
+      "cost_per_1k_tokens": 0,
+      "enabled": true,
+      "permissions": ["CTO", "ALL_DEPARTMENTS"],
+      "tags": ["local", "ollama", "code-specialized"]
+    },
+    {
+      "id": "ollama-phi3",
+      "name": "Ollama Phi-3",
+      "type": "local",
+      "provider": "ollama",
+      "config_path": "api/ollama/phi3.json",
+      "capabilities": ["text", "reasoning", "lightweight"],
+      "context_window": 131072,
+      "max_output_tokens": 2048,
+      "cost_per_1k_tokens": 0,
+      "enabled": true,
+      "permissions": ["CEO", "CTO", "ALL_DEPARTMENTS"],
+      "tags": ["local", "ollama", "microsoft", "efficient"]
     }
   ],
   "default_models": {
     "text_generation": "gpt-4o",
     "code_generation": "gpt-4o",
     "safety_review": "claude-3-5-sonnet",
-    "local_fallback": "llama-3.3-70b"
+    "local_fallback": "llama-3.3-70b",
+    "ollama_default": "ollama-llama3.3",
+    "ollama_code": "ollama-codellama",
+    "ollama_fast": "ollama-mistral"
   },
   "adapter_mapping": {
     "openai": "adapters/openai-adapter.js",
     "anthropic": "adapters/anthropic-adapter.js",
     "meta": "adapters/local-adapter.js",
+    "ollama": "adapters/adapter_interface.py:call_ollama",
     "default": "adapters/openai-adapter.js"
   }
 }

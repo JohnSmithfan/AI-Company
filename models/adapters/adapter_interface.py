@@ -230,9 +230,22 @@ def call_ollama(config, messages, **kwargs):
         params = {
             "model": model_name,
             "messages": messages,
-            **config.get('default_parameters', {}),
-            **kwargs
         }
+
+        # Handle default_parameters (map Ollama params to OpenAI params)
+        default_params = config.get('default_parameters', {})
+
+        # Map num_predict to max_tokens (Ollama uses num_predict, OpenAI uses max_tokens)
+        if 'num_predict' in default_params:
+            params['max_tokens'] = default_params.pop('num_predict')
+
+        # Add remaining parameters
+        for key, value in default_params.items():
+            if key not in ['num_predict']:  # Already handled
+                params[key] = value
+
+        # Override with kwargs
+        params.update(kwargs)
 
         # Call API
         response = client.chat.completions.create(**params)

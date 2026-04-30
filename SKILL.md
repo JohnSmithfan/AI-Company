@@ -76,6 +76,12 @@ triggers:
   - model registry
   - model governance
   - model access control
+  - ollama
+  - ollama model
+  - local LLM
+  - ollama inference
+  - run ollama
+  - ollama integration
 interface:
   inputs:
     type: object

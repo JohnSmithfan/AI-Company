@@ -73,6 +73,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added error codes: CTO_016~CTO_025 (model not found, config missing, disabled, API key missing, rate limit, invocation failed, permission denied, health check failed, invalid response, config invalid), CEO_E016~CEO_E020 (model access denied, budget exceeded, security scan failed, cross-border transfer violation, lifecycle review overdue), CISO_005 (model security scan failed)
   - Updated main SKILL.md with model-related triggers and error codes
 
+- **Ollama Support (Ollama 模型支持)**
+  - Added `call_ollama()` function to `models/adapters/adapter-interface.py`
+    - OpenAI-compatible API format
+    - Connects to `http://localhost:11434/v1`
+    - Supports multiple Ollama models
+  - Created Ollama model configurations in `models/api/ollama/`:
+    - `llama3.3.json`: Meta Llama 3.3 70B (131072 context)
+    - `mistral.json`: Mistral 7B (32768 context, fast inference)
+    - `codellama.json`: Code Llama (16384 context, code-specialized)
+    - `phi3.json`: Microsoft Phi-3 (131072 context, lightweight)
+  - Updated `models/config/models-registry.json`:
+    - Added 4 Ollama models: `ollama-llama3.3`, `ollama-mistral`, `ollama-codellama`, `ollama-phi3`
+    - All Ollama models enabled by default
+    - Added `ollama` to `adapter_mapping`
+    - Added `ollama_default`, `ollama_code`, `ollama_fast` to `default_models`
+  - Updated `models/README.md`:
+    - Added "Ollama Support" section with prerequisites, configuration, usage examples
+    - Listed available Ollama configurations table
+    - Documented `call_ollama()` adapter function
+  - Updated main `SKILL.md` with Ollama-related triggers:
+    - `ollama`, `ollama model`, `local LLM`, `ollama inference`, `run ollama`, `ollama integration`
+
 ---
 
 ## [1.0.6] - 2026-04-30

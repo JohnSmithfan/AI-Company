@@ -1,0 +1,27 @@
+{
+  "model_id": "codellama:latest",
+  "model_name": "codellama:latest",
+  "provider": "ollama",
+  "type": "local",
+  "api": {
+    "base_url": "http://localhost:11434/v1",
+    "api_key": "ollama",
+    "endpoint": "http://localhost:11434/v1/chat/completions",
+    "health_check": "http://localhost:11434/api/tags"
+  },
+  "default_parameters": {
+    "temperature": 0.2,
+    "top_p": 0.95,
+    "num_predict": 4096,
+    "stream": false
+  },
+  "capabilities": [
+    "text",
+    "code-generation",
+    "code-completion",
+    "technical-documentation"
+  ],
+  "context_window": 16384,
+  "cost_per_1k_tokens": 0,
+  "notes": "Code Llama - Specialized for code generation and completion. Pull with: ollama pull codellama"
+}
