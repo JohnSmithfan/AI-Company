@@ -7,8 +7,6 @@
 > 档位一旦确定，部门集合、错误码规模、文件结构、功能范围**全部随之确定**，不要自行发挥。
 > **档位不是单向门**：技能可在后期自主提案扩大规模（见第 10 节），但安装须人工批准。
 >
-> **约束来源**：本文红线来自三份实测报告——源技能包审核（26 项）、本文 R1 审查（17 项）、本文 R2 审查（18 项 + 3 项算术勘误）。
-> 证据存于 `.git/AUDIT-REPORT-ai-company.md`、`REVIEW-README-FOR-AI.md`、`REVIEW-README-FOR-AI-R2.md`（后两份已被 `.gitignore` 排除）。
 
 ---
 
@@ -2096,4 +2094,3 @@ Step 10 查第 9 节 → 跑通用 27 条 + 档位专属 + 升级机制 13 条�
 ---
 
 *本指南为生成规格，GPL-3.0 许可。*
-*缺陷证据：`.git/AUDIT-REPORT-ai-company.md`（源包审核）、`REVIEW-README-FOR-AI.md`（R1 审查）、`REVIEW-README-FOR-AI-R2.md`（R2 审查）。后两份已被 `.gitignore` 排除。*
