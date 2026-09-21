@@ -1,96 +1,97 @@
-# Implementation Method Prompt
-
-> Copy and paste this prompt into any AI chat window to implement the AI Company skill.
-
 ---
+mode: human-paste
+id: 01-implement-method
+title: Implement Method
+output_language: user-specified
+harness_level: L3
+---
+
+> **Mode**: human-paste (paste into any AI chat window)
+> **Purpose**: Copy this prompt into any AI chat window and have that AI implement one method to the standard below.
+> **This file is not invoked automatically by an agent.**
+>
+> **Fill in before use**:
+> - `<METHOD_NAME>` - name of the method to implement
+> - `<LANGUAGE>` - target programming language
+> - `<CONSTRAINTS>` - project-specific constraints
+>
+> **Output language**: follow the language you are currently using in this conversation.
 
 ## Prompt
 
-```
-You are implementing the AI Company unified skill.
+(The block below is copied as a whole)
 
-This skill consolidates 16 department functions into one. Your task:
+```text
+You are a senior software engineer. Implement the method <METHOD_NAME> in <LANGUAGE>,
+honoring the project-specific constraints: <CONSTRAINTS>
 
-1. Read SKILL.md for the full index and department structure
-2. Read references/method-patterns.md for shared templates and compliance rules
-3. Read the relevant department file in references/departments/ for specific implementation
-4. Implement following the code templates and prompt frameworks
+## Canonical method contracts
 
-Key Requirements:
-- All content in English
-- ClawHub Schema v1.0 compliant
-- L1-L6 harness engineering compliance
-- No eval/exec/remote loading
-- AIGC labeling on all AI-generated output
-- Use CRISPE/3WEH/Five-Element prompt frameworks as appropriate
+Wherever your implementation touches input or output handling, it must honor these ten
+canonical signatures. Adapt names only if the project already uses different ones, and
+say so explicitly:
 
-Department Selection:
-  governance-and-strategy: CEO strategy, COO operations, HQ routing
-  finance-and-risk: CFO financial, CRO risk management
-  technology-and-engineering: CTO architecture, agent factory, skill builder
-  platform-and-infrastructure: Framework standards, L1-L6, CI/CD, code templates
-  security-and-compliance: CISO security gate, CLO legal compliance
-  people-and-culture: CHO agent lifecycle, knowledge extraction
-  marketing-and-partnerships: CMO marketing, skill discovery, product
-  quality-and-operations: CQO quality gates, PMGR project management
-  intelligence: Director, Analysis, Collection, Operations, Security
-  information: Location, Weather, Time services
-  translation-and-localization: Multi-language translation pipeline
+1. validate_input_schema(data, schema) - validate input against a schema before any
+   processing; no external I/O.
+2. sanitize_user_query(query) - neutralize prompt injection and shell metacharacters;
+   no dynamic code execution.
+3. execute_safe_command(cmd, timeout=30) - run a command in a sandbox with a hard
+   timeout and a restricted working directory.
+4. format_output_json(content, provider) - produce standard JSON output with
+   AI-content identification.
+5. retry_with_backoff(func, max_retries=3) - retry a transiently failing call with
+   exponential backoff.
+6. read_reference_file(filepath) - read a file only after path validation; reject
+   paths outside allowed roots.
+7. generate_trace_id(prefix="trace") - produce a stateless unique audit-trace
+   identifier.
+8. check_rate_limit(identifier, limit=10, window=60) - in-memory rate limiting only;
+   never persist counters to disk.
+9. mask_sensitive_data(text) - mask email addresses, IP addresses, and phone numbers.
+10. build_prompt_from_template(template, **kwargs) - build a prompt from a template;
+    sanitize all inputs first.
 
-Output Format:
-- Structured JSON with ai_generated: true in metadata
-- FW_xxx error codes for framework errors
-- Department-specific error codes (CEO_xxx, CFO_xxx, etc.)
-- PII masked before any output
+## Mandatory data-handling rules
 
-Implementation Checklist:
-- [ ] Department function implemented per method-patterns spec
-- [ ] Error codes defined and handled
-- [ ] Code templates used where applicable
-- [ ] AIGC labels applied
-- [ ] Security compliance verified
-- [ ] Integration points documented
-```
+- PII masking: every output path must replace email addresses with [EMAIL], IPv4
+  addresses with [IP], and 11-digit phone numbers with [PHONE]. All three placeholder
+  kinds are mandatory; omitting any one of them is a defect.
+- AI-generated content identification: every artifact you produce must carry all three
+  layers - (1) a visible label such as "AI-Generated Content", (2) structured metadata
+  with "ai_generated": true, "generated_at": "<ISO8601 timestamp>", and
+  "model": "<provider/model>", and (3) an embedded watermark in the content body that
+  does not survive-free under simple deletion.
 
----
+## Requirements
 
-## CRISPE Framework (Complex Implementation)
+- Error handling and retry behavior appropriate to a robust implementation, not merely
+  a functional one.
+- Write operations must be idempotent: executing the same input N times leaves the
+  system in the same state as executing it once.
+- Never log or retain raw sensitive data.
 
-```
-【Role】 Senior AI Company Architect
-【Result】 Fully compliant department implementation
-【Input】 SKILL.md + department method-patterns
-【Steps】
-  1. Select department and read specifications
-  2. Implement core responsibilities
-  3. Apply shared code templates
-  4. Validate against L1-L6 checklist
-  5. Run security and AIGC compliance checks
-【Parameters】 Python 3.9+, JSON output, Markdown docs
-【Example】
-  Input: "Implement CFO budget approval"
-  Output: Budget tier logic with dual-approval for >$10K
+## Output contract
+
+Respond in the language I am currently using in this conversation, and return:
+1. The complete implementation of <METHOD_NAME> in one or more code blocks.
+2. A short list stating which of the ten contracts above the implementation uses or
+   complies with.
+3. A compliance note confirming the three PII placeholders and the three AI-content
+   identification layers, or explaining any deviation.
 ```
 
-## 3WEH Model (Clear Delegation)
+## Expected Output
 
-```
-Who: AI Company Department Agent
-What: Implement department function per specification
-Why: All AI-Company operations require compliant implementations
-How: Follow method-patterns, use code templates, apply AIGC labels
-```
+The AI should return: (1) the full working implementation of `<METHOD_NAME>` in `<LANGUAGE>`; (2) an explicit mapping of which of the ten canonical contracts the code uses or complies with; (3) a compliance note covering the three PII masking placeholders and the three AI-content identification layers, or documented deviations. Code blocks are expected; prose around them should be brief.
 
-## Five-Element Structure (Enterprise)
+## Self-Check Checklist
 
-```
-Role: AI Company Engineer
-Task: Implement department with full compliance
-Context: Enterprise AI company with 16 departments
-Format: Python functions + Markdown docs + JSON schemas
-Constraint: No eval/exec, AIGC labels, VirusTotal pass, L1-L6 compliant
-```
+After receiving the reply, verify each item:
 
----
-
-*Copy-paste ready for any AI chat window.*
+- [ ] The reply is written in the same language as this conversation.
+- [ ] The code is complete, in `<LANGUAGE>`, with no placeholder pseudo-code left in it.
+- [ ] PII masking covers all three kinds: [EMAIL], [IP], and [PHONE].
+- [ ] AI-generated artifacts carry all three identification layers (visible label, structured metadata, embedded watermark).
+- [ ] Error handling and retry paths exist, and write operations are idempotent.
+- [ ] Raw sensitive data is never logged or retained.
+- [ ] Any deviation from the ten canonical signatures is explicitly called out with a reason.
