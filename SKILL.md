@@ -83,7 +83,7 @@ metadata:
   harness_baseline: L3
 ---
 
-# AI Company Governance
+# AI Company
 
 Micro-tier (XS) LLM agent governance skill for organizations of 1-3 agents: 18 enterprise function blocks consolidated into 2 departments, backed by shared harness templates, a full error-code catalog, and propose-only self-scaling.
 
