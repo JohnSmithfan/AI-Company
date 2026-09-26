@@ -45,8 +45,10 @@ This project follows coordinated disclosure with a **90-day** window:
   `tests/` or the `permissions` block of `SKILL.md`; this invariant is
   asserted by `tests/test-method-patterns.py`.
 - **Human-gated tier changes.** `scripts/self-scale.ps1` with
-  `-Action evaluate` is read-only. Any tier mutation requires explicit human
-  approval and is recorded in `.scaling-state.json`.
+  `-Action evaluate` does not modify skill content; it writes back only its own
+  bookkeeping fields (`next_evaluation`, `last_metrics`, `routing_miss_streak`)
+  to `.scaling-state.json`. Any tier mutation requires explicit human approval
+  and is recorded in `.scaling-state.json`.
 - **Zero dynamic code execution.** No `eval` / `exec` on user input and no
   `Invoke-Expression` / `iex` / `DownloadString` in any script or prompt
   (`README-FOR-AI.md` §9.4, P25).

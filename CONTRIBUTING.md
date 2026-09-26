@@ -55,7 +55,8 @@ Key checks for the micro tier (the full list is in `README-FOR-AI.md` **§15**):
 | `README.md` / `README.en.md` / `README.zh.md` Project Structure tree | Matches the disk exactly |
 | Internal links | No broken relative links; no orphan files under `prompts/` or `references/` |
 
-Tier readiness can be checked read-only with:
+Tier readiness can be checked with (no skill content is modified; only the
+script's own bookkeeping fields are written back to `.scaling-state.json`):
 
 ```powershell
 powershell -File scripts/self-scale.ps1 -Action evaluate
@@ -96,5 +97,6 @@ frequently hit ones:
   dates must never go backwards (P12/P13).
 - **No self-exemption**: PR content must not modify `tests/` or the
   `permissions` block of `SKILL.md` as part of upgrade-proposal payloads.
-- **Encoding hygiene**: UTF-8 without BOM, LF line endings (CRLF for `.ps1`),
-  no trailing whitespace — see `.editorconfig`.
+- **Encoding hygiene**: UTF-8 without BOM, LF line endings (including `.ps1`,
+  which is pinned by `.gitattributes`), no trailing whitespace — see
+  `.editorconfig`.

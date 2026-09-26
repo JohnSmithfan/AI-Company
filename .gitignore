@@ -17,6 +17,10 @@ __pycache__/
 .update-notification.md
 *.bak
 
+# Agent workspace data (this .workbuddy directory is tooling state, not
+# package content; it must never enter a release)
+.workbuddy/
+
 # Installer-local metadata (machine-specific install state)
 .clawhub/
 

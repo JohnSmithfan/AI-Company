@@ -631,6 +631,47 @@ class SourceIntegrityTests(unittest.TestCase):
         legacy = SKILL_DIR / LEGACY_TEMPLATES_FILE
         self.assertFalse(legacy.exists(), "templates.md 已取消（R3-2），不得生成")
 
+    def test_def_unique_across_package(self):
+        """★ R4 新增：断言全包每个 `def <fn>` 恰 1 处（P10/P44 复发信号）。
+
+        §7.3 的验收要求"全包每个 def 恰 1 处命中"。此前该检查只靠人工 grep，
+        导致 README-FOR-AI.md §7.1 内联复制 mask_sensitive_data 而未被发现。
+        两条防线并存：权威源"含"10 个 def（test_templates_source_exists）+
+        全包"仅"1 处（本断言），后者才能守住单一权威源。
+        """
+        scanned = ["*.md", "*.py", "*.ps1"]
+        hits = {}
+        for pattern in scanned:
+            for path in SKILL_DIR.rglob(pattern):
+                if ".git" in path.parts:
+                    continue
+                try:
+                    text = path.read_text(encoding="utf-8")
+                except (UnicodeDecodeError, OSError):
+                    continue
+                for match in re.finditer(r"^def ([A-Za-z_][A-Za-z0-9_]*)", text, re.M):
+                    rel = path.relative_to(SKILL_DIR).as_posix()
+                    hits.setdefault(match.group(1), set()).add(rel)
+
+        duplicated = {name: sorted(locs) for name, locs in hits.items() if len(locs) > 1}
+        self.assertEqual(
+            {}, duplicated,
+            "模板代码被内联复制到多处（P10/P44）：" +
+            "; ".join(f"{name} -> {locs}" for name, locs in sorted(duplicated.items()))
+        )
+
+        # 权威源必须覆盖全部 10 个模板，且不允许任何一处落到权威源之外。
+        authoritative = AUTHORITATIVE_SOURCE
+        outside = {
+            name: sorted(locs)
+            for name, locs in hits.items()
+            if name in TEN_TEMPLATE_NAMES and locs != {authoritative}
+        }
+        self.assertEqual(
+            {}, outside,
+            f"模板函数必须只出现在 {authoritative}（P10/P44）：{outside}"
+        )
+
 
 # ═════════════════════════════════════════════════════════════════════════════
 # C. 结构一致性测试

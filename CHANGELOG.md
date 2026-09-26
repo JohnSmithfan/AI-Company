@@ -22,6 +22,46 @@ and this project adheres to
   count of 25, matching `README-FOR-AI.md` §15 and the Project Structure tree
   in the `README` files.
 
+### Fixed
+
+- `scripts/self-scale.ps1`: `Save-State` (and the two other JSON writers)
+  replaced `ConvertTo-Json` with `ConvertTo-StableJson`, a hand-rolled
+  serializer that emits stable 2-space-indented JSON with `[]` for empty
+  arrays. Previously every `-Action evaluate` rewrote `.scaling-state.json`
+  with PowerShell-flavoured indentation (21/26-space blocks, double space after
+  key names), dirtying the working tree and violating `.editorconfig`.
+- `README.md`, `README.zh.md`, `README.en.md`, `SECURITY.md`, `AGENTS.md`,
+  `CONTRIBUTING.md`, `README-FOR-AI.md` §15: the `-Action evaluate` contract is
+  now stated accurately. It was documented as "read-only" in four places while
+  it does write back its own bookkeeping fields (`next_evaluation`,
+  `last_metrics`, `routing_miss_streak`) to `.scaling-state.json` — skill
+  content has always been untouched.
+- `README-FOR-AI.md` §7.1: removed the inlined `mask_sensitive_data`
+  implementation. It duplicated the authoritative source in
+  `references/method-patterns.md` §3.9, violating P10/P44 and failing the
+  package's own §7.3 check ("every `def <fn>` must appear exactly once across
+  the package"). Replaced with a pointer to the authoritative source.
+- `tests/test-method-patterns.py`: added `test_def_unique_across_package`,
+  which recurses the whole package and asserts that every `def <fn>` appears
+  exactly once and that the ten templates appear only in
+  `references/method-patterns.md`. The previous suite only asserted that the
+  authoritative source *contains* the ten definitions, so the duplication above
+  went undetected. Suite is now 25 tests (was 24).
+- `.editorconfig`, `CONTRIBUTING.md`: `[*.ps1]` line endings corrected from
+  `crlf` to `lf` to match the file on disk — `scripts/self-scale.ps1` carries
+  LF-sensitive here-strings and normalizes everything it writes to LF (E15), so
+  the documentation was the wrong side to keep. Recorded in
+  `README-FOR-AI.md` §16.
+- `.gitignore`: `.workbuddy/` (agent workspace state) is now ignored so local
+  tooling data can never enter a release.
+
+### Added
+
+- `README-FOR-AI.md` §16: two deviation records — the Chinese-language
+  exemption for this spec document (versus §6.3's English source-file standard)
+  and the line-ending policy decision. `AGENTS.md` updated to list
+  `README-FOR-AI.md` alongside `README.zh.md` as exempted.
+
 ## [1.0.0] - 2026-09-21
 
 ### Added

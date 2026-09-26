@@ -76,7 +76,7 @@ ai-company/
 │   ├── self-scale.ps1         # 自我升级脚本（propose-only，六道门）
 │   └── scaling-config.json    # 升级配置（阈值/不可变路径）
 └── tests/
-    └── test-method-patterns.py  # 四类断言 A/B/C/D，24 条
+    └── test-method-patterns.py  # 四类断言 A/B/C/D，25 条
 ```
 
 > 25 = 治理层 13 + `.scaling-state.json` 1 + `README-FOR-AI.md`（本文）1 + prompts 2 + references 顶层 3 + 部门 D2 2 + scripts 2 + tests 1。升 small 档为 **29**（−2 旧 D2 +5 新 D2 +1 新 prompt = +4）。
@@ -229,19 +229,7 @@ metadata:
 | 9 | `mask_sensitive_data(text)` | PII 脱敏 | 不记录原始数据 | L5 |
 | 10 | `build_prompt_from_template(template, **kwargs)` | 提示词生成 | 输入先净化 | L3 |
 
-**模板 9 的完整实现（三类脱敏，缺一不可；P32 教训）**——占位符固定 `[EMAIL]`/`[IP]`/`[PHONE]`：
-
-```python
-def mask_sensitive_data(text):
-    """Mask sensitive information in output (emails, IPs, phone numbers)."""
-    # Mask email addresses
-    text = re.sub(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b', '[EMAIL]', text)
-    # Mask IP addresses
-    text = re.sub(r'\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b', '[IP]', text)
-    # Mask phone numbers (11-digit)
-    text = re.sub(r'\b[0-9]{11}\b', '[PHONE]', text)
-    return text
-```
+**模板 9（三类脱敏，缺一不可；P32 教训）**——占位符固定 `[EMAIL]`/`[IP]`/`[PHONE]`，三者缺一即判缺陷。其完整实现**只存在于** `references/method-patterns.md` §3.9（模板代码的唯一权威源）。本文件**不复制任何模板代码**：全包每个 `def <fn>` 必须**恰 1 处**命中（§7.3 验收，P10/P44 复发信号）。
 
 ### 7.2 三个提示词框架（逐字符照抄）
 
@@ -562,7 +550,7 @@ G1–G3 不可绕过（即使人工批准）。升级包**排除** `__pycache__`
 ## 13. 测试（`tests/test-method-patterns.py`，四类断言）
 
 - **A 行为测试**：10 模板各 ≥1 条（正常+边界）。模板代码在 method-patterns.md 的 ```` ```python ```` 块内——用正则提取第 3 节代码块 `exec` 到独立命名空间后调用（**测源文件，非内联副本**）。`mask_sensitive_data` 必须断言 email/IP/phone 三类均脱敏。
-- **B 源文件完整性**：`test_templates_source_exists`（权威源存在 + 10 个 def）、`test_phone_masking_in_source`（`[PHONE]` 在源中）、`test_legacy_templates_file_absent`（templates.md 不存在）。
+- **B 源文件完整性**：`test_templates_source_exists`（权威源存在 + 10 个 def）、`test_phone_masking_in_source`（`[PHONE]` 在源中）、`test_legacy_templates_file_absent`（templates.md 不存在）、`test_def_unique_across_package`（★ R4 新增：全包递归扫描，每个 `def <fn>` 恰 1 处，且 10 个模板只出现在权威源 —— 守住 P10/P44；此前该检查只靠人工 grep，漏洞未被机器捕获）。
 - **C 结构一致性**：`test_function_block_conservation`（micro=18）、`test_scaling_files_present`（四件套 + propose-only）、`test_governance_files_present`（13 文件含 AGENTS.md）、`test_no_filename_with_space`、`test_prompt_modes_declared`（01/02 为 human-paste）、`test_human_paste_prompts_self_contained`（H1/H2/H6）、`test_language_policy_declared`、`test_skill_md_is_index_only`（正文 ≤120 行、无 def、无具体错误码）。
 - **D 不可变边界**：`test_upgrade_package_excludes_immutable`（扫描 `{WORKSPACE_ROOT}/.skill-upgrade/`，不含 tests/ 与 permissions 变更；目录不存在时 skip）。
 
@@ -658,10 +646,10 @@ G1–G3 不可绕过（即使人工批准）。升级包**排除** `__pycache__`
 ## 15. 验收清单（每次生成/修改后必须执行）
 
 ```powershell
-# 1. 测试套件（24 条应全绿，1 skip 属预期）
+# 1. 测试套件（25 条应全绿，1 skip 属预期）
 python tests/test-method-patterns.py
 
-# 2. 升级就绪检查（只读）
+# 2. 升级就绪检查（不改动技能内容；仅回写自身记录字段到 .scaling-state.json）
 powershell -File scripts/self-scale.ps1 -Action evaluate
 ```
 
@@ -682,6 +670,8 @@ powershell -File scripts/self-scale.ps1 -Action evaluate
 | 记忆/熔断/董事会阶梯 | D2 中以 "at M+/L+ tiers" 限定语承载（微型档不引入这些子系统） |
 | G6 为机器可查子集 | `self-scale.ps1` 的 G6 实现可自动化子集，完整 §15 验收为人工步骤（已如实声明，非 P24） |
 | 更高档位 | M/L/G 的部门全集遵循 §10.1 同一合并树原则；本包当前只实现 micro→small 升级边 |
+| 本文语言豁免（R4 审计） | 本文面向中文维护者撰写，**单独豁免**于 §6.3「源文件 = 英语」标准（与 `README.zh.md` 同列豁免）。豁免**仅限自然语言行文**：标识符六类仍永不翻译（P48），代码块仍为英语，本文仍不得内联复制模板代码（§7.1） |
+| 行尾策略（R4 审计） | 全包统一 **LF**（含 `.ps1`）。原 `.editorconfig` 要求 `[*.ps1] eol=crlf` 而文件实测为 LF，已按"文档服从实现"修订 `.editorconfig` 与 `CONTRIBUTING.md`——`self-scale.ps1` 含 LF 敏感 here-string，且其 E15 规范化逻辑强制产物为 LF，改文件风险高于改文档。**未引入 `.gitattributes`**：新增文件会使 micro 档 25→26 并连带 small 档 29→30（`$TargetFileCount` 与内嵌目录树需同步重生成），属独立变更，另行立项 |
 
 ---
 

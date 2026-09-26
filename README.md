@@ -91,8 +91,10 @@ ai-company/
 ## Upgrading
 
 This package is designed to grow. `scripts/self-scale.ps1 -Action evaluate`
-performs a read-only readiness check against `scripts/scaling-config.json`;
-the actual upgrade always requires human approval and is recorded in
+checks tier readiness against `scripts/scaling-config.json` and writes back
+only its own bookkeeping fields to `.scaling-state.json` (`next_evaluation`,
+`last_metrics`, `routing_miss_streak`); it never modifies skill content. The
+actual upgrade always requires human approval and is recorded in
 `.scaling-state.json`. Thresholds, paths, and aliases are specified in
 [references/scaling.md](references/scaling.md); the scale-tier ladder itself is
 defined locally in `README-FOR-AI.md` §1.

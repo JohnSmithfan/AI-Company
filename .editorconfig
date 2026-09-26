@@ -17,8 +17,10 @@ indent_size = 2
 indent_style = space
 indent_size = 4
 
-# PowerShell scripts target Windows tooling, which expects CRLF by convention
+# PowerShell scripts are authored with LF. scripts/self-scale.ps1 normalises
+# every artifact it writes to LF (E15) and carries LF-sensitive here-strings,
+# so the file itself must stay LF; .gitattributes pins this for checkouts.
 [*.ps1]
 indent_style = space
 indent_size = 2
-end_of_line = crlf
+end_of_line = lf

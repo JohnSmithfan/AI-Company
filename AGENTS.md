@@ -33,7 +33,7 @@ Run from the package root:
 | Purpose | Command |
 |---|---|
 | Unit tests (authoritative-source validation) | `python tests/test-method-patterns.py` |
-| Tier evaluation (read-only readiness check) | `powershell -File scripts/self-scale.ps1 -Action evaluate` |
+| Tier evaluation (readiness check; writes back its own bookkeeping fields to `.scaling-state.json`, never skill content) | `powershell -File scripts/self-scale.ps1 -Action evaluate` |
 | Key acceptance counts | See the acceptance section of `CONTRIBUTING.md` |
 
 All tests must pass before you commit. Any tier action beyond `evaluate`
@@ -67,8 +67,9 @@ points to the single authoritative location.
   (P50)
 - **Never translate identifiers** (slugs, error codes, field names, enum
   values, file paths, function names), including in `README.zh.md`. (P48)
-- Source files are English (except `README.zh.md`); output language follows the
-  user. (P47)
+- Source files are English (except `README.zh.md` and `README-FOR-AI.md`, which
+  are explicitly exempted for natural-language prose — see `README-FOR-AI.md`
+  §16); output language follows the user. (P47)
 - UTF-8 without BOM, LF line endings, 2-space indent (4 for Python), CRLF for
   `.ps1` — see `.editorconfig`.
 - `.gitignore` uses wildcard patterns (`REVIEW-*.md`, `AUDIT-*.md`), never

@@ -207,9 +207,87 @@ function Set-StateProperty {
   else { $State | Add-Member -MemberType NoteProperty -Name $Name -Value $Value }
 }
 
+function Format-JsonStringLiteral {
+  param([string]$Value)
+  $sb = New-Object System.Text.StringBuilder
+  [void]$sb.Append('"')
+  foreach ($ch in $Value.ToCharArray()) {
+    if ($ch -eq '"') { [void]$sb.Append('\"') }
+    elseif ($ch -eq '\') { [void]$sb.Append('\\') }
+    elseif ($ch -eq "`b") { [void]$sb.Append('\b') }
+    elseif ($ch -eq "`f") { [void]$sb.Append('\f') }
+    elseif ($ch -eq "`n") { [void]$sb.Append('\n') }
+    elseif ($ch -eq "`r") { [void]$sb.Append('\r') }
+    elseif ($ch -eq "`t") { [void]$sb.Append('\t') }
+    elseif ([int]$ch -lt 32) { [void]$sb.Append(('\u{0:x4}' -f [int]$ch)) }
+    else { [void]$sb.Append($ch) }
+  }
+  [void]$sb.Append('"')
+  return $sb.ToString()
+}
+
+function Format-JsonScalar {
+  param($Value)
+  $inv = [System.Globalization.CultureInfo]::InvariantCulture
+  if ($null -eq $Value) { return 'null' }
+  if ($Value -is [bool]) { if ($Value) { return 'true' }; return 'false' }
+  if ($Value -is [string]) { return (Format-JsonStringLiteral $Value) }
+  if (($Value -is [double]) -or ($Value -is [single]) -or ($Value -is [decimal])) {
+    # Keep at least one decimal place so that 1.0 never collapses to 1 in the
+    # committed state file (the repository style stores these metrics as floats).
+    return ([double]$Value).ToString('0.0###########', $inv)
+  }
+  if (($Value -is [int]) -or ($Value -is [long]) -or ($Value -is [int16]) -or ($Value -is [uint32]) -or ($Value -is [uint64])) {
+    return $Value.ToString($inv)
+  }
+  return (Format-JsonStringLiteral ([string]$Value))
+}
+
+function ConvertTo-StableJson {
+  # E16 : ConvertTo-Json emits PowerShell-flavoured output - empty arrays expand
+  # into large blank blocks and nested keys are indented relative to the parent
+  # key name, which breaks the 2-space indent mandated by .editorconfig and
+  # leaves a noisy diff every time this script touches the state file. This
+  # serializer emits stable, 2-space-indented JSON with `[]` for empty arrays.
+  param($Value, [int]$Level = 0)
+  $nl  = [string][char]10
+  $pad = ' ' * ($Level * 2)
+  $padIn = ' ' * (($Level + 1) * 2)
+
+  if ($null -eq $Value) { return 'null' }
+  if ($Value -is [System.Collections.IDictionary]) {
+    $keys = @($Value.Keys)
+    if ($keys.Count -eq 0) { return '{}' }
+    $parts = @()
+    foreach ($k in $keys) {
+      $parts += ($padIn + (Format-JsonStringLiteral ([string]$k)) + ': ' + (ConvertTo-StableJson -Value $Value[$k] -Level ($Level + 1)))
+    }
+    return '{' + $nl + ($parts -join (',' + $nl)) + $nl + $pad + '}'
+  }
+  if (($Value -is [System.Collections.IEnumerable]) -and -not ($Value -is [string])) {
+    $items = @($Value)
+    if ($items.Count -eq 0) { return '[]' }
+    $parts = @()
+    foreach ($it in $items) {
+      $parts += ($padIn + (ConvertTo-StableJson -Value $it -Level ($Level + 1)))
+    }
+    return '[' + $nl + ($parts -join (',' + $nl)) + $nl + $pad + ']'
+  }
+  if ($Value -is [System.Management.Automation.PSCustomObject]) {
+    $props = @($Value.PSObject.Properties | Where-Object { $_.MemberType -in @('NoteProperty', 'Property', 'AliasProperty') })
+    if ($props.Count -eq 0) { return '{}' }
+    $parts = @()
+    foreach ($p in $props) {
+      $parts += ($padIn + (Format-JsonStringLiteral ([string]$p.Name)) + ': ' + (ConvertTo-StableJson -Value $p.Value -Level ($Level + 1)))
+    }
+    return '{' + $nl + ($parts -join (',' + $nl)) + $nl + $pad + '}'
+  }
+  return (Format-JsonScalar $Value)
+}
+
 function Save-State {
   param($State)
-  $json = ConvertTo-Json -InputObject $State -Depth 10
+  $json = ConvertTo-StableJson -Value $State
   Write-TextFileNoBom -Path $StateFile -Text ($json + "`n")
   Write-Log "state file updated: $StateFile"
 }
@@ -693,7 +771,7 @@ and any dimension that cannot be tested, with the reason.
     try {
       $meta = ConvertFrom-Json ([System.IO.File]::ReadAllText($metaPath))
       if ($null -ne $meta.PSObject.Properties['version']) { $meta.version = $UpgradeEdge.NewVersion }
-      Write-TextFileNoBom -Path $metaPath -Text ((ConvertTo-Json -InputObject $meta -Depth 6) + "`n")
+      Write-TextFileNoBom -Path $metaPath -Text ((ConvertTo-StableJson -Value $meta) + "`n")
       Write-Log "5e _meta.json version bumped to $($UpgradeEdge.NewVersion)"
     } catch { Write-Log 'WARN _meta.json could not be updated (G6 version check will fail)' }
   }
@@ -912,7 +990,7 @@ codes whose functions stay in the successor departments keep their codes.
       error_code_reuse_ratio    = 0.0
     }
   }
-  Write-TextFileNoBom -Path (Join-Path $PkgDir '.scaling-state.json') -Text ((ConvertTo-Json -InputObject $pkgState -Depth 10) + "`n")
+  Write-TextFileNoBom -Path (Join-Path $PkgDir '.scaling-state.json') -Text ((ConvertTo-StableJson -Value $pkgState) + "`n")
   Write-Log "package state file initialized for tier '$($UpgradeEdge.To)' (tier_history carries the upgrade skeleton entry, append-only)"
 }
 
