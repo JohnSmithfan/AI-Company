@@ -1,0 +1,10 @@
+# Pin line endings at the repository level so that a contributor's local
+# core.autocrlf setting cannot silently rewrite them. Without this file a
+# Windows checkout running under core.autocrlf=true emits "LF will be replaced
+# by CRLF" and leaves the working tree dirty after any git operation. Matches
+# .editorconfig ([*] end_of_line = lf).
+* text=auto eol=lf
+
+# PowerShell scripts are authored with LF and are normalised to LF on write by
+# scripts/self-scale.ps1 (E15); keep them LF in the working tree too.
+*.ps1 text eol=lf
