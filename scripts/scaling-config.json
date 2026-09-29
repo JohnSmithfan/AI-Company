@@ -8,6 +8,12 @@
     "routing_accuracy_floor": 0.85,
     "error_code_reuse_ceiling": 0.25
   },
+  "host_metrics": {
+    "max_age_days": 45,
+    "min_routing_samples": 20,
+    "drop_dir": "{WORKSPACE_ROOT}/.skill-metrics",
+    "log_cap": 20
+  },
   "immutable_paths": ["permissions", "tests/", "scripts/self-scale.ps1"],
   "output_dir": "{WORKSPACE_ROOT}/.skill-upgrade"
 }

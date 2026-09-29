@@ -603,6 +603,117 @@ class BehaviorTests(unittest.TestCase):
         for bad in (";", "`"):
             self.assertNotIn(bad, out2, f"kwargs 输入未被净化: {bad!r}")
 
+    # ══ ★ R4 回归：2026-09-28 实质审查缺陷（H-2 / M-2 / M-4 / L-3 / L-4 / L-6）══
+    # 这些缺陷的共同特征：清单审查全部通过，但机制跑起来不管用。故每条断言都
+    # 直接调用权威源的真实函数，而不是再次核对文档措辞。
+
+    def test_credential_env_scrubbing_covers_real_names(self):
+        """★ H-2：凭证擦除必须覆盖真实世界的变量命名，而非仅前缀匹配。
+
+        前缀匹配（api_/token/secret/password/key_）实测泄漏 AWS_SECRET_ACCESS_KEY、
+        GITHUB_TOKEN、OPENAI_APIKEY 等 12 个名字 —— 它们都不以被封前缀开头。
+        """
+        is_secret = self._fn("_is_secret_env_name")
+        leaked = [
+            "AWS_SECRET_ACCESS_KEY", "AWS_ACCESS_KEY_ID", "GITHUB_TOKEN",
+            "GH_TOKEN", "OPENAI_APIKEY", "ANTHROPIC_AUTH_TOKEN", "CREDENTIAL",
+            "PRIVATE_KEY", "SESSION_ID", "PASSWD", "NPM_TOKEN", "HF_TOKEN",
+        ]
+        missed = [n for n in leaked if not is_secret(n)]
+        self.assertEqual([], missed, f"凭证名未被擦除（H-2 复发）: {missed}")
+        # 反向：不得把无害变量一并抹掉，否则子进程无法正常工作
+        benign = [
+            "PATH", "HOME", "LANG", "TERM", "USER", "TMP", "TEMP", "SYSTEMROOT",
+            "COMSPEC", "PROGRAMFILES", "APPDATA", "PYTHONPATH", "VIRTUAL_ENV",
+            "HTTP_PROXY", "NUMBER_OF_PROCESSORS", "PROCESSOR_IDENTIFIER",
+            "PATHEXT", "OS", "EDITOR",
+        ]
+        over = [n for n in benign if is_secret(n)]
+        self.assertEqual([], over, f"无害变量被误擦除: {over}")
+
+    def test_mask_phone_number_variants(self):
+        """★ M-2：手机号不得只覆盖「连续 11 位」一种写法。"""
+        fn = self._fn("mask_sensitive_data")
+        variants = [
+            "13800138000", "+8613800138000", "138-0013-8000",
+            "+86 138 0013 8000", "0086 13800138000", "138 0013 8000",
+        ]
+        for raw in variants:
+            out = fn(f"call {raw} now")
+            self.assertEqual(
+                "call [PHONE] now", out,
+                f"手机号写法 {raw!r} 未被完整脱敏（M-2 复发）: {out!r}",
+            )
+
+    def test_execute_safe_command_non_utf8_output_not_lost(self):
+        """★ M-4：非 UTF-8 输出不得静默变成 None（中文 Windows 默认 GBK 必现）。"""
+        fn = self._fn("execute_safe_command")
+        # 0xB2 是 UTF-8 非法起始字节（GBK 中文首字节的典型取值）。必须写裸字节：
+        # 用 ASCII 文本做探针不会触发解码失败，断言就成了永远通过的空断言。
+        code = "import sys; sys.stdout.buffer.write(bytes([0xB2, 0x41, 0x42]))"
+        try:
+            res = fn([sys.executable, "-c", code], timeout=30)
+        except Exception as exc:  # noqa: BLE001 —— 命令形态不可用时跳过
+            self.skipTest(f"无法执行探针命令: {exc!r}")
+            return
+        out = res.get("stdout") if isinstance(res, dict) else getattr(res, "stdout", None)
+        self.assertIsNotNone(out, "非 UTF-8 输出静默丢失（M-4 复发）: stdout=None")
+        self.assertNotEqual("", out, "非 UTF-8 输出被丢弃为空串（M-4 复发）")
+
+    def test_format_output_json_model_field(self):
+        """★ L-4：model 字段须为 <provider/model>，不得重复追加 /default。"""
+        fn = self._fn("format_output_json")
+
+        def model_of(res):
+            if isinstance(res, bytes):
+                res = res.decode("utf-8", "replace")
+            data = res if isinstance(res, dict) else None
+            if data is None:
+                try:
+                    data = json.loads(res)
+                except ValueError:
+                    m = re.search(r"\{.*\}", str(res), re.DOTALL)
+                    try:
+                        data = json.loads(m.group(0)) if m else None
+                    except ValueError:
+                        data = None
+            return data.get("model") if isinstance(data, dict) else None
+
+        self.assertEqual("openai/gpt-4", model_of(fn("x", "openai/gpt-4")),
+                         "provider 含 /model 时被错误追加 /default（L-4 复发）")
+        self.assertEqual("acme/default", model_of(fn("x", "acme")),
+                         "provider 不含 /model 时应补 /default")
+
+    def test_check_rate_limit_memory_bounded(self):
+        """★ L-3：identifier 数量必须有上界，长期运行不得无界增长。"""
+        fn = self._fn("check_rate_limit")
+        cap = self.ns.get("_MAX_RATE_IDENTIFIERS")
+        buckets = self.ns.get("_rate_buckets")
+        if not isinstance(cap, int) or not hasattr(buckets, "__len__"):
+            self.skipTest("权威源未声明限流器上界（L-3）")
+            return
+        for _ in range(cap + 500):
+            fn("bounded-" + uuid.uuid4().hex, limit=10, window=60)
+        self.assertLessEqual(
+            len(buckets), cap,
+            f"限流器 identifier 数量超出上界（L-3 复发）: {len(buckets)} > {cap}",
+        )
+
+    def test_read_reference_file_fails_closed_without_root(self):
+        """★ L-6：{SKILL_DIR} 未配置时须拒绝读取，不得退回当前工作目录。"""
+        fn = self._fn("read_reference_file")
+        flag = "SKILL_ROOT_CONFIGURED"
+        if flag not in self.ns:
+            self.skipTest("权威源未声明 SKILL_ROOT_CONFIGURED（L-6 fail-closed）")
+            return
+        saved = self.ns[flag]
+        self.ns[flag] = False
+        try:
+            with self.assertRaises(PermissionError):
+                fn("references/scaling.md")
+        finally:
+            self.ns[flag] = saved
+
 
 # ═════════════════════════════════════════════════════════════════════════════
 # B. 源文件完整性测试（关键：防契约/代码/测试三者脱节）

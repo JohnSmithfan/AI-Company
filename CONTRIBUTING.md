@@ -41,13 +41,23 @@ copies of template code) and additionally guards self-upgrade proposals: a
 proposal package that modifies `tests/` or the `permissions` block of
 `SKILL.md` fails the tests. All tests must pass before you open a PR.
 
+### Negative-verify every new regression assertion
+
+A regression test that passes both before and after the defect is reintroduced
+protects nothing. When you add an assertion for a fixed defect, prove it bites:
+copy the package to a throwaway directory, re-inject the defect, and confirm the
+new test fails. This caught two assertions in this repo that were empty on first
+write — one probed with ASCII text that never triggers a decode error, the other
+set a flag the guard under test did not read. Passing the suite is not evidence
+that the assertion works; failing on the injected defect is.
+
 ## How to run the acceptance checks
 
 Key checks for the micro tier (the full list is in `README-FOR-AI.md` **§15**):
 
 | Check | Expected |
 |---|---|
-| Total file count | 25 |
+| Total file count | 26 |
 | Function blocks across the two department files | 18 (`governance-and-delivery.md`: 8; `engineering-and-safety.md`: 10) |
 | `SKILL.md` frontmatter | ≤ 85 lines |
 | `SKILL.md` body | ≤ 120 lines, no code implementations or full error-code tables |

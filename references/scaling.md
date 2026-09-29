@@ -62,13 +62,15 @@ travel through the upgrade channel.
 
 ## 2. Upgrade Capability Matrix
 
-| Tier | Upgrades to | major after | File count (R3 audited values) | Notes |
+| Tier | Upgrades to | major after | File count (R4 resynced values) | Notes |
 |---|---|---|---|---|
-| `micro` | `small` | 1 → 2 | 25 → 29 | 2 → 5 departments, function blocks stay 18; package includes `README-FOR-AI.md` (user-approved deviation), so 28 spec files + 1 |
-| `small` | `medium` | 2 → 3 | 29 → 36–44 | 5 → 9 departments, shared modules added (a 35–43 file range plus the package-local `README-FOR-AI.md`) |
-| `medium` | `large` | 3 → 4 | 35–43 → 147 | 9 → 18 departments, D3 layer + 7-domain routing + department-index.md |
-| `large` | `group` | 4 → 5 | 147 → 245 | 18 → 36 departments, function blocks 18 → 36 (the only change of block total) |
+| `micro` | `small` | 1 → 2 | 26 → 30 | 2 → 5 departments, function blocks stay 18; package includes `README-FOR-AI.md` (user-approved deviation) and `.gitattributes`, so 29 spec files + 1 |
+| `small` | `medium` | 2 → 3 | 30 → 37–45 | 5 → 9 departments, shared modules added (a 36–44 file range plus the package-local `README-FOR-AI.md`) |
+| `medium` | `large` | 3 → 4 | 36–44 → 148 | 9 → 18 departments, D3 layer + 7-domain routing + department-index.md |
+| `large` | `group` | 4 → 5 | 148 → 246 | 18 → 36 departments, function blocks 18 → 36 (the only change of block total) |
 | `group` | — | — | — | Highest tier; an upgrade request returns `SCL_009` |
+
+> **Counting basis**: figures are **total package files** — spec files + the package-local `README-FOR-AI.md` + `.gitattributes` (added in R4, present at every tier). The sole exception is the left-hand side of the `medium → large` row, which repeats the medium-tier **spec-file** range. All counts were resynced when `.gitattributes` was introduced; re-derive them again if any file is added or removed at any tier. |
 
 Rules:
 
@@ -91,12 +93,47 @@ Rules:
 All thresholds are quantified. No "when the department feels overloaded" or
 "evaluate as needed" wording is permitted anywhere in this mechanism.
 
-| # | Trigger | Quantified condition | Data source |
-|---|---|---|---|
-| **T1** | Agent capacity overflow | Actual agent count > tier cap (micro 3 / small 10 / medium 50 / large 200) | `.scaling-state.json` → `last_metrics.agent_count` |
-| **T2** | Function-block overload | Blocks in a single department > tier mean × 1.5. Micro mean = 18 / 2 = 9.0, so the threshold is **> 13.5**: a single department with **≥ 14 blocks** overflows | Count of `^## FB-\d+:` headings in D2 pages |
-| **T3** | Routing accuracy drop | `department: auto` hit rate **< 85%** on **3 consecutive evaluations** | `last_metrics.routing_accuracy` + the `routing_miss_streak` counter maintained by the script in the state file |
-| **T4** | Error-code reuse excess | Share of distinct functions sharing one code under a single prefix **> 25%** | `last_metrics.error_code_reuse_ratio` (aggregated from `error-codes.md` analysis) |
+| # | Trigger | Quantified condition | Provenance | Data source |
+|---|---|---|---|---|
+| **T1** | Agent capacity overflow | Actual agent count > tier cap (micro 3 / small 10 / medium 50 / large 200) | **host-supplied** | `.scaling-state.json` → `last_metrics.agent_count`, written by the host runtime |
+| **T2** | Function-block overload | Blocks in a single department > tier mean × 1.5. Micro mean = 18 / 2 = 9.0, so the threshold is **> 13.5**: a single department with **≥ 14 blocks** overflows | **measured** | Live count of `^## FB-\d+:` headings in D2 pages |
+| **T3** | Routing accuracy drop | `department: auto` hit rate **< 85%** on **3 consecutive evaluations** | **host-supplied** | `last_metrics.routing_accuracy`, written by the host runtime; the `routing_miss_streak` counter is maintained by the script in the state file |
+| **T4** | Error-code reuse excess | Worst per-prefix share of codes referenced by **more than one** function block **> 25%** | **measured** | Live scan of `references/error-codes.md` (code universe) plus the `### 4. Error Codes` tables of every `## FB-N:` section in the D2 pages |
+
+#### Metric provenance (mandatory, do not blur the two kinds)
+
+Two of the four metrics cannot be observed from inside the package: the
+script has no view of the live agent population, and no view of how often
+`department: auto` resolved correctly. Those two — **`agent_count` (T1)** and
+**`routing_accuracy` (T3)** — are **host-supplied**: the host runtime writes
+them into `last_metrics`, and the script only reads them. They are never
+presented as measured. `max_blocks_per_department` (T2) and
+`error_code_reuse_ratio` (T4) are **measured on every run** from the package
+files and are never read back from the state file.
+
+Consequence, stated plainly: **until a host writes `agent_count` and
+`routing_accuracy`, T1 and T3 cannot fire.** They stay at their defaults
+(`0` and `1.0`) and `evaluate` prints an explicit note saying so. This is a
+declared limitation, not a latent bug — a metric that reads its own previous
+output is not a metric, and that is exactly the defect this contract replaces.
+
+The script records the split in `metrics_provenance` in the state file, and
+`status` / `evaluate` label every metric with `[measured]` or
+`[host-supplied]` on output.
+
+#### T4 formula (implemented exactly as written by `Get-ErrorCodeReuseRatio`)
+
+```
+ratio(prefix) = |{ codes of prefix referenced by >= 2 distinct function blocks }|
+                / |{ distinct codes of prefix defined in error-codes.md }|
+
+metric = max over prefixes, rounded to 4 decimals (0.0 when no data)
+```
+
+"Referenced by" is parsed from the `### 4. Error Codes` table inside each
+`## FB-N:` section of the D2 pages; the same code listed twice inside one
+block still counts as a single owner. At micro tier every code has exactly one
+owner, so the metric is `0.0` — the value changes as soon as a code is shared.
 
 Per-tier T2 thresholds (mean = 18 / department count, threshold = mean × 1.5):
 
@@ -110,11 +147,18 @@ Per-tier T2 thresholds (mean = 18 / department count, threshold = mean × 1.5):
 
 Micro-tier concrete values (what the script evaluates on every `evaluate` run):
 
-- **T1**: `agent_count > 3` (cap 3 × headroom 1.0, from `scaling-config.json`)
-- **T2**: `max_blocks_per_department > 13.5` (i.e. ≥ 14), counted live from the D2 pages
+- **T1**: `agent_count > 3` (cap 3 × headroom 1.0, from `scaling-config.json`
+  `agent_count_headroom`) — **host-supplied**, cannot fire until the host writes it
+- **T2**: `max_blocks_per_department > 13.5` (i.e. ≥ 14), counted live from the D2 pages — **measured**
 - **T3**: `routing_accuracy < 0.85` on 3 consecutive runs (the streak counter
-  resets to 0 on any run at or above the floor)
-- **T4**: `error_code_reuse_ratio > 0.25`
+  resets to 0 on any run at or above the floor) — **host-supplied**, cannot fire
+  until the host writes it
+- **T4**: `error_code_reuse_ratio > 0.25` — **measured** (see the formula above)
+
+Note on T1: the effective threshold is `cap × agent_count_headroom`, not the
+bare cap. The shipped default is `agent_count_headroom = 1.0`, which makes the
+two identical at every tier; a host that changes the headroom changes the
+threshold, so documentation quoting only "the tier cap" becomes wrong.
 
 Trigger rules:
 
@@ -269,11 +313,15 @@ Notes:
    -> a missing, invalid, or tier-inconsistent state file stops the run (SCL_007)
 
 2. Collect the four metrics and evaluate against the T1-T4 thresholds
-   -> agent_count / max_blocks_per_department (counted live from D2 pages)
-      / routing_accuracy (+ consecutive-miss streak) / error_code_reuse_ratio
+   -> measured:  max_blocks_per_department (live count of ^## FB-\d+: in D2 pages)
+                 error_code_reuse_ratio   (live scan of error-codes.md + FB ### 4 tables)
+   -> host-supplied (read from last_metrics, never self-measured):
+                 agent_count / routing_accuracy (+ consecutive-miss streak)
+   -> each metric is logged with its provenance; a host-supplied metric still
+      at its default prints an explicit "cannot fire" note
 
-3. No trigger -> write back next_evaluation (+30 days) and last_metrics,
-   exit 0.
+3. No trigger -> write back next_evaluation (+30 days), last_metrics and
+   metrics_provenance, exit 0.
    -> if invoked with -Force, log the SCL_001 warning and continue instead
 
 4. Triggered -> look up the split mapping from the merge tree (Section 4)

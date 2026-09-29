@@ -40,15 +40,16 @@ AI-COMPANY 是一套**供 LLM Agent 使用的企业治理规范**：把 AI Agent
 | prompts | **2** 个，均 `human-paste`（升 small 档时自动新增 `03-test-cases.md`，`agent-invoked`） |
 | 执行引擎触发器 | 微型档仅 `Manual` + `Schedule`（4 种执行模式 Auto/Approve/Review/Hybrid 全档有效） |
 | WFT 核心集 | 微型档启用 WFT-001 / WFT-002 / WFT-010（3 个） |
-| 文件总数 | **25**（见 §4） |
+| 文件总数 | **26**（见 §4） |
 | 记忆系统 / 熔断 / 董事会阶梯 / 域路由 / 模型管理 / 可视化 / 数据集成 | 微型档**不引入**（M+ 或 L+ 档启用）；D2 中以 "at M+/L+ tiers" 限定语承载相应职能语义 |
 
-## 3. 文件树（25 文件，结构须与磁盘始终一致）
+## 3. 文件树（26 文件，结构须与磁盘始终一致）
 
 ```text
 ai-company/
-├── .editorconfig              # 编辑器统一行为（LF、UTF-8、缩进；[*.ps1] CRLF）
-├── .gitignore                 # 通配排除（REVIEW-*.md、__pycache__/、.skill-upgrade/…）
+├── .editorconfig              # 编辑器统一行为（LF、UTF-8、缩进）
+├── .gitattributes             # 行尾策略钉死（* eol=lf），抵消本机 core.autocrlf 漂移
+├── .gitignore                 # 通配排除（REVIEW-*.md、__pycache__/、.skill-upgrade/…、.workbuddy/）
 ├── .scaling-state.json        # 升级状态（tier_history 只追加）
 ├── AGENTS.md                  # 编码 Agent 贡献入口（≤150 行，零内容复制，P55）
 ├── CHANGELOG.md               # Keep a Changelog 格式
@@ -76,10 +77,10 @@ ai-company/
 │   ├── self-scale.ps1         # 自我升级脚本（propose-only，六道门）
 │   └── scaling-config.json    # 升级配置（阈值/不可变路径）
 └── tests/
-    └── test-method-patterns.py  # 四类断言 A/B/C/D，25 条
+    └── test-method-patterns.py  # 四类断言 A/B/C/D，31 条
 ```
 
-> 25 = 治理层 13 + `.scaling-state.json` 1 + `README-FOR-AI.md`（本文）1 + prompts 2 + references 顶层 3 + 部门 D2 2 + scripts 2 + tests 1。升 small 档为 **29**（−2 旧 D2 +5 新 D2 +1 新 prompt = +4）。
+> 26 = 治理层 13 + `.gitattributes` 1 + `.scaling-state.json` 1 + `README-FOR-AI.md`（本文）1 + prompts 2 + references 顶层 3 + 部门 D2 2 + scripts 2 + tests 1。升 small 档为 **30**（−2 旧 D2 +5 新 D2 +1 新 prompt = +4；`.gitattributes` 两档均有，不增不减）。
 
 ## 4. 从零再生本包的工作流（内容依赖顺序）
 
@@ -319,17 +320,22 @@ permissions:
 |---|---|---|---|
 | 1 | 显式标签 | 内容可见处 | `> ⚠️ AI-Generated Content` 或等价声明 |
 | 2 | 隐式元数据 | 结构化输出 | `"ai_generated": true`、`"generated_at": "<ISO8601>"`、`"model": "<provider/model>"` |
-| 3 | 内嵌水印 | 内容本体 | 由 `format_output_json`(T4) 注入，不可被简单删除 |
+| 3 | 内嵌水印 | 内容本体 | 由 `format_output_json`(T4) 注入，绑定 provider + 时间戳 + 内容摘要 |
+
+> **第 3 层的强度必须诚实描述（P24）**：它是**防篡改可发现**（tamper-evident）的披露标记，不是密码学水印。水印由内容摘要参与派生，改动正文即失效，可复制粘贴存活；但末尾那行披露声明仍可被一次性删掉。**不得再写成"不可被简单删除"**——该表述已被实测证伪（`out.split("\n\n> Warning:")[0]` 一行即可剥离且正文完好）。需要不可剥离标记时，应在信封之外做外部签名，本信封不提供该能力。
 
 ### 9.3 PII 脱敏强制
 
 `mask_sensitive_data`(T9) 在**所有输出管道**强制启用；**EMAIL/IP/PHONE 三类齐全**（缺一即缺陷，P32）；脱敏**先于**任何落盘/日志/外发；原始数据不得记入日志。
 
+三类占位符 `[EMAIL]`/`[IP]`/`[PHONE]` 均为**契约性**存在，改正则时不得删除任何一类分支。手机号分支须覆盖国际码与分隔符写法（`+86` / `0086` / `138-0013-8000` / `138 0013 8000`），只匹配"连续 11 位"会漏掉最常见的三种书写形式（§7.1 已列为回归用例）。
+
 ### 9.4 安全底线（不可协商）
 
 - **零动态代码执行**：无 `eval`/`exec` 处理用户输入；无 `Invoke-Expression`/`iex`/`DownloadString`（P25）。
-- **零硬编码密钥**：一律走环境变量，配置只写变量名不写值——连"示例密钥"也不行（P20）。
-- **零敏感路径访问**：`deny` 5 项主动排除。
+- **零硬编码密钥**：一律走环境变量，配置只写变量名不写值——连"示例密钥"也不行（P20）。子进程环境擦除按**变量名片段**匹配（`_is_secret_env_name`），须覆盖 `AWS_SECRET_ACCESS_KEY`、`GITHUB_TOKEN`、`OPENAI_APIKEY` 等真实命名；**仅按前缀匹配（`api_`/`token`/`secret`/`password`/`key_`）属已验证的泄漏**，不得回退。
+- **命令黑名单是尽力而为的第一道防线，不是沙箱边界**：只匹配被调用程序名，任何允许的解释器仍可完成删除（`python -c "os.remove(...)"`、`git clean -fd`、`find . -delete`）。真正的边界是 §9.1 声明的宿主权限集。
+- **零敏感路径访问**：`deny` 5 项主动排除；`read_reference_file`(T6) 在 `{SKILL_DIR}` 未配置时须 **fail-closed** 拒绝读取，不得退回当前工作目录。
 - **零自我改写**：技能不得写入 `{SKILL_DIR}`（P21/P36），见 §9.5。
 - **幂等**：所有操作可安全重试（§8.3）。
 - **回滚不得先删后恢复**：`Copy-Item` 到临时目录 → 校验 → 原子替换 → 确认成功后才删旧（P23）。
@@ -500,14 +506,19 @@ harness_level: L3
 
 ### 12.2 四类触发阈值（微型档值；写入 scaling.md 与 scaling-config.json）
 
-| 触发器 | 量化条件（micro） | 数据来源 |
-|---|---|---|
-| T1 Agent 规模溢出 | Agent 数 > 3 | `.scaling-state.json` `last_metrics.agent_count` |
-| T2 职能块过载 | 单部门职能块 > 均值×1.5 = 9.0×1.5 = **13.5**（≥14 溢出） | D2 页 `^## FB-\d+:` 计数 |
-| T3 路由准确率下降 | `department: auto` 命中率 < 85%，连续 3 次 | 运行日志聚合 |
-| T4 错误码复用率过高 | 单前缀下不同职能共用同码比例 > 25% | error-codes.md 分析 |
+| 触发器 | 量化条件（micro） | 来源性质 | 数据来源 |
+|---|---|---|---|
+| T1 Agent 规模溢出 | Agent 数 > 档位上限×`agent_count_headroom`（默认 1.0，即 > 3） | **宿主供给** | `.scaling-state.json` `last_metrics.agent_count`，由宿主运行时写入 |
+| T2 职能块过载 | 单部门职能块 > 均值×1.5 = 9.0×1.5 = **13.5**（≥14 溢出） | **实测** | D2 页 `^## FB-\d+:` 计数 |
+| T3 路由准确率下降 | `department: auto` 命中率 < 85%，连续 3 次 | **宿主供给** | `last_metrics.routing_accuracy`，由宿主运行时写入；连续未命中计数由脚本维护 |
+| T4 错误码复用率过高 | 单前缀下被 ≥2 个职能块引用的码占比 > 25% | **实测** | `error-codes.md` + 各 `## FB-N:` 的 `### 4` 错误码表实时扫描 |
 
-任一命中 → 自主生成提案（不自动安装）；全部未命中 → 更新 `next_evaluation`（默认 +30 天）与 `last_metrics`。阈值必须可量化（禁"视情况评估"）。
+任一命中 → 自主生成提案（不自动安装）；全部未命中 → 更新 `next_evaluation`（默认 +30 天）、`last_metrics` 与 `metrics_provenance`。阈值必须可量化（禁"视情况评估"）。
+
+> **指标来源必须区分（P24/P32）**：T2/T4 由脚本每次运行实时采集，**绝不回读状态文件**；T1/T3 的被测量（存活 Agent 数、`department: auto` 命中率）技能自身观察不到，属**宿主供给**——脚本只读宿主写入的值，且必须在 `status`/`evaluate` 输出中标注 `[host-supplied]`。**在宿主写入之前，T1/T3 不会触发**，此时输出须显式说明"此为宿主供给指标，尚处默认值"。
+> 历史缺陷（不得复发）：T4 曾回读 `last_metrics.error_code_reuse_ratio`——而该值正是脚本自己上次写回的，构成闭环，恒为 0.0，阈值永不触发。**读自己上一次输出值的指标不是指标。**
+
+T1 的实际阈值是 `档位上限 × agent_count_headroom`，不是裸上限。出厂默认 `agent_count_headroom = 1.0` 使二者在每个档位上数值相同；宿主改动该参数后阈值随之改变，故文档只写"档位上限"会与实现不符（须与 `scaling-config.json` 保持同步）。
 
 ### 12.3 六道升级安全门（实现什么写什么，P24）
 
@@ -543,13 +554,14 @@ G1–G3 不可绕过（即使人工批准）。升级包**排除** `__pycache__`
 }
 ```
 
-约束：`current_tier` 与 frontmatter `scale_tier` 一致（P41）；`tier_history` **只追加**不得改删（审计）；`validation.gates_passed` 必须 = 6；`validation.file_count` 用本档期望值（micro 25 / small 29）；初次生成时 `tier_history` 与 `pending_proposals` 为空。
+约束：`current_tier` 与 frontmatter `scale_tier` 一致（P41）；`tier_history` **只追加**不得改删（审计）；`validation.gates_passed` 必须 = 6；`validation.file_count` 用本档期望值（micro 26 / small 30）；初次生成时 `tier_history` 与 `pending_proposals` 为空。
 
 ---
 
 ## 13. 测试（`tests/test-method-patterns.py`，四类断言）
 
 - **A 行为测试**：10 模板各 ≥1 条（正常+边界）。模板代码在 method-patterns.md 的 ```` ```python ```` 块内——用正则提取第 3 节代码块 `exec` 到独立命名空间后调用（**测源文件，非内联副本**）。`mask_sensitive_data` 必须断言 email/IP/phone 三类均脱敏。
+  - **★ R4 回归组（6 条，2026-09-28 实质审查）**：`test_credential_env_scrubbing_covers_real_names`（H-2 凭证擦除须覆盖真实命名）、`test_mask_phone_number_variants`（M-2 手机号多写法）、`test_execute_safe_command_non_utf8_output_not_lost`（M-4 非 UTF-8 输出）、`test_format_output_json_model_field`（L-4 model 字段）、`test_check_rate_limit_memory_bounded`（L-3 有界）、`test_read_reference_file_fails_closed_without_root`（L-6 fail-closed）。**新增断言必须做反向验证**：把缺陷注回临时副本，断言必须失败；否则是永远通过形同虚设的空断言（M-4/L-6 两条初版即因此返工）。
 - **B 源文件完整性**：`test_templates_source_exists`（权威源存在 + 10 个 def）、`test_phone_masking_in_source`（`[PHONE]` 在源中）、`test_legacy_templates_file_absent`（templates.md 不存在）、`test_def_unique_across_package`（★ R4 新增：全包递归扫描，每个 `def <fn>` 恰 1 处，且 10 个模板只出现在权威源 —— 守住 P10/P44；此前该检查只靠人工 grep，漏洞未被机器捕获）。
 - **C 结构一致性**：`test_function_block_conservation`（micro=18）、`test_scaling_files_present`（四件套 + propose-only）、`test_governance_files_present`（13 文件含 AGENTS.md）、`test_no_filename_with_space`、`test_prompt_modes_declared`（01/02 为 human-paste）、`test_human_paste_prompts_self_contained`（H1/H2/H6）、`test_language_policy_declared`、`test_skill_md_is_index_only`（正文 ≤120 行、无 def、无具体错误码）。
 - **D 不可变边界**：`test_upgrade_package_excludes_immutable`（扫描 `{WORKSPACE_ROOT}/.skill-upgrade/`，不含 tests/ 与 permissions 变更；目录不存在时 skip）。
@@ -646,16 +658,16 @@ G1–G3 不可绕过（即使人工批准）。升级包**排除** `__pycache__`
 ## 15. 验收清单（每次生成/修改后必须执行）
 
 ```powershell
-# 1. 测试套件（25 条应全绿，1 skip 属预期）
+# 1. 测试套件（31 条应全绿，1 skip 属预期）
 python tests/test-method-patterns.py
 
 # 2. 升级就绪检查（不改动技能内容；仅回写自身记录字段到 .scaling-state.json）
 powershell -File scripts/self-scale.ps1 -Action evaluate
 ```
 
-**计数与一致性抽查**：文件总数 **25**；治理文件 **13/13**；职能块 **8+10=18**；错误码 **34**（CEO 12 + CTO 12 + SCL 10，编号无空洞）；frontmatter ≤85 行；SKILL 正文 ≤120 行；AGENTS.md ≤150 行；triggers 15 条。
+**计数与一致性抽查**：文件总数 **26**；治理文件 **13/13**；职能块 **8+10=18**；错误码 **34**（CEO 12 + CTO 12 + SCL 10，编号无空洞）；frontmatter ≤85 行；SKILL 正文 ≤120 行；AGENTS.md ≤150 行；triggers 15 条。
 
-**逐字符/一致性**：`permissions` 与 §9.1 逐字符一致；版本号四处同值（1.0.0）；许可四处同值（GPL-3.0）；D2 各 FB `### 4` 与 error-codes.md 同码同文；README 三兄弟结构树与磁盘 25 文件逐项一致；README.en.md 与 README.md 内容一致；无 BOM；无硬编码路径（`grep -rn 'C:\\Users\|c:/Users'` 零命中）；无 `templates.md`；每个 `def <fn>` 恰 1 处；无 `__pycache__` 残留。
+**逐字符/一致性**：`permissions` 与 §9.1 逐字符一致；版本号四处同值（1.0.0）；许可四处同值（GPL-3.0）；D2 各 FB `### 4` 与 error-codes.md 同码同文；README 三兄弟结构树与磁盘 26 文件逐项一致；README.en.md 与 README.md 内容一致；无 BOM；无硬编码路径（`grep -rn 'C:\\Users\|c:/Users'` 零命中）；无 `templates.md`；每个 `def <fn>` 恰 1 处；无 `__pycache__` 残留。
 
 ## 16. 修改协议与已记录事项
 
@@ -665,13 +677,15 @@ powershell -File scripts/self-scale.ps1 -Action evaluate
 
 | 项 | 说明 |
 |---|---|
-| 文件数 25 | 本文（`README-FOR-AI.md`）是独立项目的组成部分，非偏离项 |
+| 文件数 26 | 本文（`README-FOR-AI.md`）与 `.gitattributes` 均为独立项目的组成部分，非偏离项 |
 | Core Identity 无「所属域」 | 微型档无域概念（域路由 L+ 档启用） |
 | 记忆/熔断/董事会阶梯 | D2 中以 "at M+/L+ tiers" 限定语承载（微型档不引入这些子系统） |
 | G6 为机器可查子集 | `self-scale.ps1` 的 G6 实现可自动化子集，完整 §15 验收为人工步骤（已如实声明，非 P24） |
 | 更高档位 | M/L/G 的部门全集遵循 §10.1 同一合并树原则；本包当前只实现 micro→small 升级边 |
 | 本文语言豁免（R4 审计） | 本文面向中文维护者撰写，**单独豁免**于 §6.3「源文件 = 英语」标准（与 `README.zh.md` 同列豁免）。豁免**仅限自然语言行文**：标识符六类仍永不翻译（P48），代码块仍为英语，本文仍不得内联复制模板代码（§7.1） |
-| 行尾策略（R4 审计） | 全包统一 **LF**（含 `.ps1`）。原 `.editorconfig` 要求 `[*.ps1] eol=crlf` 而文件实测为 LF，已按"文档服从实现"修订 `.editorconfig` 与 `CONTRIBUTING.md`——`self-scale.ps1` 含 LF 敏感 here-string，且其 E15 规范化逻辑强制产物为 LF，改文件风险高于改文档。**未引入 `.gitattributes`**：新增文件会使 micro 档 25→26 并连带 small 档 29→30（`$TargetFileCount` 与内嵌目录树需同步重生成），属独立变更，另行立项 |
+| 行尾策略（R4 审计） | 全包统一 **LF**（含 `.ps1`）。原 `.editorconfig` 要求 `[*.ps1] eol=crlf` 而文件实测为 LF，已按"文档服从实现"修订 `.editorconfig` 与 `CONTRIBUTING.md`——`self-scale.ps1` 含 LF 敏感 here-string，且其 E15 规范化逻辑强制产物为 LF，改文件风险高于改文档。新增 `.gitattributes`（`* text=auto eol=lf`）把行尾钉死在仓库层，抵消本机 `core.autocrlf=true` 造成的 "LF will be replaced by CRLF" 漂移；micro 档 25→26 与 small 档 29→30 的连带计数已同步（含 `self-scale.ps1` 内嵌目录树与 `$TargetFileCount`） |
+| 实质审查修复（2026-09-28） | 合规清单全绿**不等于机制有效**。本次实质审查（提取模板代码真实执行 + 对抗性输入）发现 2 高 / 4 中 / 7 低缺陷，均为"承诺已写入文档、实现却未兑现"。已修：H-1 缩放指标闭环（T4 改为实测、T1/T3 明确定性为宿主供给并在输出标注）、H-2 凭证擦除改片段匹配、M-1 水印绑定内容摘要并下调强度表述、M-2 手机号多写法覆盖、M-3 命令黑名单降格为"尽力而为防线"、M-4 子进程显式 `errors="replace"`、L-1~L-7 正则与语义修正。测试 25→31 条，新增断言全部做了注回缺陷的反向验证 |
+| T4 定义口径（实质审查后重定义） | `error_code_reuse_ratio` = **单前缀下被 ≥2 个职能块引用的码 / 该前缀在 error-codes.md 中定义的不同码数**，取各前缀最大值，4 位小数。原表述"不同职能共用同码的比例"未定义分子分母，且与"脚本自己写回再自己读回"的实现并存；现定义与 `Get-ErrorCodeReuseRatio` 逐行对应（P32） |
 
 ---
 

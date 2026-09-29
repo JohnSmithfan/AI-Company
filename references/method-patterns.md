@@ -82,6 +82,11 @@ from threading import Lock
 SKILL_ROOT = os.environ.get("SKILL_DIR", ".")
 WORKSPACE_ROOT = os.environ.get("WORKSPACE_ROOT", ".")
 
+# Fail-closed flag (template 6). When {SKILL_DIR} is unset, os.environ.get
+# falls back to "." — which silently promotes the process working directory
+# into a readable root. read_reference_file refuses to honour that fallback.
+SKILL_ROOT_CONFIGURED = bool(os.environ.get("SKILL_DIR"))
+
 # --- Reference-file policy (template 6) ---
 MAX_REFERENCE_FILE_BYTES = 1 * 1024 * 1024  # 1 MiB read cap
 ALLOWED_REFERENCE_EXTENSIONS = {".md", ".txt", ".json", ".yaml", ".yml"}
@@ -147,7 +152,10 @@ _INJECTION_PATTERNS = (
     re.compile(r"reveal\s+(your\s+)?(system\s+)?prompt", re.IGNORECASE),
     re.compile(r"<\|[^|]*\|>"),
 )
-_SHELL_METACHARS = re.compile(r"[`$;&|><\"']")
+# Backslash and newline must be stripped too: "\\" is shlex's escape character
+# (a trailing one silently swallows the next delimiter) and a newline lets one
+# logical input become two lines in a downstream prompt or script.
+_SHELL_METACHARS = re.compile(r"[`$;&|><\"'\\\n\r]")
 
 def sanitize_user_query(query):
     """Sanitize raw user input before it reaches a prompt or a command (Harness L3).
@@ -156,8 +164,8 @@ def sanitize_user_query(query):
     - Neutralizes common prompt-injection phrases by replacing them with a
       fixed marker (no dynamic code execution; this function never calls
       eval/exec).
-    - Removes shell metacharacters so downstream command builders cannot be
-      hijacked by user-supplied text.
+    - Removes shell metacharacters — including backslash, CR and LF — so
+      downstream command builders cannot be hijacked by user-supplied text.
     - Truncates to MAX_QUERY_LENGTH characters.
 
     Returns the sanitized string. Raises TypeError on non-string input.
@@ -182,17 +190,63 @@ _BLOCKED_EXECUTABLES = frozenset({
 })
 _MAX_TIMEOUT_SECONDS = 120
 
+# --- Credential-name policy (template 3: child-environment scrubbing) ---
+# A variable counts as secret-like when any delimiter-separated token of its
+# name is a known credential word, or ends with one.
+#
+# Prefix-only matching ("api_", "token", "secret", "password", "key_") is NOT
+# sufficient and must not be reinstated: real-world credential names mostly do
+# not start with those prefixes. A prefix filter leaks AWS_SECRET_ACCESS_KEY,
+# AWS_ACCESS_KEY_ID, GITHUB_TOKEN, GH_TOKEN, OPENAI_APIKEY,
+# ANTHROPIC_AUTH_TOKEN, PRIVATE_KEY, SESSION_ID, PASSWD, NPM_TOKEN, HF_TOKEN
+# — every one of them verified by probe.
+_SECRET_NAME_TOKENS = frozenset({
+    "KEY", "TOKEN", "SECRET", "CREDENTIAL", "CREDENTIALS", "PASSWORD",
+    "PASSWD", "PWD", "AUTH", "SESSION", "COOKIE", "PRIVATE", "SIGNATURE",
+    "PASSPHRASE", "APIKEY",
+})
+_SECRET_NAME_SUFFIXES = (
+    "KEY", "TOKEN", "SECRET", "PASSWORD", "PASSWD", "CREDENTIAL", "AUTH",
+    "SESSION",
+)
+_KNOWN_SECRET_NAMES = frozenset({
+    "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN",
+    "GITHUB_TOKEN", "GH_TOKEN", "OPENAI_API_KEY", "OPENAI_APIKEY",
+    "ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "HF_TOKEN", "NPM_TOKEN",
+    "AZURE_CLIENT_SECRET", "GOOGLE_API_KEY", "SLACK_BOT_TOKEN",
+    "DATABASE_URL", "CONNECTION_STRING",
+})
+
+def _is_secret_env_name(name):
+    """Return True when an environment variable name looks credential-bearing.
+
+    Deliberately over-inclusive: scrubbing a harmless variable costs the child
+    process one lookup, while leaking a credential costs the operator
+    everything. The matching rule is name-fragment based (not prefix based) so
+    that vendor-prefixed names such as ``AWS_SECRET_ACCESS_KEY`` are covered.
+    """
+    upper = str(name).upper()
+    if upper in _KNOWN_SECRET_NAMES:
+        return True
+    for token in re.split(r"[^A-Za-z0-9]+", upper):
+        if not token:
+            continue
+        if token in _SECRET_NAME_TOKENS or token.endswith(_SECRET_NAME_SUFFIXES):
+            return True
+    return False
+
 def _scrubbed_environment():
     """Return an environment copy with secret-like variables removed.
 
     Implements the zero-hardcoded-secrets baseline (README-FOR-AI.md §9.4): credentials
-    never travel into a subprocess environment implicitly.
+    never travel into a subprocess environment implicitly. Matching is by name
+    fragment plus a known-name list (see ``_is_secret_env_name``); prefix-only
+    matching is a verified leak and must not be reintroduced.
     """
-    blocked_prefixes = ("api_", "token", "secret", "password", "key_")
     return {
         name: value
         for name, value in os.environ.items()
-        if not name.lower().startswith(blocked_prefixes)
+        if not _is_secret_env_name(name)
     }
 
 def execute_safe_command(cmd, timeout=30):
@@ -202,10 +256,21 @@ def execute_safe_command(cmd, timeout=30):
     - The subprocess runs with ``shell=False`` (no shell interpolation of
       user-controlled text) and a restricted cwd: {WORKSPACE_ROOT} only.
     - Dangerous executables (deletion, shell hosts, downloaders, privilege
-      escalation) are rejected before launch.
+      escalation) are rejected before launch. **This is a best-effort first
+      line of defence, not a sandbox boundary** (README-FOR-AI.md §9.4): the
+      blocklist matches the invoked program name only, so a deletion can still
+      be performed by any allowed interpreter (``python -c "os.remove(...)"``,
+      ``git clean -fd``, ``find . -delete``). Treat the host permission set,
+      not this function, as the real boundary.
     - ``timeout`` is clamped to (0, 120] seconds; a hung process is killed
       and surfaced as TimeoutError.
     - The child environment is scrubbed of secret-like variables.
+
+    Output decoding is explicit (``encoding="utf-8", errors="replace"``).
+    Without ``errors="replace"`` a non-UTF-8 byte (GBK output on Chinese
+    Windows) raises inside subprocess' reader thread, which the caller never
+    sees: the command reports ``returncode 0`` with ``stdout=None`` and the
+    output is lost silently.
 
     ``cmd`` may be a string (parsed with shlex, never via a shell) or an
     argument list. Returns a dict with returncode, stdout, stderr.
@@ -234,6 +299,8 @@ def execute_safe_command(cmd, timeout=30):
             timeout=timeout,             # hard timeout: hung processes die
             capture_output=True,
             text=True,
+            encoding="utf-8",            # explicit decoding: never locale-dependent
+            errors="replace",            # non-UTF-8 bytes degrade, never drop stdout
             shell=False,                 # never allow shell interpolation
             env=_scrubbed_environment(),
             check=False,
@@ -264,9 +331,17 @@ def format_output_json(content, provider):
       content body.
     - Layer 2, implicit metadata: ``ai_generated``, ``generated_at``
       (ISO-8601 UTC), and ``model`` ("<provider/model>") fields.
-    - Layer 3, embedded watermark: a SHA-256-derived marker derived from the
-      provider and generation timestamp is embedded inside the content body,
-      so it cannot be removed without removing the payload text around it.
+    - Layer 3, embedded watermark: a SHA-256 marker is embedded inside the
+      content body, bound to provider, generation timestamp **and a digest of
+      the content itself**.
+
+    Honest strength statement for layer 3 (do not overclaim, P24): the marker
+    is a tamper-evident *disclosure*, not a cryptographic watermark. It makes
+    an edit detectable — changing the body invalidates the digest the marker
+    was derived from — but a determined party can still delete the trailing
+    disclosure line in one operation and redistribute a clean-looking body.
+    If a non-strippable mark is required, use an external signing mechanism;
+    this envelope does not provide one.
 
     ``content`` must already have passed through mask_sensitive_data (3.9).
     Returns a JSON string (UTF-8 safe, indent=2).
@@ -277,19 +352,28 @@ def format_output_json(content, provider):
         raise ValueError("provider must be a non-empty string")
 
     generated_at = datetime.now(timezone.utc).isoformat()
+    # Bind the marker to the content: editing the body invalidates the digest.
+    content_digest = hashlib.sha256(content.encode("utf-8")).hexdigest()[:16]
     watermark = hashlib.sha256(
-        f"{provider}:{generated_at}:{AIGC_DISCLOSURE}".encode("utf-8")
+        f"{provider}:{generated_at}:{content_digest}:{AIGC_DISCLOSURE}".encode("utf-8")
     ).hexdigest()[:16]
 
     watermarked_content = (
         f"{content}\n\n"
         f"> Warning: {AIGC_DISCLOSURE} [aigc:{watermark}]"
     )
+    # "<provider/model>": a provider already carrying "/model" must not gain a
+    # second "/default" segment (defect L-4).
+    provider_name, separator, model_name = provider.strip().partition("/")
+    if separator and model_name:
+        model = f"{provider_name}/{model_name}"
+    else:
+        model = f"{provider_name}/default"
     payload = {
         "content": watermarked_content,
         "ai_generated": True,
         "generated_at": generated_at,
-        "model": f"{provider}/default",
+        "model": model,
     }
     return json.dumps(payload, ensure_ascii=False, indent=2)
 ```
@@ -342,11 +426,18 @@ def read_reference_file(filepath):
       read; binaries and scripts are refused.
     - Files larger than MAX_REFERENCE_FILE_BYTES (1 MiB) are refused, so a
       runaway reference cannot exhaust the context budget.
+    - Fails closed: when {SKILL_DIR} is not configured the read is refused,
+      instead of silently resolving against the current working directory.
 
     Returns the file content as a UTF-8 string.
     """
     if not isinstance(filepath, str) or not filepath.strip():
         raise ValueError("filepath must be a non-empty string")
+    if not SKILL_ROOT_CONFIGURED:
+        raise PermissionError(
+            "{SKILL_DIR} is not configured: refusing to resolve reference "
+            "paths against the process working directory"
+        )
 
     root = os.path.realpath(SKILL_ROOT)
     candidate = os.path.join(root, filepath)
@@ -395,6 +486,9 @@ def generate_trace_id(prefix="trace"):
 ```python
 _rate_buckets = defaultdict(deque)
 _rate_lock = Lock()
+# Bound on tracked identifiers (defect L-3): without it every distinct caller
+# id leaves a permanent entry and a long-running process grows without limit.
+_MAX_RATE_IDENTIFIERS = 10000
 
 def check_rate_limit(identifier, limit=10, window=60):
     """Sliding-window rate limiter, held in process memory only (Harness L4).
@@ -403,6 +497,11 @@ def check_rate_limit(identifier, limit=10, window=60):
     ``window``-second sliding window. In-memory by design (README-FOR-AI.md §8.3): a
     persisted counter file would become a concurrency contention point and
     leave stale residue — nothing here is ever written to disk.
+
+    Bounded memory: at most ``_MAX_RATE_IDENTIFIERS`` keys are retained. When
+    the bound is exceeded, expired buckets are dropped first and, if still
+    over, the least-recently-inserted identifiers are evicted. Eviction only
+    loses accounting for callers that are already idle for a full window.
 
     Thread-safe via a module-level lock. Returns True when the request is
     allowed (and records it), False when the limit is exhausted.
@@ -422,20 +521,84 @@ def check_rate_limit(identifier, limit=10, window=60):
         if len(bucket) >= limit:
             return False
         bucket.append(now)
+        if len(_rate_buckets) > _MAX_RATE_IDENTIFIERS:
+            for stale in [k for k, v in _rate_buckets.items() if not v]:
+                del _rate_buckets[stale]
+            overflow = len(_rate_buckets) - _MAX_RATE_IDENTIFIERS
+            if overflow > 0:
+                for stale in list(_rate_buckets)[:overflow]:
+                    del _rate_buckets[stale]
         return True
 ```
 
 ### 3.9 mask_sensitive_data
 
 ```python
+# --- PII masking policy (template 9) ---
+# Placeholders are contractual: [EMAIL] / [IP] / [PHONE] must all remain.
+#
+# L-1: the TLD class is [A-Za-z]{2,}. The historical `[A-Z|a-z]{2,}` is a
+# character class containing a literal '|' and accepts "a|b@x.c|m".
+_EMAIL_RE = re.compile(
+    r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}\b"
+)
+# L-2: octet-validated IPv4. Rejects 256.1.1.1, 01.02.03.04 and 1.2.3.4.5, so
+# ordinary dotted numbers stop being mistaken for addresses.
+_IPV4_OCTET = r"(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])"
+_IPV4_RE = re.compile(
+    r"(?<![0-9A-Za-z_.])"
+    + _IPV4_OCTET + r"(?:\." + _IPV4_OCTET + r"){3}"
+    + r"(?![0-9A-Za-z_.])"
+)
+# Residual of the octet fix: a 4-part version number is also a valid dotted
+# quad. Version-like tokens are located first and excluded from IP masking, so
+# "version 1.2.3.4" stays readable instead of becoming "version [IP]".
+_VERSION_TOKEN_RE = re.compile(
+    r"(?i)(?<![0-9A-Za-z_.])(?:v|ver|version|build|rev|revision|release)"
+    r"[\s:._-]{0,3}\d+(?:\.\d+){1,3}(?![0-9A-Za-z_.])"
+)
+# M-2: CN mobile numbers. Optional country code (+86 / 0086 / 86), then 11
+# digits written contiguously or in 3-4-4 groups joined by a space or a dash.
+# "Only 11 contiguous digits" leaks +8613800138000, 138-0013-8000 and
+# +86 138 0013 8000 — the three most common written forms.
+_PHONE_RE = re.compile(
+    r"(?<![0-9])(?:(?:\+|00)?86[\s-]?)?"
+    r"1[3-9][0-9](?:[\s-]?[0-9]{4}[\s-]?[0-9]{4}|[0-9]{8})(?![0-9])"
+)
+
 def mask_sensitive_data(text):
-    """Mask sensitive information in output (emails, IPs, phone numbers)."""
-    # Mask email addresses
-    text = re.sub(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b', '[EMAIL]', text)
-    # Mask IP addresses
-    text = re.sub(r'\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b', '[IP]', text)
-    # Mask phone numbers (11-digit)
-    text = re.sub(r'\b[0-9]{11}\b', '[PHONE]', text)
+    """Mask sensitive information in output (emails, IPv4 addresses, phone numbers).
+
+    Contract (README-FOR-AI.md §9.3): all three classes are masked, and all three
+    placeholders — ``[EMAIL]`` / ``[IP]`` / ``[PHONE]`` — are contractual.
+    Dropping any one branch is a defect (P32); an implementation that masked
+    only emails and IPs shipped once and passed review by eye (README-FOR-AI.md §7.1).
+
+    Substitution order is fixed and load-bearing: email first (its domain would
+    otherwise be eaten by the IPv4 branch), then IPv4, then phone.
+
+    Known trade-off (documented, not hidden): a literal IPv4 printed
+    immediately after a version keyword ("release 192.168.1.100") is left
+    unmasked by the L-2 guard. That phrasing is rare; over-masking every
+    dotted quad is the defect this guard was added to remove. A corpus that
+    genuinely mixes addresses with those keywords must drop the guard.
+    """
+    if not isinstance(text, str):
+        raise TypeError("text must be a string")
+
+    text = _EMAIL_RE.sub("[EMAIL]", text)
+
+    protected = [m.span() for m in _VERSION_TOKEN_RE.finditer(text)]
+
+    def mask_ip(match):
+        start, end = match.span()
+        for lo, hi in protected:
+            if lo <= start and end <= hi:
+                return match.group(0)
+        return "[IP]"
+
+    text = _IPV4_RE.sub(mask_ip, text)
+    text = _PHONE_RE.sub("[PHONE]", text)
     return text
 ```
 
@@ -444,6 +607,19 @@ three masking branches must exist. An implementation that masks only emails
 and IPs will pass review by eye but fail the `test_phone_masking` assertion —
 this exact defect shipped once and was only caught by audit (README-FOR-AI.md §7.1 warning).
 Raw, unmasked PII must never be logged or persisted (README-FOR-AI.md §9.3).
+
+Coverage requirements verified by probe (these are the regression cases — do
+not weaken them back to single-form matching):
+
+| Input | Required output |
+|-------|-----------------|
+| `13800138000` | `[PHONE]` |
+| `+8613800138000` | `[PHONE]` |
+| `138-0013-8000` | `[PHONE]` |
+| `+86 138 0013 8000` | `[PHONE]` |
+| `0086 13800138000` | `[PHONE]` — no `0086` prefix may survive |
+| `a\|b@x.c\|m` | unchanged (L-1: a literal pipe is not an address) |
+| `version 1.2.3.4 released` | unchanged (L-2: version numbers must not be touched) |
 
 ### 3.10 build_prompt_from_template
 
@@ -589,12 +765,19 @@ layer is non-compliant.
 | # | Layer | Carrier | Implemented By | Verification |
 |---|-------|---------|----------------|--------------|
 | 1 | Explicit label | Visible content body | `format_output_json` disclosure line | Rendered output contains the disclosure sentence |
-| 2 | Implicit metadata | Structured output envelope | `format_output_json` payload fields | JSON has `ai_generated: true`, ISO-8601 `generated_at`, `model` |
-| 3 | Embedded watermark | Content body itself | `format_output_json` SHA-256 marker | Deleting the marker requires deleting payload text |
+| 2 | Implicit metadata | Structured output envelope | `format_output_json` payload fields | JSON has `ai_generated: true`, ISO-8601 `generated_at`, `model` (`<provider/model>`) |
+| 3 | Embedded watermark | Content body itself | `format_output_json` SHA-256 marker, bound to provider + timestamp + content digest | Marker string appears inside the `content` value; editing the body invalidates the digest it was derived from |
 
 Verification procedure: parse the envelope with `json.loads`, assert the three
 metadata fields, and confirm the watermark marker string appears inside the
 `content` value. Layer 3 must survive copy-paste of the content body.
+
+**Strength limit of layer 3 (do not overclaim, P24).** The marker is
+tamper-*evident*, not tamper-*proof*: it survives copy-paste and it detects
+editing, but the trailing disclosure line can still be deleted in one
+operation, leaving a body that looks human-authored. Do not describe layer 3
+as "cannot be removed" — that claim was measured and found false. Where a
+non-strippable mark is required, sign the payload outside this envelope.
 
 ### 5.2 PII Masking (README-FOR-AI.md §9.3)
 
@@ -629,9 +812,17 @@ Non-negotiable, verified against this file's templates:
   by regex substitution only; template 3 runs `shell=False` subprocesses.
 - **Zero hardcoded secrets** — credentials come from environment variables;
   configuration records variable *names*, never values. Template 3 actively
-  scrubs secret-like variables from child environments.
+  scrubs secret-like variables from child environments by **name fragment**
+  (`AWS_SECRET_ACCESS_KEY`, `GITHUB_TOKEN`, `OPENAI_APIKEY` are all covered).
+  Prefix-only matching is a verified leak and must not be reinstated.
+- **Command blocklist is best-effort** — template 3 rejects a fixed set of
+  dangerous *program names*. It is a first line of defence, not a sandbox
+  boundary: any allowed interpreter can still delete files
+  (`python -c "os.remove(...)"`, `git clean -fd`, `find . -delete`). The real
+  boundary is the host permission set declared in `SKILL.md` §9.1.
 - **Zero sensitive-path access** — template 6 rejects any path resolving
-  outside `{SKILL_DIR}`.
+  outside `{SKILL_DIR}`, and fails closed when `{SKILL_DIR}` is unconfigured
+  rather than falling back to the process working directory.
 - **Zero self-rewrite** — the skill never writes into `{SKILL_DIR}`;
   writable output goes only under `{WORKSPACE_ROOT}`.
 - **Idempotency** — operations are safe to retry; `retry_with_backoff`

@@ -3,12 +3,18 @@
   "current_tier": "micro",
   "tier_history": [],
   "pending_proposals": [],
-  "next_evaluation": "2026-10-26T11:47:32Z",
+  "next_evaluation": "2026-10-28T11:14:38Z",
   "last_metrics": {
     "agent_count": 0,
     "routing_accuracy": 1.0,
     "max_blocks_per_department": 10,
     "error_code_reuse_ratio": 0.0
   },
-  "routing_miss_streak": 0
+  "routing_miss_streak": 0,
+  "metrics_provenance": {
+    "agent_count": "host-supplied",
+    "routing_accuracy": "host-supplied",
+    "max_blocks_per_department": "measured",
+    "error_code_reuse_ratio": "measured"
+  }
 }

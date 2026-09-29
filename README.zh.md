@@ -35,7 +35,7 @@
 | 档位 | `micro`（XS，微型） |
 | 部门数 | 2（`governance-and-delivery`、`engineering-and-safety`） |
 | 职能块 | 18（8 + 10） |
-| 文件总数 | 25 |
+| 文件总数 | 26 |
 | 许可证 | GPL-3.0 |
 
 ## 项目结构（Project Structure）
@@ -43,6 +43,7 @@
 ```text
 ai-company/
 ├── .editorconfig
+├── .gitattributes
 ├── .gitignore
 ├── .scaling-state.json
 ├── AGENTS.md

@@ -37,7 +37,7 @@ English | [简体中文](README.zh.md)
 | Scale tier | `micro` (XS) |
 | Departments | 2 (`governance-and-delivery`, `engineering-and-safety`) |
 | Function blocks | 18 (8 + 10) |
-| Total files | 25 |
+| Total files | 26 |
 | License | GPL-3.0 |
 
 ## Project Structure
@@ -45,6 +45,7 @@ English | [简体中文](README.zh.md)
 ```text
 ai-company/
 ├── .editorconfig
+├── .gitattributes
 ├── .gitignore
 ├── .scaling-state.json
 ├── AGENTS.md

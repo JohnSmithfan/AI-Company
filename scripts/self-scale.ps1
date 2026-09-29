@@ -9,7 +9,10 @@
    - read {SKILL_DIR} (read-only)
    - read / update .scaling-state.json (operational records only - the single
      permitted write inside {SKILL_DIR}, per README-FOR-AI.md sec 12.6)
+   - accept host-supplied metrics via -Action record-metrics or the drop
+     directory (references/scaling.md sec 3.1)
    - collect the four scaling metrics and evaluate thresholds T1-T4
+     (T1/T3 are skipped, not guessed, when the host data is stale - sec 3.1)
    - generate an upgrade package under {WORKSPACE_ROOT}/.skill-upgrade/<timestamp>/
    - run gates G1-G6 on the generated package (README-FOR-AI.md sec 12.3)
    - write UPGRADE-PROPOSAL.md into the package directory (README-FOR-AI.md sec 12)
@@ -25,9 +28,10 @@
  Paths         : all derived from $PSScriptRoot; no hardcoded absolute user paths (P18).
  Deletion      : no Remove-Item -Recurse -Force pattern anywhere (P23); rejected
                  packages are quarantined by move, not destroyed.
- Line endings  : this script itself is CRLF (.editorconfig [*.ps1]); every .md
-                 and .json artifact it writes is normalized to LF (.editorconfig
-                 [*] = lf) - see Write-TextFileNoBom.
+ Line endings  : this script is LF, authored that way and pinned by
+                 .gitattributes (* text=auto eol=lf) so a contributor's local
+                 core.autocrlf cannot rewrite it; every .md and .json artifact
+                 it writes is likewise LF - see Write-TextFileNoBom.
  Copy policy   : upgrade packages exclude build residues (__pycache__/ and
                  *.pyc) so the file count and gate hashes never depend on
                  environment noise.
@@ -35,10 +39,18 @@
 #>
 
 param(
-  [ValidateSet('evaluate','propose','report','status')]
+  [ValidateSet('evaluate','propose','report','status','record-metrics')]
   [string]$Action = 'evaluate',      # no install / apply / commit values (P36)
   [switch]$DryRun,                   # only output what would be done, no package
-  [switch]$Force                     # propose even when no threshold is hit (SCL_001)
+  [switch]$Force,                    # propose even when no threshold is hit (SCL_001)
+
+  # --- Host write-back interface (metrics whose source can only be the host) ---
+  # Only meaningful with -Action record-metrics. See scaling.md section 3.1.
+  [int]$AgentCount = -1,             # live agent instances attached to this skill (>= 0)
+  [double]$RoutingAccuracy = -1.0,   # 'department: auto' hit rate in [0,1]
+  [int]$SampleSize = -1,             # routing sample size; < min_routing_samples -> T3 skipped
+  [string]$ObservedAt = '',          # ISO-8601 UTC observation time; defaults to now
+  [string]$Source = 'host'           # free-form host identifier for the audit log
 )
 
 $ErrorActionPreference = 'Stop'
@@ -54,6 +66,7 @@ $WorkspaceRoot = Split-Path -Parent $SkillDir            # {WORKSPACE_ROOT}
 $StateFile     = Join-Path $SkillDir '.scaling-state.json'
 $ConfigFile    = Join-Path $PSScriptRoot 'scaling-config.json'
 $DepartmentsDir = Join-Path (Join-Path $SkillDir 'references') 'departments'
+$ErrorCodesFile = Join-Path (Join-Path $SkillDir 'references') 'error-codes.md'
 
 # Tier data (R3 audited values). Only the micro -> small edge is implemented by
 # this build; any other tier correctly fails with SCL_002 (no mapping defined).
@@ -61,7 +74,7 @@ $TierAgentCaps = @{
   'micro' = 3; 'small' = 10; 'medium' = 50; 'large' = 200; 'group' = 200
 }
 $TierBlockMean = @{ 'micro' = 9.0; 'small' = 3.6; 'medium' = 2.0; 'large' = 1.0; 'group' = 1.0 }
-$TargetFileCount = @{ 'small' = 29 }   # 28 spec files + README-FOR-AI.md (package-local
+$TargetFileCount = @{ 'small' = 30 }   # 29 spec files + README-FOR-AI.md (package-local
                                       # generation spec, user-approved spec deviation)
 
 # The deterministic micro -> small split mapping (merge tree, README-FOR-AI.md sec 10.1).
@@ -152,6 +165,10 @@ function Load-Config {
     RoutingFloor = 0.85
     ReuseCeiling = 0.25
     OutputDir = ''
+    MetricsMaxAgeDays = 45
+    MinRoutingSamples = 20
+    MetricsDropDir = ''
+    MetricsLogCap = 20
   }
   if ($null -ne $cfg) {
     if ($null -ne $cfg.PSObject.Properties['evaluation_interval_days']) { $result.IntervalDays = [int]$cfg.evaluation_interval_days }
@@ -162,9 +179,18 @@ function Load-Config {
       if ($null -ne $t.PSObject.Properties['routing_accuracy_floor'])     { $result.RoutingFloor = [double]$t.routing_accuracy_floor }
       if ($null -ne $t.PSObject.Properties['error_code_reuse_ceiling'])   { $result.ReuseCeiling = [double]$t.error_code_reuse_ceiling }
     }
+    if ($null -ne $cfg.PSObject.Properties['host_metrics']) {
+      $h = $cfg.host_metrics
+      if ($null -ne $h.PSObject.Properties['max_age_days'])         { $result.MetricsMaxAgeDays = [int]$h.max_age_days }
+      if ($null -ne $h.PSObject.Properties['min_routing_samples'])  { $result.MinRoutingSamples = [int]$h.min_routing_samples }
+      if ($null -ne $h.PSObject.Properties['drop_dir'])             { $result.MetricsDropDir = [string]$h.drop_dir }
+      if ($null -ne $h.PSObject.Properties['log_cap'])              { $result.MetricsLogCap = [int]$h.log_cap }
+    }
     if ($null -ne $cfg.PSObject.Properties['output_dir']) { $result.OutputDir = [string]$cfg.output_dir }
   }
   if ([string]::IsNullOrWhiteSpace($result.OutputDir)) { $result.OutputDir = '{WORKSPACE_ROOT}/.skill-upgrade' }
+  if ([string]::IsNullOrWhiteSpace($result.MetricsDropDir)) { $result.MetricsDropDir = '{WORKSPACE_ROOT}/.skill-metrics' }
+  if ($result.MetricsLogCap -lt 1) { $result.MetricsLogCap = 20 }
   return $result
 }
 
@@ -357,6 +383,213 @@ function Get-DenyItems {
 }
 
 # --------------------------------------------------------------------------------------
+# Host write-back interface (references/scaling.md section 3.1)
+#
+# T1 (agent_count) and T3 (routing_accuracy) cannot be observed from inside the
+# package, so they arrive from the host through this interface instead of being
+# invented here. Three rules shape everything below:
+#
+#   1. VALIDATE  - a value outside its domain is rejected before anything is
+#                  written; a rejected write leaves the state file untouched.
+#   2. TIMESTAMP - an observation without a trustworthy observation time cannot
+#                  drive a tier decision, so freshness gates T1/T3.
+#   3. SKIP, DO NOT GUESS - stale or absent host data makes T1/T3 skip, never
+#                  fall back to a default number. A one-year-old report of
+#                  "99 agents" must not generate an upgrade proposal today.
+# --------------------------------------------------------------------------------------
+
+function Resolve-MetricsDropDir {
+  param($Config)
+  # {WORKSPACE_ROOT} is the only placeholder expanded here; anything else is
+  # left verbatim so a misconfigured path stays visible in the log.
+  $dir = [string]$Config.MetricsDropDir
+  return $dir.Replace('{WORKSPACE_ROOT}', $WorkspaceRoot)
+}
+
+function Test-HostMetricValue {
+  # Domain check for a single host-supplied metric.
+  # Returns @{ Ok = <bool>; Reason = <string> }.
+  param([string]$Name, $Value)
+  if ($Name -ne 'agent_count' -and $Name -ne 'routing_accuracy') {
+    return @{ Ok = $false; Reason = "unknown host metric '$Name' (supported: agent_count, routing_accuracy)" }
+  }
+  if ($null -eq $Value) {
+    return @{ Ok = $false; Reason = "$Name is null" }
+  }
+  if (-not ($Value -is [int]) -and -not ($Value -is [long]) -and -not ($Value -is [double]) -and -not ($Value -is [decimal])) {
+    return @{ Ok = $false; Reason = "$Name must be numeric, got '$Value'" }
+  }
+  if ($Name -eq 'agent_count') {
+    $n = [double]$Value
+    if ($n -ne [math]::Floor($n)) { return @{ Ok = $false; Reason = "agent_count must be a whole number, got $Value" } }
+    if ($n -lt 0)                { return @{ Ok = $false; Reason = "agent_count must be >= 0, got $Value" } }
+    if ($n -gt 1000000)          { return @{ Ok = $false; Reason = "agent_count $Value is implausibly large; rejected as a host bug" } }
+    return @{ Ok = $true; Reason = 'ok' }
+  }
+  $d = [double]$Value
+  if ($d -lt 0.0 -or $d -gt 1.0) { return @{ Ok = $false; Reason = "routing_accuracy must be within [0,1], got $Value" } }
+  return @{ Ok = $true; Reason = 'ok' }
+}
+
+function ConvertTo-UtcIso {
+  # Normalizes any ISO-8601 input to UTC 'yyyy-MM-ddTHH:mm:ssZ'. Returns '' when
+  # the value cannot be parsed - callers treat '' as "no trustworthy time".
+  param([string]$Value)
+  if ([string]::IsNullOrWhiteSpace($Value)) { return '' }
+  $ts = [datetime]::MinValue
+  $styles = [System.Globalization.DateTimeStyles]::AssumeUniversal -bor [System.Globalization.DateTimeStyles]::AdjustToUniversal
+  $ok = [datetime]::TryParse($Value, [System.Globalization.CultureInfo]::InvariantCulture, $styles, [ref]$ts)
+  if (-not $ok) { return '' }
+  return $ts.ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
+}
+
+function Get-HostMetricsFreshness {
+  # Decides whether each host-supplied metric may drive its threshold.
+  # Returns @{ agent_count = @{Usable;AgeDays;ObservedAt;Source;SampleSize;Reason};
+  #            routing_accuracy = @{...} }
+  param($State, $Config)
+  $result = [ordered]@{}
+  foreach ($n in @('agent_count', 'routing_accuracy')) {
+    $result[$n] = @{ Usable = $false; AgeDays = -1; ObservedAt = ''; Source = ''; SampleSize = -1; Reason = 'never supplied by any host' }
+  }
+  if ($null -eq $State.PSObject.Properties['host_metrics']) { return $result }
+  $hm = $State.host_metrics
+  if ($null -eq $hm) { return $result }
+
+  foreach ($n in @('agent_count', 'routing_accuracy')) {
+    if ($null -eq $hm.PSObject.Properties[$n]) { continue }
+    $entry = $hm.$n
+    if ($null -eq $entry) { continue }
+    $e = $result[$n]
+    if ($null -ne $entry.PSObject.Properties['source'])      { $e.Source = [string]$entry.source }
+    if ($null -ne $entry.PSObject.Properties['sample_size']) { $e.SampleSize = [int]$entry.sample_size }
+    $rawObserved = ''
+    if ($null -ne $entry.PSObject.Properties['observed_at']) { $rawObserved = [string]$entry.observed_at }
+    $observed = ConvertTo-UtcIso $rawObserved
+    $e.ObservedAt = $observed
+
+    if ([string]::IsNullOrWhiteSpace($observed)) { $e.Reason = 'observed_at missing or unparseable'; continue }
+
+    $ts = [datetime]::MinValue
+    $styles = [System.Globalization.DateTimeStyles]::AssumeUniversal -bor [System.Globalization.DateTimeStyles]::AdjustToUniversal
+    [void][datetime]::TryParse($observed, [System.Globalization.CultureInfo]::InvariantCulture, $styles, [ref]$ts)
+    $age = ((Get-Date).ToUniversalTime() - $ts.ToUniversalTime()).TotalDays
+    $e.AgeDays = [math]::Round($age, 2)
+
+    if ($age -lt -1.0) { $e.Reason = "observed_at is $($e.AgeDays) days old - negative, i.e. in the future (clock skew or bad host data)"; continue }
+    if ($age -gt $Config.MetricsMaxAgeDays) {
+      $e.Reason = "observation is $([math]::Round($age,1)) days old, past the $($Config.MetricsMaxAgeDays)-day freshness limit"
+      continue
+    }
+    if ($n -eq 'routing_accuracy' -and $e.SampleSize -ge 0 -and $e.SampleSize -lt $Config.MinRoutingSamples) {
+      $e.Reason = "only $($e.SampleSize) routing samples, below the $($Config.MinRoutingSamples)-sample minimum; too noisy to judge T3"
+      continue
+    }
+    $e.Usable = $true
+    $e.Reason = 'ok'
+  }
+  return $result
+}
+
+function Write-HostMetric {
+  # Applies one validated metric to the state object (caller saves). Mirrors the
+  # value into last_metrics so existing readers keep working unchanged, and
+  # appends a rolling audit entry so every write-back is traceable.
+  param($State, [string]$Name, $Value, [string]$ObservedAt, [string]$Source, [int]$SampleSize, $Config)
+
+  $hm = [ordered]@{}
+  if ($null -ne $State.PSObject.Properties['host_metrics']) {
+    foreach ($p in @($State.host_metrics.PSObject.Properties)) { $hm[$p.Name] = $p.Value }
+  }
+  $entry = [ordered]@{
+    value       = $Value
+    observed_at = $ObservedAt
+    source      = $Source
+    recorded_at = (Get-UtcNowIso)
+  }
+  if ($SampleSize -ge 0) { $entry.sample_size = $SampleSize }
+  $hm[$Name] = $entry
+  $State | Add-Member -MemberType NoteProperty -Name 'host_metrics' -Value $hm -Force
+
+  if ($null -ne $State.PSObject.Properties['last_metrics']) {
+    if ($null -ne $State.last_metrics.PSObject.Properties[$Name]) { $State.last_metrics.$Name = $Value }
+    else { $State.last_metrics | Add-Member -MemberType NoteProperty -Name $Name -Value $Value }
+  } else {
+    $State | Add-Member -MemberType NoteProperty -Name 'last_metrics' -Value ([ordered]@{ $Name = $Value }) -Force
+  }
+
+  $log = @()
+  if ($null -ne $State.PSObject.Properties['metrics_log']) { $log = @($State.metrics_log) }
+  $logEntry = [ordered]@{
+    metric      = $Name
+    value       = $Value
+    observed_at = $ObservedAt
+    recorded_at = (Get-UtcNowIso)
+    source      = $Source
+    via         = $script:WriteBackChannel
+  }
+  if ($SampleSize -ge 0) { $logEntry.sample_size = $SampleSize }
+  $log = @($log) + @($logEntry)
+  if ($log.Count -gt $Config.MetricsLogCap) {
+    $log = @($log[($log.Count - $Config.MetricsLogCap)..($log.Count - 1)])
+  }
+  $State | Add-Member -MemberType NoteProperty -Name 'metrics_log' -Value $log -Force
+}
+
+function Receive-HostMetricsDrop {
+  # Alternative intake for hosts that cannot call this script directly: drop a
+  # JSON file into {WORKSPACE_ROOT}/.skill-metrics/ and let the next evaluate
+  # collect it. Accepted files are MOVED to processed/ (never deleted - P23).
+  #
+  # File shape: {"metric":"agent_count","value":7,"observed_at":"...Z",
+  #              "source":"...","sample_size":120}
+  param($State, $Config)
+  $dir = Resolve-MetricsDropDir -Config $Config
+  $applied = 0
+  $rejected = 0
+  if (-not (Test-Path -LiteralPath $dir)) { return @{ Applied = 0; Rejected = 0 } }
+  $files = @(Get-ChildItem -LiteralPath $dir -Filter '*.json' -File -ErrorAction SilentlyContinue)
+  if ($files.Count -eq 0) { return @{ Applied = 0; Rejected = 0 } }
+
+  $script:WriteBackChannel = 'drop-file'
+  $processed = Join-Path $dir 'processed'
+  if (-not (Test-Path -LiteralPath $processed)) { [void](New-Item -ItemType Directory -Path $processed -Force) }
+
+  foreach ($f in $files) {
+    $payload = $null
+    try { $payload = ConvertFrom-Json ([System.IO.File]::ReadAllText($f.FullName)) }
+    catch {
+      Write-Log ("drop file rejected (invalid JSON): {0}" -f $f.Name)
+      $rejected++
+      continue
+    }
+    $name = ''
+    if ($null -ne $payload.PSObject.Properties['metric']) { $name = [string]$payload.metric }
+    $value = $null
+    if ($null -ne $payload.PSObject.Properties['value']) { $value = $payload.value }
+    $observed = ''
+    if ($null -ne $payload.PSObject.Properties['observed_at']) { $observed = ConvertTo-UtcIso ([string]$payload.observed_at) }
+    if ([string]::IsNullOrWhiteSpace($observed)) { $observed = Get-UtcNowIso }
+    $src = 'drop-file'
+    if ($null -ne $payload.PSObject.Properties['source']) { $src = [string]$payload.source }
+    $samples = -1
+    if ($null -ne $payload.PSObject.Properties['sample_size']) { $samples = [int]$payload.sample_size }
+
+    $check = Test-HostMetricValue -Name $name -Value $value
+    if (-not $check.Ok) {
+      Write-Log ("drop file rejected ({0}): {1}" -f $f.Name, $check.Reason)
+      $rejected++
+      continue
+    }
+    Write-HostMetric -State $State -Name $name -Value $value -ObservedAt $observed -Source $src -SampleSize $samples -Config $Config
+    Write-Log ("drop file applied: {0} -> {1} = {2}" -f $f.Name, $name, $value)
+    $applied++
+    Move-Item -LiteralPath $f.FullName -Destination (Join-Path $processed $f.Name) -Force
+  }
+  return @{ Applied = $applied; Rejected = $rejected }
+}
+
+# --------------------------------------------------------------------------------------
 # Metric collection (step 2)
 # --------------------------------------------------------------------------------------
 
@@ -373,18 +606,95 @@ function Get-MaxBlocksPerDepartment {
   return $max
 }
 
+function Get-ErrorCodeReuseRatio {
+  # T4 data source, MEASURED from the package (never read back from the state file).
+  #
+  # Definition (scaling.md 3, T4): for each error-code prefix, the share of
+  # that prefix's distinct codes that are referenced by MORE THAN ONE function
+  # block. The reported metric is the worst (maximum) share across prefixes,
+  # rounded to 4 decimals; 0.0 when nothing is shared or no data is available.
+  #
+  #     ratio(prefix) = |{ codes of prefix referenced by >= 2 function blocks }|
+  #                     / |{ distinct codes of prefix defined in error-codes.md }|
+  #
+  # Why this exists: before this function, T4 read `last_metrics.error_code_reuse_ratio`
+  # back from .scaling-state.json -- a value the script itself had written on the
+  # previous run. That closed loop pinned T4 at 0.0 forever, so the threshold
+  # could never fire. A metric that reads its own prior output is not a metric.
+  $prefixes = @{}   # prefix -> set of distinct defined codes
+  $owners   = @{}   # code    -> set of owning "file:FB-N" ids
+
+  if (Test-Path -LiteralPath $ErrorCodesFile) {
+    $catalog = [System.IO.File]::ReadAllText($ErrorCodesFile)
+    foreach ($cm in [regex]::Matches($catalog, '(?m)^\s*\|\s*([A-Za-z]{2,6}_\d{3})\s*\|')) {
+      $code = $cm.Groups[1].Value.ToUpperInvariant()
+      $prefix = ($code -split '_')[0]
+      if (-not $prefixes.ContainsKey($prefix)) { $prefixes[$prefix] = @{} }
+      $prefixes[$prefix][$code] = $true
+    }
+  }
+  if (-not (Test-Path -LiteralPath $DepartmentsDir)) { return 0.0 }
+
+  $files = @(Get-ChildItem -LiteralPath $DepartmentsDir -Filter '*.md' -File -ErrorAction SilentlyContinue)
+  foreach ($f in $files) {
+    $text = [System.IO.File]::ReadAllText($f.FullName)
+    foreach ($bm in [regex]::Matches($text, '(?ms)^##\s+FB-(\d+)\s*:.*?(?=^##\s|\z)')) {
+      $fbId = $f.Name + ':' + $bm.Groups[1].Value
+      $sec = [regex]::Match($bm.Value, '(?ms)^###\s+4\..*?(?=^###\s+5\.|\z)')
+      if (-not $sec.Success) { continue }
+      foreach ($cm in [regex]::Matches($sec.Value, '(?m)^\s*\|\s*([A-Za-z]{2,6}_\d{3})\s*\|')) {
+        $code = $cm.Groups[1].Value.ToUpperInvariant()
+        if (-not $owners.ContainsKey($code)) { $owners[$code] = @{} }
+        $owners[$code][$fbId] = $true
+        # A code referenced by a block but absent from the catalog still counts.
+        $prefix = ($code -split '_')[0]
+        if (-not $prefixes.ContainsKey($prefix)) { $prefixes[$prefix] = @{} }
+        $prefixes[$prefix][$code] = $true
+      }
+    }
+  }
+
+  if ($prefixes.Count -eq 0) { return 0.0 }
+  $worst = 0.0
+  foreach ($p in $prefixes.Keys) {
+    $total = $prefixes[$p].Count
+    if ($total -le 0) { continue }
+    $shared = 0
+    foreach ($code in @($prefixes[$p].Keys)) {
+      if ($owners.ContainsKey($code) -and ($owners[$code].Count -gt 1)) { $shared++ }
+    }
+    $ratio = [double]$shared / [double]$total
+    if ($ratio -gt $worst) { $worst = $ratio }
+  }
+  return [math]::Round($worst, 4)
+}
+
 function Get-CurrentMetrics {
-  param($State)
-  $m = @{ AgentCount = 0; RoutingAccuracy = 1.0; ReuseRatio = 0.0; MaxBlocks = 0 }
+  param($State, $Config)
+
+  $live      = Get-MaxBlocksPerDepartment
+  $reuse     = Get-ErrorCodeReuseRatio
+  $freshness = Get-HostMetricsFreshness -State $State -Config $Config
+
+  $agentCount = 0
+  $routingAcc = 1.0
   if ($null -ne $State.PSObject.Properties['last_metrics']) {
     $lm = $State.last_metrics
-    if ($null -ne $lm.PSObject.Properties['agent_count'])            { $m.AgentCount = [int]$lm.agent_count }
-    if ($null -ne $lm.PSObject.Properties['routing_accuracy'])       { $m.RoutingAccuracy = [double]$lm.routing_accuracy }
-    if ($null -ne $lm.PSObject.Properties['error_code_reuse_ratio']) { $m.ReuseRatio = [double]$lm.error_code_reuse_ratio }
-    if ($null -ne $lm.PSObject.Properties['max_blocks_per_department']) { $m.MaxBlocks = [int]$lm.max_blocks_per_department }
+    if ($null -ne $lm.PSObject.Properties['agent_count'])      { $agentCount = [int]$lm.agent_count }
+    if ($null -ne $lm.PSObject.Properties['routing_accuracy']) { $routingAcc = [double]$lm.routing_accuracy }
   }
-  $live = Get-MaxBlocksPerDepartment
-  if ($live -gt 0) { $m.MaxBlocks = $live }
+
+  $m = @{
+    AgentCount = $agentCount; RoutingAccuracy = $routingAcc
+    ReuseRatio = $reuse;      MaxBlocks = $live
+    HostFresh  = $freshness
+    Sources = [ordered]@{
+      agent_count               = 'host-supplied'
+      routing_accuracy          = 'host-supplied'
+      max_blocks_per_department = 'measured'
+      error_code_reuse_ratio    = 'measured'
+    }
+  }
   return $m
 }
 
@@ -399,11 +709,17 @@ function Invoke-ThresholdEvaluation {
   $mean = $TierBlockMean[$tier]
   $triggers = @()
 
-  # T1 - agent capacity overflow
+  # T1 - agent capacity overflow. Skipped (not guessed) when the host data is
+  # absent or stale: see the three rules at the top of the write-back section.
   $t1Limit = [math]::Round($cap * $Config.AgentHeadroom, 3)
-  Write-Log ("T1 agent capacity: agent_count = {0}, threshold > {1}" -f $Metrics.AgentCount, $t1Limit)
-  if ($Metrics.AgentCount -gt $t1Limit) {
-    $triggers += @{ Id = 'T1'; Name = 'Agent capacity overflow'; Metric = 'agent_count'; Value = $Metrics.AgentCount; Threshold = ('> ' + $t1Limit) }
+  $agentState = $Metrics.HostFresh['agent_count']
+  if (-not $agentState.Usable) {
+    Write-Log ("T1 SKIPPED: unusable host-supplied agent_count ({0}); threshold > {1} not evaluated" -f $agentState.Reason, $t1Limit)
+  } else {
+    Write-Log ("T1 agent capacity: agent_count = {0}, threshold > {1}" -f $Metrics.AgentCount, $t1Limit)
+    if ($Metrics.AgentCount -gt $t1Limit) {
+      $triggers += @{ Id = 'T1'; Name = 'Agent capacity overflow'; Metric = 'agent_count'; Value = $Metrics.AgentCount; Threshold = ('> ' + $t1Limit) }
+    }
   }
 
   # T2 - function-block overload in a single department
@@ -859,25 +1175,25 @@ codes whose functions stay in the successor departments keep their codes.
   }
 
   # 5i (E10, skeleton part) : rewrite the README Project Structure tree to the
-  # 29-file small-tier skeleton, marked as requiring human review. Without this
-  # the package READMEs would still describe the 25-file micro layout.
+  # 30-file small-tier skeleton, marked as requiring human review. Without this
+  # the package READMEs would still describe the 26-file micro layout.
   # The tree (which contains box-drawing characters) is stored base64-encoded
   # so this script stays pure ASCII: Windows PowerShell 5.1 reads BOM-less
   # UTF-8 scripts as ANSI, which would corrupt literal non-ASCII characters.
-  # Decoded, $newTree is the 29-file small-tier layout: 15 root files
+  # Decoded, $newTree is the 30-file small-tier layout: 16 root files
   # (incl. README-FOR-AI.md), prompts/ (3), references/ (3),
   # references/departments/ (5 new slugs), scripts/ (2), tests/ (1).
-  $newTree = [System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('YWktY29tcGFueS1nb3Zlcm5hbmNlLwrilJzilIDilIAgLmVkaXRvcmNvbmZpZwrilJzilIDilIAgLmdpdGlnbm9yZQrilJzilIDilIAgLnNjYWxpbmctc3RhdGUuanNvbgrilJzilIDilIAgQUdFTlRTLm1kCuKUnOKUgOKUgCBDSEFOR0VMT0cubWQK4pSc4pSA4pSAIENPREVfT0ZfQ09ORFVDVC5tZArilJzilIDilIAgQ09OVFJJQlVUSU5HLm1kCuKUnOKUgOKUgCBMSUNFTlNFCuKUnOKUgOKUgCBSRUFETUUtRk9SLUFJLm1kCuKUnOKUgOKUgCBSRUFETUUuZW4ubWQK4pSc4pSA4pSAIFJFQURNRS5tZArilJzilIDilIAgUkVBRE1FLnpoLm1kCuKUnOKUgOKUgCBTRUNVUklUWS5tZArilJzilIDilIAgU0tJTEwubWQK4pSc4pSA4pSAIF9tZXRhLmpzb24K4pSc4pSA4pSAIHByb21wdHMvCuKUgiAgIOKUnOKUgOKUgCAwMS1pbXBsZW1lbnQtbWV0aG9kLm1kCuKUgiAgIOKUnOKUgOKUgCAwMi1yb2J1c3RuZXNzLWNoZWNrcy5tZArilIIgICDilJTilIDilIAgMDMtdGVzdC1jYXNlcy5tZArilJzilIDilIAgcmVmZXJlbmNlcy8K4pSCICAg4pSc4pSA4pSAIG1ldGhvZC1wYXR0ZXJucy5tZArilIIgICDilJzilIDilIAgZXJyb3ItY29kZXMubWQK4pSCICAg4pSc4pSA4pSAIHNjYWxpbmcubWQK4pSCICAg4pSU4pSA4pSAIGRlcGFydG1lbnRzLwrilIIgICAgICAg4pSc4pSA4pSAIGdvdmVybmFuY2UtYW5kLW9wZXJhdGlvbnMubWQK4pSCICAgICAgIOKUnOKUgOKUgCBxdWFsaXR5LWFuZC1kZWxpdmVyeS5tZArilIIgICAgICAg4pSc4pSA4pSAIHRlY2hub2xvZ3ktYW5kLXBsYXRmb3JtLm1kCuKUgiAgICAgICDilJzilIDilIAgc2VjdXJpdHktYW5kLWNvbXBsaWFuY2UubWQK4pSCICAgICAgIOKUlOKUgOKUgCBwZW9wbGUtYW5kLWdyb3d0aC5tZArilJzilIDilIAgc2NyaXB0cy8K4pSCICAg4pSc4pSA4pSAIHNlbGYtc2NhbGUucHMxCuKUgiAgIOKUlOKUgOKUgCBzY2FsaW5nLWNvbmZpZy5qc29uCuKUlOKUgOKUgCB0ZXN0cy8KICAgIOKUlOKUgOKUgCB0ZXN0LW1ldGhvZC1wYXR0ZXJucy5weQo='))
+  $newTree = [System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('YWktY29tcGFueS1nb3Zlcm5hbmNlLwrilJzilIDilIAgLmVkaXRvcmNvbmZpZwrilJzilIDilIAgLmdpdGF0dHJpYnV0ZXMK4pSc4pSA4pSAIC5naXRpZ25vcmUK4pSc4pSA4pSAIC5zY2FsaW5nLXN0YXRlLmpzb24K4pSc4pSA4pSAIEFHRU5UUy5tZArilJzilIDilIAgQ0hBTkdFTE9HLm1kCuKUnOKUgOKUgCBDT0RFX09GX0NPTkRVQ1QubWQK4pSc4pSA4pSAIENPTlRSSUJVVElORy5tZArilJzilIDilIAgTElDRU5TRQrilJzilIDilIAgUkVBRE1FLUZPUi1BSS5tZArilJzilIDilIAgUkVBRE1FLmVuLm1kCuKUnOKUgOKUgCBSRUFETUUubWQK4pSc4pSA4pSAIFJFQURNRS56aC5tZArilJzilIDilIAgU0VDVVJJVFkubWQK4pSc4pSA4pSAIFNLSUxMLm1kCuKUnOKUgOKUgCBfbWV0YS5qc29uCuKUnOKUgOKUgCBwcm9tcHRzLwrilIIgICDilJzilIDilIAgMDEtaW1wbGVtZW50LW1ldGhvZC5tZArilIIgICDilJzilIDilIAgMDItcm9idXN0bmVzcy1jaGVja3MubWQK4pSCICAg4pSU4pSA4pSAIDAzLXRlc3QtY2FzZXMubWQK4pSc4pSA4pSAIHJlZmVyZW5jZXMvCuKUgiAgIOKUnOKUgOKUgCBtZXRob2QtcGF0dGVybnMubWQK4pSCICAg4pSc4pSA4pSAIGVycm9yLWNvZGVzLm1kCuKUgiAgIOKUnOKUgOKUgCBzY2FsaW5nLm1kCuKUgiAgIOKUlOKUgOKUgCBkZXBhcnRtZW50cy8K4pSCICAgICAgIOKUnOKUgOKUgCBnb3Zlcm5hbmNlLWFuZC1vcGVyYXRpb25zLm1kCuKUgiAgICAgICDilJzilIDilIAgcXVhbGl0eS1hbmQtZGVsaXZlcnkubWQK4pSCICAgICAgIOKUnOKUgOKUgCB0ZWNobm9sb2d5LWFuZC1wbGF0Zm9ybS5tZArilIIgICAgICAg4pSc4pSA4pSAIHNlY3VyaXR5LWFuZC1jb21wbGlhbmNlLm1kCuKUgiAgICAgICDilJTilIDilIAgcGVvcGxlLWFuZC1ncm93dGgubWQK4pSc4pSA4pSAIHNjcmlwdHMvCuKUgiAgIOKUnOKUgOKUgCBzZWxmLXNjYWxlLnBzMQrilIIgICDilJTilIDilIAgc2NhbGluZy1jb25maWcuanNvbgrilJTilIDilIAgdGVzdHMvCiAgICDilJTilIDilIAgdGVzdC1tZXRob2QtcGF0dGVybnMucHkK'))
   $newTree = $newTree + "`n"
-  $treeNoteEn = '> Structure tree rewritten to the 29-file small-tier skeleton by the'
+  $treeNoteEn = '> Structure tree rewritten to the 30-file small-tier skeleton by the'
   $treeNoteEn = $treeNoteEn + ' upgrade generator - requires human review before installation.'
   # README.zh.md carries a Chinese note. The text is stored base64-encoded so
   # this script stays pure ASCII (Windows PowerShell 5.1 reads BOM-less UTF-8
   # as ANSI, which would corrupt literal CJK characters). Decoded, it is the
   # Chinese translation of $treeNoteEn: "structure tree rewritten to the
-  # 29-file small-tier skeleton by the upgrade generator - requires human
+  # 30-file small-tier skeleton by the upgrade generator - requires human
   # review before installation".
-  $treeNoteZh = [System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('PiDnu5PmnoTmoJHlt7LnlLHljYfnuqfnlJ/miJDlmajmlLnlhpnkuLogMjkg5Liq5paH5Lu255qE5bCP5Z6L5qGj6aqo5p6277yIc21hbGzvvInigJTigJTlronoo4XliY3pnIDkurrlt6XlpI3moLjjgII='))
+  $treeNoteZh = [System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('PiDnu5PmnoTmoJHlt7LnlLHljYfnuqfnlJ/miJDlmajmlLnlhpnkuLogMzAg5Liq5paH5Lu255qE5bCP5Z6L5qGj6aqo5p6277yIc21hbGzvvInigJTigJTlronoo4XliY3pnIDkurrlt6XlpI3moLjjgII='))
   foreach ($name in @('README.md', 'README.en.md', 'README.zh.md')) {
     $p = Join-Path $PkgDir $name
     if (-not (Test-Path -LiteralPath $p)) { continue }
@@ -894,7 +1210,7 @@ codes whose functions stay in the successor departments keep their codes.
     $treeRegex = New-Object System.Text.RegularExpressions.Regex($treeFence)
     $t2 = $treeRegex.Replace($t, $replacement.Replace('$', '$$'), 1)
     Write-TextFileNoBom -Path $p -Text $t2
-    Write-Log "5i Project Structure tree rewritten to the 29-file skeleton in $name (marked requires human review)"
+    Write-Log "5i Project Structure tree rewritten to the 30-file skeleton in $name (marked requires human review)"
   }
 
   # 5i (E17) : CHANGELOG.md upgrade entry - inserted directly after the
@@ -1333,7 +1649,7 @@ function New-ProposalReport {
 |---|---|
 | Proposal time | $now |
 | Current tier | micro (2 departments, 18 function blocks, $curFileCount files) |
-| Target tier | small (5 departments, 18 function blocks, 29 files expected) |
+| Target tier | small (5 departments, 18 function blocks, 30 files expected) |
 | Trigger reason | $triggerText |
 | Package path | {WORKSPACE_ROOT}/.skill-upgrade/$PkgName/ |
 | Status | PENDING APPROVAL - NOT EFFECTIVE |
@@ -1350,7 +1666,7 @@ function New-ProposalReport {
 | Revived error-code prefixes | 3 | CISO_, CHO_, CQO_ |
 | Error-code alias skeleton | 1 table | 24 legacy-code rows appended to references/error-codes.md, every row marked "requires human review" |
 | Aliases added | 5 | See the Alias Map in references/scaling.md |
-| Governance files updated | <=4 | CHANGELOG.md entry inserted after [Unreleased]; version strings bumped (counted, context-exact) and Project Structure tree rewritten to the 29-file skeleton in SKILL.md index / README*.md |
+| Governance files updated | <=4 | CHANGELOG.md entry inserted after [Unreleased]; version strings bumped (counted, context-exact) and Project Structure tree rewritten to the 30-file skeleton in SKILL.md index / README*.md |
 
 ## Frontmatter diff note
 
@@ -1366,7 +1682,7 @@ fabricate one.
    prefixes in references/error-codes.md. The alias-table skeleton (24 rows)
    has been generated; every "requires human review" cell must be completed
    with the real new code, and the file header counts updated (step 5e).
-2. README Project Structure trees have been rewritten to the 29-file
+2. README Project Structure trees have been rewritten to the 30-file
    small-tier skeleton in README.md / README.en.md / README.zh.md; the
    remaining narrative claims (department names, block split, quick-start
    wording) still describe the micro layout and require human review (step 5i).
@@ -1418,11 +1734,17 @@ function Show-Status {
   Write-Output '=== self-scale status ==='
   Write-Output ("current_tier            : {0}" -f $state.current_tier)
   Write-Output ("next_evaluation         : {0}" -f $state.next_evaluation)
-  Write-Output ("agent_count             : {0}" -f $metrics.AgentCount)
-  Write-Output ("routing_accuracy        : {0}" -f $metrics.RoutingAccuracy)
-  Write-Output ("max_blocks_per_dept     : {0}" -f $metrics.MaxBlocks)
-  Write-Output ("error_code_reuse_ratio  : {0}" -f $metrics.ReuseRatio)
+  $src = $metrics.Sources
+  Write-Output ("agent_count             : {0}  [{1}]" -f $metrics.AgentCount, $src.agent_count)
+  Write-Output ("routing_accuracy        : {0}  [{1}]" -f $metrics.RoutingAccuracy, $src.routing_accuracy)
+  Write-Output ("max_blocks_per_dept     : {0}  [{1}]" -f $metrics.MaxBlocks, $src.max_blocks_per_department)
+  Write-Output ("error_code_reuse_ratio  : {0}  [{1}]" -f $metrics.ReuseRatio, $src.error_code_reuse_ratio)
   Write-Output ("upgrade_policy          : {0}" -f 'propose-only')
+  if ($metrics.AgentCount -eq 0 -or $metrics.RoutingAccuracy -eq 1.0) {
+    Write-Output 'NOTE agent_count / routing_accuracy are host-supplied (not measured by this'
+    Write-Output '     script). No host has written them yet, so T1 and T3 cannot fire.'
+    Write-Output '     See scaling.md section 3 for the host write-back contract.'
+  }
   Write-Output ("tier_history entries    : {0}" -f @($state.tier_history).Count)
   Write-Output ("pending_proposals       : {0}" -f @($state.pending_proposals).Count)
   exit 0
@@ -1473,7 +1795,7 @@ function Invoke-Proposal {
     Write-Log 'DRY-RUN: 5d rewrite frontmatter (scale_tier=small, department_count=5, version=2.0.0, enum + description)'
     Write-Log 'DRY-RUN: 5e bump _meta.json; append the error-code alias-table skeleton (requires human review)'
     Write-Log 'DRY-RUN: 5g append 5 alias rows to the package Alias Map'
-    Write-Log 'DRY-RUN: 5i bump README versions (counted, context-exact); rewrite structure trees to the 29-file skeleton; insert the CHANGELOG entry after [Unreleased]'
+    Write-Log 'DRY-RUN: 5i bump README versions (counted, context-exact); rewrite structure trees to the 30-file skeleton; insert the CHANGELOG entry after [Unreleased]'
     Write-Log 'DRY-RUN: package state file with tier_history skeleton entry (append-only)'
     Write-Log 'DRY-RUN: 6 run gates G1-G6 on the package'
     Write-Log 'DRY-RUN: 7 write UPGRADE-PROPOSAL.md; 8 stop (no install)'
@@ -1574,6 +1896,7 @@ function Invoke-Proposal {
     max_blocks_per_department = $Metrics.MaxBlocks
     error_code_reuse_ratio = $Metrics.ReuseRatio
   })
+  Set-StateProperty -State $State -Name 'metrics_provenance' -Value $Metrics.Sources
   Set-StateProperty -State $State -Name 'routing_miss_streak' -Value $RoutingMissStreak
   Save-State -State $State
 
@@ -1594,6 +1917,11 @@ function Invoke-EvaluateFlow {
   Write-Log '2 collecting the four scaling metrics and evaluating thresholds T1-T4...'
   $config = Load-Config
   $metrics = Get-CurrentMetrics -State $state
+  Write-Log ("2 agent_count={0} [{1}], routing_accuracy={2} [{3}]" -f $metrics.AgentCount, $metrics.Sources.agent_count, $metrics.RoutingAccuracy, $metrics.Sources.routing_accuracy)
+  Write-Log ("2 max_blocks_per_department={0} [{1}], error_code_reuse_ratio={2} [{3}]" -f $metrics.MaxBlocks, $metrics.Sources.max_blocks_per_department, $metrics.ReuseRatio, $metrics.Sources.error_code_reuse_ratio)
+  if ($metrics.AgentCount -eq 0 -or $metrics.RoutingAccuracy -eq 1.0) {
+    Write-Log '2 NOTE T1/T3 depend on host-supplied metrics that are still at their defaults; they cannot fire until the host writes them (scaling.md 3).'
+  }
   $evaluation = Invoke-ThresholdEvaluation -State $state -Metrics $metrics -Config $config
   $triggers = $evaluation.Triggers
 
@@ -1609,6 +1937,7 @@ function Invoke-EvaluateFlow {
         max_blocks_per_department = $metrics.MaxBlocks
         error_code_reuse_ratio = $metrics.ReuseRatio
       })
+      Set-StateProperty -State $state -Name 'metrics_provenance' -Value $metrics.Sources
       Set-StateProperty -State $state -Name 'routing_miss_streak' -Value $evaluation.RoutingMissStreak
       Save-State -State $state
       Write-Log '3 done. No proposal generated.'
