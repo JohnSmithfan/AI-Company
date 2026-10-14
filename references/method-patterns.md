@@ -215,6 +215,9 @@ _KNOWN_SECRET_NAMES = frozenset({
     "ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "HF_TOKEN", "NPM_TOKEN",
     "AZURE_CLIENT_SECRET", "GOOGLE_API_KEY", "SLACK_BOT_TOKEN",
     "DATABASE_URL", "CONNECTION_STRING",
+    # R2 review: these two name credential FILES and carry no KEY/TOKEN/
+    # SECRET/SESSION fragment, so they must be listed explicitly.
+    "NETRC", "KUBECONFIG",
 })
 
 def _is_secret_env_name(name):

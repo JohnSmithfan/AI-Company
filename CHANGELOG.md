@@ -85,6 +85,17 @@ and this project adheres to
   path evicted oldest-inserted keys regardless; the docstring now states the
   best-effort guarantee, and expired buckets are actually pruned across all keys
   before eviction (previously only already-empty buckets were).
+- `prompts/02-robustness-checks.md` (R2-B9): the H3 self-containment contract asks a
+  human-paste prompt to carry the ten canonical template signatures inline; 02
+  listed ten robustness dimensions but not one signature, so a reviewer could
+  not check a rename or a changed default without the package. The signature
+  block is now inlined, and the H1/H2/H3 test asserts it (plus the three PII
+  placeholders and the three AIGC layers) for every human-paste prompt. The
+  assertion was negative-verified by deleting the block from a throwaway copy.
+- `references/method-patterns.md` §3.3 (R2-B10): `_KNOWN_SECRET_NAMES` did not
+  cover `NETRC` and `KUBECONFIG`, which name credential *files* and carry no
+  KEY/TOKEN/SECRET/SESSION fragment. Both are now listed, consistent with the
+  documented over-inclusive policy.
 - `tests/test-method-patterns.py` (R2-B8): `test_def_unique_across_package` and
   `test_no_filename_with_space` recursed the whole working tree while skipping
   only `.git`, unlike the package-file-set helper they share a file with. Any

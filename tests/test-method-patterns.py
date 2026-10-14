@@ -53,6 +53,20 @@ TEN_TEMPLATE_NAMES = [
     "build_prompt_from_template",
 ]
 
+# §7.1 十个模板的精确签名（H3 要求 human-paste prompt 自带该清单）
+TEN_TEMPLATE_SIGNATURES = [
+    "validate_input_schema(data, schema)",
+    "sanitize_user_query(query)",
+    "execute_safe_command(cmd, timeout=30)",
+    "format_output_json(content, provider)",
+    "retry_with_backoff(func, max_retries=3)",
+    "read_reference_file(filepath)",
+    'generate_trace_id(prefix="trace")',
+    "check_rate_limit(identifier, limit=10, window=60)",
+    "mask_sensitive_data(text)",
+    "build_prompt_from_template(template, **kwargs)",
+]
+
 # 职能块守恒（README-FOR-AI.md §10.1）：XS/S/M/L = 18，G = 36
 EXPECTED_FB_BY_TIER = {"micro": 18, "small": 18, "medium": 18, "large": 18, "group": 36}
 EXPECTED_FB_TOTAL = EXPECTED_FB_BY_TIER[SCALE_TIER]
@@ -937,6 +951,16 @@ class StructureTests(unittest.TestCase):
                 "All content in English",
             ]:
                 self.assertNotIn(bad, content, f"{f.name} 违反自包含约束: {bad}")
+
+            # H3：自包含还要求背景内联——10 个模板签名、3 个 PII 占位符、AIGC 三层
+            # 标识都必须自带。此前断言只查"没有什么"，不查"该有什么"，于是 02 号
+            # prompt 只列鲁棒性维度、没有签名清单也能通过。
+            for sig in TEN_TEMPLATE_SIGNATURES:
+                self.assertIn(sig, content, f"{f.name} 缺少 H3 内联签名: {sig}")
+            for ph in ("[EMAIL]", "[IP]", "[PHONE]"):
+                self.assertIn(ph, content, f"{f.name} 缺少 H3 PII 占位符: {ph}")
+            for layer in ("AI-Generated Content", "ai_generated", "generated_at"):
+                self.assertIn(layer, content, f"{f.name} 缺少 H3 AIGC 标识要素: {layer}")
 
     def test_language_policy_declared(self):
         """★ R3-4：断言 frontmatter 含 language_policy 且取值正确（四字段）"""
