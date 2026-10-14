@@ -54,13 +54,15 @@ say so explicitly:
 ## Mandatory data-handling rules
 
 - PII masking: every output path must replace email addresses with [EMAIL], IPv4
-  addresses with [IP], and 11-digit phone numbers with [PHONE]. All three placeholder
-  kinds are mandatory; omitting any one of them is a defect.
+  addresses with [IP], and phone numbers in their common written forms (international
+  country code and separators included) with [PHONE]. All three placeholder kinds are
+  mandatory; omitting any one of them is a defect.
 - AI-generated content identification: every artifact you produce must carry all three
   layers - (1) a visible label such as "AI-Generated Content", (2) structured metadata
   with "ai_generated": true, "generated_at": "<ISO8601 timestamp>", and
-  "model": "<provider/model>", and (3) an embedded watermark in the content body that
-  does not survive-free under simple deletion.
+  "model": "<provider/model>", and (3) a tamper-evident disclosure marker embedded in
+  the content body that is derived from the content, so editing the body invalidates it
+  (the trailing disclosure line can still be removed by deliberate deletion).
 
 ## Requirements
 

@@ -70,7 +70,7 @@ travel through the upgrade channel.
 | `large` | `group` | 4 → 5 | 148 → 246 | 18 → 36 departments, function blocks 18 → 36 (the only change of block total) |
 | `group` | — | — | — | Highest tier; an upgrade request returns `SCL_009` |
 
-> **Counting basis**: figures are **total package files** — spec files + the package-local `README-FOR-AI.md` + `.gitattributes` (added in R4, present at every tier). The sole exception is the left-hand side of the `medium → large` row, which repeats the medium-tier **spec-file** range. All counts were resynced when `.gitattributes` was introduced; re-derive them again if any file is added or removed at any tier. |
+> **Counting basis**: figures are **total package files** — spec files + the package-local `README-FOR-AI.md` + `.gitattributes` (added in R4, present at every tier) — over the **package file set** defined in README-FOR-AI.md §3. Repository tooling directories (`.git/`, `.github/`, `.workbuddy/`, `.skill-upgrade/`) are never package content and are never counted. The sole exception is the left-hand side of the `medium → large` row, which repeats the medium-tier **spec-file** range. All counts were resynced when `.gitattributes` was introduced; re-derive them again if any file is added or removed at any tier. |
 
 Rules:
 
@@ -170,6 +170,47 @@ Trigger rules:
   `evaluation_interval_days`) and `last_metrics` in the state file, then exit.
 - Forced invocation (`-Force`) with no threshold hit → a proposal is still
   generated, and the report's first line carries the `SCL_001` warning.
+
+### 3.1 Host metric write-back (record-metrics and the drop directory)
+
+T1 (`agent_count`) and T3 (`routing_accuracy`) are **host-supplied**: nothing
+inside the package can observe the live agent population or the routing hit
+rate. The host delivers them through one of two channels, both implemented by
+`scripts/self-scale.ps1`. Writing through a channel is the *only* way T1/T3 can
+ever fire — reading back a value the script itself wrote is explicitly not a
+metric (see the provenance rule in Section 3).
+
+| Channel | How | When it is collected |
+|---|---|---|
+| Direct action | `self-scale.ps1 -Action record-metrics -AgentCount <n> [-RoutingAccuracy <0..1>] [-SampleSize <n>] [-ObservedAt <ISO8601>] [-Source <id>]` | immediately, in that invocation |
+| Drop directory | a JSON file in `host_metrics.drop_dir` (default `{WORKSPACE_ROOT}/.skill-metrics`) | at the start of the next `evaluate` or `propose` run |
+
+Drop-file shape (one metric per file; `observed_at` defaults to the current
+time when absent or unparseable):
+
+```json
+{"metric": "agent_count", "value": 7, "observed_at": "2026-10-14T00:00:00Z", "source": "scheduler", "sample_size": 120}
+```
+
+Rules shared by both channels (implemented once, in `Test-HostMetricValue`,
+`ConvertTo-UtcIso`, `Get-HostMetricsFreshness` and `Write-HostMetric`):
+
+| Rule | Behaviour |
+|---|---|
+| Supported metrics | `agent_count` (whole number, `0 <= n <= 1000000`) and `routing_accuracy` (`0.0 <= x <= 1.0`). Anything else is rejected before a write |
+| Rejected write | leaves the state file untouched; a `record-metrics` call that would record nothing stops with `SCL_007` (never a silent no-op) |
+| Timestamping | `observed_at` is normalised to UTC; an unparseable or missing value falls back to the current time |
+| Freshness (`host_metrics.max_age_days`, default 45) | an observation older than the limit makes T1/T3 **skip**, never guess. A timestamp more than one day in the future is treated as clock skew and skipped |
+| Routing samples (`host_metrics.min_routing_samples`, default 20) | a `routing_accuracy` entry whose `sample_size` is below the minimum makes T3 skip (too noisy to judge); an entry with no `sample_size` is judged on freshness alone |
+| Mirror | the accepted value is written to `host_metrics.<name>` **and** mirrored into `last_metrics.<name>` for existing readers |
+| Audit log | every accepted write appends to `metrics_log` (cap `host_metrics.log_cap`, default 20, oldest out first), recording metric, value, `observed_at`, `recorded_at`, `source` and the channel (`cli` or `drop-file`) |
+| Accepted drop files | are **moved**, never deleted, into `<drop_dir>/processed/` (P23) |
+
+Declared limitation: until a host writes a metric it keeps its default (`0` for
+`agent_count`, `1.0` for `routing_accuracy`) and `status`/`evaluate` print an
+explicit "still at their defaults" note naming exactly those metrics. The note
+is suppressed for any metric the host has actually written, even when the
+written value happens to equal the default.
 
 ---
 
@@ -289,7 +330,7 @@ executor; gates are never merged into a single conditional.
 | **G3** | Deny-and-gate-unchanged | The 5 `deny` items are present and unrewritten in the package, and `scripts/self-scale.ps1` in the package has the same SHA-256 as the running script | Reject: package quarantined | `SCL_004` |
 | **G4** | Function-block conservation | Total `## FB-N:` headings across the package's D2 pages equals the target expectation (18 for small) **and** every department's count equals its merge-tree expectation (small tier: 6/2/3/3/4), and no unexpected D2 page exists in the package; on failure, a per-department expected-vs-found list is reported. The split itself aborts with `SCL_010` before any package is completed when a legacy page holds more or fewer sections than the merge tree expects (nothing is silently dropped or padded) | Reject: package quarantined | `SCL_010` |
 | **G5** | Alias completeness | Every legacy slug has at least one alias row, every target slug is reachable, and no new slug collides with any historical alias | Reject: package quarantined | `SCL_003` |
-| **G6** | Acceptance passed | Machine-checkable acceptance items on the package: file count = expected value (29 for small = 28 spec files + `README-FOR-AI.md`; excludes `UPGRADE-PROPOSAL.md` and build residues); frontmatter triple consistency (`scale_tier` / `department_count` / `function_block_count`); version agreement in the four required locations (`_meta.json`, README badge in the concrete `version-2.0.0-blue` format, `SKILL.md` frontmatter, `SKILL.md` body); `interface.department.enum` lists exactly `auto` plus the 5 small-tier department slugs (item count = department_count + 1, no retired slug); presence of all 5 target D2 files; `error_code_prefixes` lists the 5 department prefixes plus `SCL_`; `prompts/03-test-cases.md` present, `agent-invoked`, harness level ≥ L3. Full §15 acceptance including AI-content review (A–G groups, H, I, U) remains a human step recorded in the report | Reject: package quarantined with the failed-item list | `SCL_006` |
+| **G6** | Acceptance passed | Machine-checkable acceptance items on the package: file count = expected value (30 for small, counted over the package file set of Section 2 / README-FOR-AI.md §3, which excludes `UPGRADE-PROPOSAL.md` and build residues); frontmatter triple consistency (`scale_tier` / `department_count` / `function_block_count`); version agreement in the three required locations (`_meta.json`, README badge in the concrete `version-2.0.0-blue` format, `SKILL.md` frontmatter); `interface.department.enum` lists exactly `auto` plus the 5 small-tier department slugs (item count = department_count + 1, no retired slug); presence of all 5 target D2 files; `error_code_prefixes` lists the 5 department prefixes plus `SCL_`; `prompts/03-test-cases.md` present, `agent-invoked`, harness level ≥ L3. On failure the failed-item detail is written to the log and to `last_failure.detail` in the state file. Full §15 acceptance including AI-content review (A–G groups, H, I, U) remains a human step recorded in the report | Reject: package quarantined with the failed-item list | `SCL_006` |
 
 Notes:
 
@@ -320,8 +361,8 @@ Notes:
    -> each metric is logged with its provenance; a host-supplied metric still
       at its default prints an explicit "cannot fire" note
 
-3. No trigger -> write back next_evaluation (+30 days), last_metrics and
-   metrics_provenance, exit 0.
+3. No trigger -> write back next_evaluation (+30 days), last_metrics,
+   metrics_provenance and routing_miss_streak, exit 0.
    -> if invoked with -Force, log the SCL_001 warning and continue instead
 
 4. Triggered -> look up the split mapping from the merge tree (Section 4)
@@ -351,9 +392,11 @@ Notes:
    5f. department-index.md -- not applicable for target < large
    5g. slug alias rows appended to this file's Alias Map (history preserved)
    5h. the current package copied verbatim (tests/ and scripts/self-scale.ps1
-       byte-identical, never modified -- this is what G2/G3 verify),
-       excluding the operational state file, the retired legacy D2 pages,
-       and build residues (__pycache__/ directories and *.pyc files)
+       byte-identical, never modified -- this is what G2/G3 verify), over the
+       package file set of README-FOR-AI.md §3: it excludes the operational
+       state file, the retired legacy D2 pages, repository tooling directories
+       (.git/, .github/, .workbuddy/, .skill-upgrade/) and build residues
+       (__pycache__/ directories and *.pyc files)
    5i. governance layer: CHANGELOG.md entry inserted directly after
        [Unreleased] (Keep a Changelog order, never appended at the end);
        version strings replaced with counted, context-exact rewrites (badge,
@@ -417,10 +460,12 @@ large   v4.x.x
 group   v5.x.x
 ```
 
-Four version locations must always carry the **same value** (acceptance H15):
-`_meta.json`, the README badge, the `SKILL.md` frontmatter, and the `SKILL.md`
-body title. The micro → small upgrade bumps all four from `1.0.0` to `2.0.0`,
-and gate G6 verifies the agreement.
+Three version locations must always carry the **same value** (acceptance H15):
+`_meta.json`, the README badge, and the `SKILL.md` frontmatter. The former
+fourth location — the `SKILL.md` body title — never existed in any shipped
+package, so decision D-2 (option A, README-FOR-AI.md §16) removed it rather
+than leave gate G6 permanently unreachable. The micro → small upgrade bumps the
+three from `1.0.0` to `2.0.0`, and gate G6 verifies the agreement.
 
 ---
 
@@ -487,7 +532,14 @@ pwsh -File "{SKILL_DIR}/scripts/self-scale.ps1" -Action evaluate -Force
 pwsh -File "{SKILL_DIR}/scripts/self-scale.ps1" -Action propose
 pwsh -File "{SKILL_DIR}/scripts/self-scale.ps1" -Action status
 pwsh -File "{SKILL_DIR}/scripts/self-scale.ps1" -Action report
+pwsh -File "{SKILL_DIR}/scripts/self-scale.ps1" -Action record-metrics -AgentCount 7
 ```
+
+> On a default Windows execution policy (`Restricted` or `RemoteSigned`) an
+> unsigned `.ps1` is refused. Either run
+> `powershell -ExecutionPolicy Bypass -File "{SKILL_DIR}/scripts/self-scale.ps1" ...`
+> or `Unblock-File` the script first when it was downloaded. This applies to
+> every command in this section.
 
 | Action | Effect |
 |---|---|
@@ -495,6 +547,7 @@ pwsh -File "{SKILL_DIR}/scripts/self-scale.ps1" -Action report
 | `propose` | Generate a proposal package directly (marks `SCL_001` in the report if no threshold was hit) |
 | `report` | Print the upgrade report of the latest pending proposal |
 | `status` | Print tier, metrics, thresholds, and pending proposals |
+| `record-metrics` | Record a host-supplied metric (the T1/T3 data source; Section 3.1). Bookkeeping only — it never changes a tier |
 
 There is deliberately **no** `install`, `apply`, or `commit` action (P36).
 Exit codes: `0` = success / no trigger; `2` = fatal `SCL_` stop; `3` = gate

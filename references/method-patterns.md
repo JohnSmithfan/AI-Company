@@ -787,8 +787,9 @@ non-strippable mark is required, sign the payload outside this envelope.
   is a defect (P32); see the warning under 3.9.
 - Masking order is fixed: mask **first**, then persist/log/send. Raw data
   must never appear in logs.
-- Verification: feed a fixture containing an email, an IPv4 address, and an
-  11-digit phone number through `mask_sensitive_data`; the result must
+- Verification: feed a fixture containing an email, an IPv4 address, and a
+  phone number in a common written form (country code and separators included)
+  through `mask_sensitive_data`; the result must
   contain `[EMAIL]`, `[IP]`, and `[PHONE]` respectively and none of the
   originals.
 
@@ -819,7 +820,8 @@ Non-negotiable, verified against this file's templates:
   dangerous *program names*. It is a first line of defence, not a sandbox
   boundary: any allowed interpreter can still delete files
   (`python -c "os.remove(...)"`, `git clean -fd`, `find . -delete`). The real
-  boundary is the host permission set declared in `SKILL.md` §9.1.
+  boundary is the host permission set declared in `SKILL.md`'s `permissions`
+  block (specification: `README-FOR-AI.md` §9.1).
 - **Zero sensitive-path access** — template 6 rejects any path resolving
   outside `{SKILL_DIR}`, and fails closed when `{SKILL_DIR}` is unconfigured
   rather than falling back to the process working directory.

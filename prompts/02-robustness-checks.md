@@ -38,11 +38,13 @@ risks: <CONSTRAINTS>
    (default maximum 3 retries).
 5. Rate limiting - in-memory counters only; nothing persisted to disk.
 6. PII masking - outputs replace email addresses with [EMAIL], IPv4 addresses with
-   [IP], and 11-digit phone numbers with [PHONE]; all three are mandatory, and
-   missing any one is a defect.
+   [IP], and phone numbers in their common written forms (country code and
+   separators included) with [PHONE]; all three are mandatory, and missing any one
+   is a defect.
 7. AI-content identification - artifacts carry a visible "AI-Generated Content"
    label, structured metadata (ai_generated: true, generated_at, model), and an
-   embedded watermark.
+   embedded tamper-evident disclosure marker derived from the content (editing the
+   body invalidates it; the trailing disclosure line can still be deleted).
 8. Audit tracing - a stateless unique trace ID is generated and threaded through
    every operation.
 9. Circuit breaker - CLOSED -> OPEN -> HALF_OPEN with numeric thresholds: failure

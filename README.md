@@ -26,7 +26,9 @@ English | [简体中文](README.zh.md)
    any AI chat window. Both files are `human-paste` mode and reference no
    internal paths.
 5. **Verify** — run `python tests/test-method-patterns.py`, and check tier
-   readiness with `powershell -File scripts/self-scale.ps1 -Action evaluate`.
+   readiness with `powershell -ExecutionPolicy Bypass -File
+   scripts/self-scale.ps1 -Action evaluate` (a default Windows execution policy
+   refuses unsigned `.ps1` files).
 
 ## Package at a glance
 
@@ -77,6 +79,10 @@ ai-company/
     └── test-method-patterns.py
 ```
 
+The tree lists the **package file set**: repository tooling directories
+(`.git/`, `.github/`, `.workbuddy/`, `.skill-upgrade/`) are not package content
+and are excluded from the count (`README-FOR-AI.md` §3).
+
 ## Documentation
 
 - [CONTRIBUTING.md](CONTRIBUTING.md) — branch, commit, test, and PR rules
@@ -94,7 +100,8 @@ ai-company/
 This package is designed to grow. `scripts/self-scale.ps1 -Action evaluate`
 checks tier readiness against `scripts/scaling-config.json` and writes back
 only its own bookkeeping fields to `.scaling-state.json` (`next_evaluation`,
-`last_metrics`, `routing_miss_streak`); it never modifies skill content. The
+`last_metrics`, `metrics_provenance`, `routing_miss_streak`, `validation`); it
+never modifies skill content. The
 actual upgrade always requires human approval and is recorded in
 `.scaling-state.json`. Thresholds, paths, and aliases are specified in
 [references/scaling.md](references/scaling.md); the scale-tier ladder itself is

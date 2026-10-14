@@ -23,8 +23,8 @@
    `prompts/02-robustness-checks.md` 复制现成提示词，粘贴到任意 AI 对话
    窗口。两个文件均为 `human-paste` 模式，不引用任何内部路径。
 5. **验证** —— 运行 `python tests/test-method-patterns.py`；用
-   `powershell -File scripts/self-scale.ps1 -Action evaluate` 检查档位
-   就绪度。
+   `powershell -ExecutionPolicy Bypass -File scripts/self-scale.ps1 -Action evaluate`
+   检查档位就绪度（Windows 默认执行策略会拒绝未签名的 `.ps1`）。
 
 ## 包速览
 
@@ -75,6 +75,9 @@ ai-company/
     └── test-method-patterns.py
 ```
 
+结构树列出的是**包文件集**：仓库工具目录（`.git/`、`.github/`、`.workbuddy/`、
+`.skill-upgrade/`）不属于包内容，不计入文件总数（`README-FOR-AI.md` §3）。
+
 ## 文档
 
 - [CONTRIBUTING.md](CONTRIBUTING.md) —— 分支、提交、测试与 PR 规则
@@ -90,7 +93,8 @@ ai-company/
 
 本技能包为成长而设计：`scripts/self-scale.ps1 -Action evaluate` 会依据
 `scripts/scaling-config.json` 做就绪度检查，并只把自身的记录字段
-（`next_evaluation`、`last_metrics`、`routing_miss_streak`）回写到
+（`next_evaluation`、`last_metrics`、`metrics_provenance`、`routing_miss_streak`、
+`validation`）回写到
 `.scaling-state.json`，不改动任何技能内容；真正的档位变更始终需要
 人工批准，并记录到 `.scaling-state.json`。阈值、路径与别名等升级规格见
 [references/scaling.md](references/scaling.md)；本包的档位阶梯在

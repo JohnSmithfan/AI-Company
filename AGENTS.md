@@ -7,7 +7,7 @@
 ## What this repository is
 
 `ai-company` is a standalone, micro-tier LLM Agent governance skill
-package (version 1.0.0): 2 departments, 18 function blocks, 26 files total,
+package (version 1.0.0): 2 departments, 18 function blocks, 26 package files,
 including its own self-contained generation spec `README-FOR-AI.md`. For a
 human overview, read `README.md`. For skill runtime behavior, the *only* entry
 point is `SKILL.md` — never duplicate or paraphrase its content in any other
@@ -21,10 +21,12 @@ file.
    there is no upstream or external spec to consult. Its **§14** lists the red
    lines **P1–P55**; **§15** lists the acceptance checks. Check the relevant
    red-line rows before writing code or content.
-3. The Project Structure tree in `README.md` must always match the disk
-   exactly. If you add, rename, or remove any file, update that tree (and the
-   file-count claims) in `README.md`, `README.en.md`, and `README.zh.md` in the
-   same change.
+3. The Project Structure tree in `README.md` must match the **package file
+   set** exactly. Repository tooling directories (`.git/`, `.github/`,
+   `.workbuddy/`, `.skill-upgrade/`) are not package content and are never
+   counted (`README-FOR-AI.md` §3). If you add, rename, or remove a package
+   file, update that tree (and the file-count claims) in `README.md`,
+   `README.en.md`, and `README.zh.md` in the same change.
 
 ## Commands to run
 
@@ -33,7 +35,7 @@ Run from the package root:
 | Purpose | Command |
 |---|---|
 | Unit tests (authoritative-source validation) | `python tests/test-method-patterns.py` |
-| Tier evaluation (readiness check; writes back its own bookkeeping fields to `.scaling-state.json`, never skill content) | `powershell -File scripts/self-scale.ps1 -Action evaluate` |
+| Tier evaluation (readiness check; writes back its own bookkeeping fields to `.scaling-state.json`, never skill content) | `powershell -ExecutionPolicy Bypass -File scripts/self-scale.ps1 -Action evaluate` |
 | Key acceptance counts | See the acceptance section of `CONTRIBUTING.md` |
 
 All tests must pass before you commit. Any tier action beyond `evaluate`
@@ -70,8 +72,8 @@ points to the single authoritative location.
 - Source files are English (except `README.zh.md` and `README-FOR-AI.md`, which
   are explicitly exempted for natural-language prose — see `README-FOR-AI.md`
   §16); output language follows the user. (P47)
-- UTF-8 without BOM, LF line endings, 2-space indent (4 for Python), CRLF for
-  `.ps1` — see `.editorconfig`.
+- UTF-8 without BOM, LF line endings including `.ps1` (pinned by
+  `.gitattributes`), 2-space indent (4 for Python) — see `.editorconfig`.
 - `.gitignore` uses wildcard patterns (`REVIEW-*.md`, `AUDIT-*.md`), never
   exact report file names. (P39)
 - After generating or changing content, run the acceptance checks that the
