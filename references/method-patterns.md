@@ -499,9 +499,13 @@ def check_rate_limit(identifier, limit=10, window=60):
     leave stale residue — nothing here is ever written to disk.
 
     Bounded memory: at most ``_MAX_RATE_IDENTIFIERS`` keys are retained. When
-    the bound is exceeded, expired buckets are dropped first and, if still
-    over, the least-recently-inserted identifiers are evicted. Eviction only
-    loses accounting for callers that are already idle for a full window.
+    the bound is exceeded, every bucket whose window has fully expired is
+    dropped first and, if still over, the least-recently-inserted identifiers
+    are evicted. Guarantee, stated plainly: an extreme identifier-churn spike
+    can evict a STILL-ACTIVE caller's accounting, so this is a best-effort
+    memory bound, not a per-caller fairness guarantee. (The previous wording
+    claimed eviction only ever touched callers idle for a full window, which
+    the oldest-inserted eviction order does not provide.)
 
     Thread-safe via a module-level lock. Returns True when the request is
     allowed (and records it), False when the limit is exhausted.
@@ -522,12 +526,22 @@ def check_rate_limit(identifier, limit=10, window=60):
             return False
         bucket.append(now)
         if len(_rate_buckets) > _MAX_RATE_IDENTIFIERS:
-            for stale in [k for k, v in _rate_buckets.items() if not v]:
-                del _rate_buckets[stale]
+            # Drop every bucket whose window has fully expired first: a bucket
+            # that was never touched again still holds expired timestamps, so
+            # testing only for "empty" left most expired keys in place.
+            for key in list(_rate_buckets):
+                bucket_k = _rate_buckets[key]
+                while bucket_k and bucket_k[0] <= now - window:
+                    bucket_k.popleft()
+                if not bucket_k:
+                    del _rate_buckets[key]
             overflow = len(_rate_buckets) - _MAX_RATE_IDENTIFIERS
             if overflow > 0:
-                for stale in list(_rate_buckets)[:overflow]:
-                    del _rate_buckets[stale]
+                # Still over the bound: evict the least-recently-inserted keys.
+                # Under extreme identifier churn that can drop an active
+                # caller's accounting (documented residual, see the docstring).
+                for key in list(_rate_buckets)[:overflow]:
+                    del _rate_buckets[key]
         return True
 ```
 
@@ -550,13 +564,11 @@ _IPV4_RE = re.compile(
     + _IPV4_OCTET + r"(?:\." + _IPV4_OCTET + r"){3}"
     + r"(?![0-9A-Za-z_.])"
 )
-# Residual of the octet fix: a 4-part version number is also a valid dotted
-# quad. Version-like tokens are located first and excluded from IP masking, so
-# "version 1.2.3.4" stays readable instead of becoming "version [IP]".
-_VERSION_TOKEN_RE = re.compile(
-    r"(?i)(?<![0-9A-Za-z_.])(?:v|ver|version|build|rev|revision|release)"
-    r"[\s:._-]{0,3}\d+(?:\.\d+){1,3}(?![0-9A-Za-z_.])"
-)
+# L-2a: there is deliberately NO version-keyword exemption. The previous guard
+# spared "release 192.168.1.100", "build 10.0.0.1" and "rev 8.8.4.4" - real
+# addresses in ordinary CI/log text - while README-FOR-AI.md §9.3 makes IP
+# masking mandatory. A valid octet-validated dotted quad is always masked; the
+# accepted cost is that a 4-part version number becomes "[IP]" too.
 # M-2: CN mobile numbers. Optional country code (+86 / 0086 / 86), then 11
 # digits written contiguously or in 3-4-4 groups joined by a space or a dash.
 # "Only 11 contiguous digits" leaks +8613800138000, 138-0013-8000 and
@@ -577,27 +589,18 @@ def mask_sensitive_data(text):
     Substitution order is fixed and load-bearing: email first (its domain would
     otherwise be eaten by the IPv4 branch), then IPv4, then phone.
 
-    Known trade-off (documented, not hidden): a literal IPv4 printed
-    immediately after a version keyword ("release 192.168.1.100") is left
-    unmasked by the L-2 guard. That phrasing is rare; over-masking every
-    dotted quad is the defect this guard was added to remove. A corpus that
-    genuinely mixes addresses with those keywords must drop the guard.
+    Honest trade-off (documented, not hidden): every octet-valid dotted quad is
+    masked, so a four-part version number is masked as well ("version 1.2.3.4"
+    becomes "version [IP]"). The earlier version-keyword exemption avoided that
+    false positive but leaked genuine addresses written after "release",
+    "build", "rev" and friends - a compliance failure under README-FOR-AI.md
+    §9.3, where over-masking is acceptable and under-masking is not.
     """
     if not isinstance(text, str):
         raise TypeError("text must be a string")
 
     text = _EMAIL_RE.sub("[EMAIL]", text)
-
-    protected = [m.span() for m in _VERSION_TOKEN_RE.finditer(text)]
-
-    def mask_ip(match):
-        start, end = match.span()
-        for lo, hi in protected:
-            if lo <= start and end <= hi:
-                return match.group(0)
-        return "[IP]"
-
-    text = _IPV4_RE.sub(mask_ip, text)
+    text = _IPV4_RE.sub("[IP]", text)
     text = _PHONE_RE.sub("[PHONE]", text)
     return text
 ```
@@ -619,7 +622,9 @@ not weaken them back to single-form matching):
 | `+86 138 0013 8000` | `[PHONE]` |
 | `0086 13800138000` | `[PHONE]` — no `0086` prefix may survive |
 | `a\|b@x.c\|m` | unchanged (L-1: a literal pipe is not an address) |
-| `version 1.2.3.4 released` | unchanged (L-2: version numbers must not be touched) |
+| `version 1.2.3.4 released` | `version [IP] released` (L-2a: over-masking is accepted — the old exemption leaked `release 192.168.1.100`, `build 10.0.0.1`, `rev 8.8.4.4`) |
+| `release 192.168.1.100` | `release [IP]` (L-2a regression: a keyword must never shield an address) |
+| `build 10.0.0.1` | `build [IP]` |
 
 ### 3.10 build_prompt_from_template
 

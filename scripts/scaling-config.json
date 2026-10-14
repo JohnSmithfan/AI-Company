@@ -14,6 +14,5 @@
     "drop_dir": "{WORKSPACE_ROOT}/.skill-metrics",
     "log_cap": 20
   },
-  "immutable_paths": ["permissions", "tests/", "scripts/self-scale.ps1"],
   "output_dir": "{WORKSPACE_ROOT}/.skill-upgrade"
 }

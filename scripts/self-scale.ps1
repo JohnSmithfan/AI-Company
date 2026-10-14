@@ -26,8 +26,10 @@
 
  Compatibility : Windows PowerShell 5.1 (no &&, no ternary operator, no ?? operator).
  Paths         : all derived from $PSScriptRoot; no hardcoded absolute user paths (P18).
- Deletion      : no Remove-Item -Recurse -Force pattern anywhere (P23); rejected
-                 packages are quarantined by move, not destroyed.
+ Deletion      : no executable recursive force-delete path exists (P23); rejected
+                 packages are quarantined by move, not destroyed. The proposal
+                 report quotes a forbidden delete-then-restore command as an
+                 example only, never as a call.
  Line endings  : this script is LF, authored that way and pinned by
                  .gitattributes (* text=auto eol=lf) so a contributor's local
                  core.autocrlf cannot rewrite it; every .md and .json artifact
@@ -64,7 +66,13 @@ $ErrorActionPreference = 'Stop'
 $Utf8NoBom = New-Object System.Text.UTF8Encoding($false)
 
 $SkillDir      = Split-Path -Parent $PSScriptRoot        # {SKILL_DIR} (parent of scripts/)
-$WorkspaceRoot = Split-Path -Parent $SkillDir            # {WORKSPACE_ROOT}
+# {WORKSPACE_ROOT} is derived as the parent of {SKILL_DIR} and never from an
+# ambient environment variable: the surrounding host also uses WORKSPACE_ROOT,
+# so reading it here would silently redirect the upgrade package and the metric
+# drop directory into that host's directory. The derivation (and the nesting
+# caveat that {SKILL_DIR} then lives under {WORKSPACE_ROOT}) is documented in
+# references/scaling.md sec 3.1 and README-FOR-AI.md sec 9.1.
+$WorkspaceRoot = Split-Path -Parent $SkillDir
 $StateFile     = Join-Path $SkillDir '.scaling-state.json'
 $ConfigFile    = Join-Path $PSScriptRoot 'scaling-config.json'
 $DepartmentsDir = Join-Path (Join-Path $SkillDir 'references') 'departments'
@@ -99,11 +107,11 @@ $UpgradeEdge = @{
   OldVersion = '1.0.0'
   ExpectedBlocks = 18
   Split = @(
-    @{ Slug = 'governance-and-operations'; Prefix = 'CEO_';  Source = 'governance-and-delivery'; Blocks = 6 },
-    @{ Slug = 'quality-and-delivery';      Prefix = 'CQO_';  Source = 'governance-and-delivery'; Blocks = 2 },
-    @{ Slug = 'technology-and-platform';   Prefix = 'CTO_';  Source = 'engineering-and-safety';  Blocks = 3 },
-    @{ Slug = 'security-and-compliance';   Prefix = 'CISO_'; Source = 'engineering-and-safety';  Blocks = 3 },
-    @{ Slug = 'people-and-growth';         Prefix = 'CHO_';  Source = 'engineering-and-safety';  Blocks = 4 }
+    @{ Slug = 'governance-and-operations'; Prefix = 'CEO_';  Source = 'governance-and-delivery'; Blocks = 6; Display = 'Governance and Operations' },
+    @{ Slug = 'quality-and-delivery';      Prefix = 'CQO_';  Source = 'governance-and-delivery'; Blocks = 2; Display = 'Quality and Delivery' },
+    @{ Slug = 'technology-and-platform';   Prefix = 'CTO_';  Source = 'engineering-and-safety';  Blocks = 3; Display = 'Technology and Platform' },
+    @{ Slug = 'security-and-compliance';   Prefix = 'CISO_'; Source = 'engineering-and-safety';  Blocks = 3; Display = 'Security and Compliance' },
+    @{ Slug = 'people-and-growth';         Prefix = 'CHO_';  Source = 'engineering-and-safety';  Blocks = 4; Display = 'People and Growth' }
   )
 }
 
@@ -578,7 +586,21 @@ function Write-HostMetric {
 
   $hm = [ordered]@{}
   if ($null -ne $State.PSObject.Properties['host_metrics']) {
-    foreach ($p in @($State.host_metrics.PSObject.Properties)) { $hm[$p.Name] = $p.Value }
+    $existing = $State.host_metrics
+    if ($existing -is [System.Collections.IDictionary]) {
+      # Within one process host_metrics is an [ordered] dictionary, and its
+      # .PSObject.Properties are the .NET members (Count / Keys / Values / ...),
+      # NOT the metric entries. Copying those corrupted host_metrics on every
+      # second write of the same run (a drop directory carrying two files, or a
+      # single record-metrics call carrying both metrics): the entries were
+      # replaced by the dictionary's own member properties, so T1/T3 then
+      # reported "never supplied by any host". Enumerate the keys instead.
+      foreach ($k in @($existing.Keys)) { $hm[$k] = $existing[$k] }
+    } else {
+      # After Read-State the same value is a PSCustomObject, where the metric
+      # names ARE properties.
+      foreach ($p in @($existing.PSObject.Properties)) { $hm[$p.Name] = $p.Value }
+    }
   }
   $entry = [ordered]@{
     value       = $Value
@@ -830,13 +852,23 @@ function Invoke-ThresholdEvaluation {
     $triggers += @{ Id = 'T2'; Name = 'Function-block overload'; Metric = 'max_blocks_per_department'; Value = $Metrics.MaxBlocks; Threshold = ('> ' + $t2Limit) }
   }
 
-  # T3 - routing accuracy below the floor on 3 consecutive evaluations
+  # T3 - routing accuracy below the floor on 3 consecutive evaluations.
+  # The usability verdict computed by Get-HostMetricsFreshness is load-bearing
+  # here exactly as it is for T1: a stale observation, a future timestamp or a
+  # sample below min_routing_samples makes T3 SKIP, never guess
+  # (references/scaling.md sec 3.1). The streak counter is left unchanged while
+  # the data is unusable, so rejected samples cannot advance it.
   $streak = 0
   if ($null -ne $State.PSObject.Properties['routing_miss_streak']) { $streak = [int]$State.routing_miss_streak }
-  if ($Metrics.RoutingAccuracy -lt $Config.RoutingFloor) { $streak = $streak + 1 } else { $streak = 0 }
-  Write-Log ("T3 routing accuracy: routing_accuracy = {0}, floor {1}, consecutive misses = {2}" -f $Metrics.RoutingAccuracy, $Config.RoutingFloor, $streak)
-  if (($Metrics.RoutingAccuracy -lt $Config.RoutingFloor) -and ($streak -ge 3)) {
-    $triggers += @{ Id = 'T3'; Name = 'Routing accuracy drop'; Metric = 'routing_accuracy'; Value = $Metrics.RoutingAccuracy; Threshold = ('< ' + $Config.RoutingFloor + ' for 3 consecutive evaluations') }
+  $routingState = $Metrics.HostFresh['routing_accuracy']
+  if (-not $routingState.Usable) {
+    Write-Log ("T3 SKIPPED: unusable host-supplied routing_accuracy ({0}); floor {1} not evaluated, consecutive-miss counter left at {2}" -f $routingState.Reason, $Config.RoutingFloor, $streak)
+  } else {
+    if ($Metrics.RoutingAccuracy -lt $Config.RoutingFloor) { $streak = $streak + 1 } else { $streak = 0 }
+    Write-Log ("T3 routing accuracy: routing_accuracy = {0}, floor {1}, consecutive misses = {2}" -f $Metrics.RoutingAccuracy, $Config.RoutingFloor, $streak)
+    if (($Metrics.RoutingAccuracy -lt $Config.RoutingFloor) -and ($streak -ge 3)) {
+      $triggers += @{ Id = 'T3'; Name = 'Routing accuracy drop'; Metric = 'routing_accuracy'; Value = $Metrics.RoutingAccuracy; Threshold = ('< ' + $Config.RoutingFloor + ' for 3 consecutive evaluations') }
+    }
   }
 
   # T4 - error-code reuse above the ceiling
@@ -987,7 +1019,15 @@ function New-UpgradePackage {
       $take = [int]$t.Blocks
       $body = ''
       for ($i = $cursor; $i -lt ($cursor + $take); $i++) { $body += $sections[$i] }
-      $pre = $preamble.Replace($src, [string]$t.Slug)
+      # Each split page must carry its OWN display name and its own
+      # 'Function blocks: N' figure: README-FOR-AI.md sec 10.2 makes both
+      # mandatory and the figure is the conservation basis. Replacing the source
+      # slug was a no-op (the preamble carries the display title, never the
+      # slug), so every split page inherited the legacy title and the legacy
+      # count - 8/8 for the governance pair and 10/10/10 for engineering -
+      # while gate G4 counted only '## FB-N:' headings and passed them.
+      $pre = [regex]::Replace($preamble, '(?m)^#\s+.*$', ('# ' + [string]$t.Display))
+      $pre = [regex]::Replace($pre, 'Function blocks:\s*\d+', ('Function blocks: ' + $take))
       $destPath = Join-Path $pkgDeptDir ([string]$t.Slug + '.md')
       Write-TextFileNoBom -Path $destPath -Text ($pre + $body)
       Write-Log ("5a/5b split {0} -> {1} ({2} function blocks)" -f $src, $t.Slug, $take)
@@ -1284,7 +1324,7 @@ codes whose functions stay in the successor departments keep their codes.
   # Decoded, $newTree is the 30-file small-tier layout: 16 root files
   # (incl. README-FOR-AI.md), prompts/ (3), references/ (3),
   # references/departments/ (5 new slugs), scripts/ (2), tests/ (1).
-  $newTree = [System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('YWktY29tcGFueS1nb3Zlcm5hbmNlLwrilJzilIDilIAgLmVkaXRvcmNvbmZpZwrilJzilIDilIAgLmdpdGF0dHJpYnV0ZXMK4pSc4pSA4pSAIC5naXRpZ25vcmUK4pSc4pSA4pSAIC5zY2FsaW5nLXN0YXRlLmpzb24K4pSc4pSA4pSAIEFHRU5UUy5tZArilJzilIDilIAgQ0hBTkdFTE9HLm1kCuKUnOKUgOKUgCBDT0RFX09GX0NPTkRVQ1QubWQK4pSc4pSA4pSAIENPTlRSSUJVVElORy5tZArilJzilIDilIAgTElDRU5TRQrilJzilIDilIAgUkVBRE1FLUZPUi1BSS5tZArilJzilIDilIAgUkVBRE1FLmVuLm1kCuKUnOKUgOKUgCBSRUFETUUubWQK4pSc4pSA4pSAIFJFQURNRS56aC5tZArilJzilIDilIAgU0VDVVJJVFkubWQK4pSc4pSA4pSAIFNLSUxMLm1kCuKUnOKUgOKUgCBfbWV0YS5qc29uCuKUnOKUgOKUgCBwcm9tcHRzLwrilIIgICDilJzilIDilIAgMDEtaW1wbGVtZW50LW1ldGhvZC5tZArilIIgICDilJzilIDilIAgMDItcm9idXN0bmVzcy1jaGVja3MubWQK4pSCICAg4pSU4pSA4pSAIDAzLXRlc3QtY2FzZXMubWQK4pSc4pSA4pSAIHJlZmVyZW5jZXMvCuKUgiAgIOKUnOKUgOKUgCBtZXRob2QtcGF0dGVybnMubWQK4pSCICAg4pSc4pSA4pSAIGVycm9yLWNvZGVzLm1kCuKUgiAgIOKUnOKUgOKUgCBzY2FsaW5nLm1kCuKUgiAgIOKUlOKUgOKUgCBkZXBhcnRtZW50cy8K4pSCICAgICAgIOKUnOKUgOKUgCBnb3Zlcm5hbmNlLWFuZC1vcGVyYXRpb25zLm1kCuKUgiAgICAgICDilJzilIDilIAgcXVhbGl0eS1hbmQtZGVsaXZlcnkubWQK4pSCICAgICAgIOKUnOKUgOKUgCB0ZWNobm9sb2d5LWFuZC1wbGF0Zm9ybS5tZArilIIgICAgICAg4pSc4pSA4pSAIHNlY3VyaXR5LWFuZC1jb21wbGlhbmNlLm1kCuKUgiAgICAgICDilJTilIDilIAgcGVvcGxlLWFuZC1ncm93dGgubWQK4pSc4pSA4pSAIHNjcmlwdHMvCuKUgiAgIOKUnOKUgOKUgCBzZWxmLXNjYWxlLnBzMQrilIIgICDilJTilIDilIAgc2NhbGluZy1jb25maWcuanNvbgrilJTilIDilIAgdGVzdHMvCiAgICDilJTilIDilIAgdGVzdC1tZXRob2QtcGF0dGVybnMucHkK'))
+  $newTree = [System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('YWktY29tcGFueS8K4pSc4pSA4pSAIC5lZGl0b3Jjb25maWcK4pSc4pSA4pSAIC5naXRhdHRyaWJ1dGVzCuKUnOKUgOKUgCAuZ2l0aWdub3JlCuKUnOKUgOKUgCAuc2NhbGluZy1zdGF0ZS5qc29uCuKUnOKUgOKUgCBBR0VOVFMubWQK4pSc4pSA4pSAIENIQU5HRUxPRy5tZArilJzilIDilIAgQ09ERV9PRl9DT05EVUNULm1kCuKUnOKUgOKUgCBDT05UUklCVVRJTkcubWQK4pSc4pSA4pSAIExJQ0VOU0UK4pSc4pSA4pSAIFJFQURNRS1GT1ItQUkubWQK4pSc4pSA4pSAIFJFQURNRS5lbi5tZArilJzilIDilIAgUkVBRE1FLm1kCuKUnOKUgOKUgCBSRUFETUUuemgubWQK4pSc4pSA4pSAIFNFQ1VSSVRZLm1kCuKUnOKUgOKUgCBTS0lMTC5tZArilJzilIDilIAgX21ldGEuanNvbgrilJzilIDilIAgcHJvbXB0cy8K4pSCICAg4pSc4pSA4pSAIDAxLWltcGxlbWVudC1tZXRob2QubWQK4pSCICAg4pSc4pSA4pSAIDAyLXJvYnVzdG5lc3MtY2hlY2tzLm1kCuKUgiAgIOKUlOKUgOKUgCAwMy10ZXN0LWNhc2VzLm1kCuKUnOKUgOKUgCByZWZlcmVuY2VzLwrilIIgICDilJzilIDilIAgbWV0aG9kLXBhdHRlcm5zLm1kCuKUgiAgIOKUnOKUgOKUgCBlcnJvci1jb2Rlcy5tZArilIIgICDilJzilIDilIAgc2NhbGluZy5tZArilIIgICDilJTilIDilIAgZGVwYXJ0bWVudHMvCuKUgiAgICAgICDilJzilIDilIAgZ292ZXJuYW5jZS1hbmQtb3BlcmF0aW9ucy5tZArilIIgICAgICAg4pSc4pSA4pSAIHF1YWxpdHktYW5kLWRlbGl2ZXJ5Lm1kCuKUgiAgICAgICDilJzilIDilIAgdGVjaG5vbG9neS1hbmQtcGxhdGZvcm0ubWQK4pSCICAgICAgIOKUnOKUgOKUgCBzZWN1cml0eS1hbmQtY29tcGxpYW5jZS5tZArilIIgICAgICAg4pSU4pSA4pSAIHBlb3BsZS1hbmQtZ3Jvd3RoLm1kCuKUnOKUgOKUgCBzY3JpcHRzLwrilIIgICDilJzilIDilIAgc2VsZi1zY2FsZS5wczEK4pSCICAg4pSU4pSA4pSAIHNjYWxpbmctY29uZmlnLmpzb24K4pSU4pSA4pSAIHRlc3RzLwogICAg4pSU4pSA4pSAIHRlc3QtbWV0aG9kLXBhdHRlcm5zLnB5Cg=='))
   $newTree = $newTree + "`n"
   $treeNoteEn = '> Structure tree rewritten to the 30-file small-tier skeleton by the'
   $treeNoteEn = $treeNoteEn + ' upgrade generator - requires human review before installation.'
@@ -1450,11 +1490,12 @@ function Get-TestsHashMap {
     $files = @(Get-ChildItem -LiteralPath $testsDir -Recurse -File -ErrorAction SilentlyContinue)
     foreach ($f in $files) {
       $rel = $f.FullName.Substring($testsDir.Length).TrimStart('\', '/').Replace('\', '/')
-      # E1 : build residues are compared like-for-like - they are excluded on
-      # both sides (the package copy already refuses them), so a leftover
-      # __pycache__/ in the working tree can never fail (or pad) this gate.
-      if ($rel -match '(^|/)__pycache__/') { continue }
-      if ($rel -match '\.pyc$') { continue }
+      # The package-file-set predicate is the ONE implementation of the
+      # boundary (README-FOR-AI.md sec 3), so build residues are excluded here
+      # by the same call the copy and the counts use - never by a second inline
+      # copy of the rule that could drift. A leftover __pycache__/ can
+      # therefore never fail (or pad) this gate.
+      if (Test-PackagePathExcluded -RelativePath ('tests/' + $rel)) { continue }
       $map[$rel] = (Get-FileHash -LiteralPath $f.FullName -Algorithm SHA256).Hash
     }
   }
@@ -1522,6 +1563,7 @@ function Invoke-GateG4 {
   Write-Log "G4 function-block conservation gate: counting '## FB-N:' headings across the package D2 pages (total + per-department distribution)..."
   $pkgDeptDir = Join-Path $PkgDir 'references\departments'
   $actualPerDept = @{}
+  $declaredPerDept = @{}
   $total = 0
   if (Test-Path -LiteralPath $pkgDeptDir) {
     $files = @(Get-ChildItem -LiteralPath $pkgDeptDir -Filter '*.md' -File -ErrorAction SilentlyContinue)
@@ -1529,6 +1571,14 @@ function Invoke-GateG4 {
       $text = [System.IO.File]::ReadAllText($f.FullName)
       $count = ([regex]::Matches($text, '(?m)^##\s+FB-\d+\s*:')).Count
       $actualPerDept[$f.BaseName] = $count
+      # README-FOR-AI.md sec 10.2 makes '> Function blocks: <N>' mandatory on
+      # every D2 page and it is the declared conservation basis, so G4 must read
+      # it, not just the headings: counting headings alone passed a split page
+      # that kept the legacy count (8 or 10) while its real share was 6/2/3/3/4.
+      $declMatch = [regex]::Match($text, 'Function blocks:\s*(\d+)')
+      $declared = -1
+      if ($declMatch.Success) { $declared = [int]$declMatch.Groups[1].Value }
+      $declaredPerDept[$f.BaseName] = $declared
       $total += $count
     }
   }
@@ -1547,6 +1597,16 @@ function Invoke-GateG4 {
   foreach ($k in @($actualPerDept.Keys)) {
     if ($expectedSlugs -notcontains $k) {
       $problems += ("unexpected D2 page in the package: references/departments/{0}.md ({1} block(s))" -f $k, $actualPerDept[$k])
+    }
+  }
+  # The declared 'Function blocks:' figure must equal this department's
+  # merge-tree share, so a mislabelled split page fails the gate instead of
+  # shipping (sec 10.2 / sec 12.3 G4).
+  foreach ($t in $UpgradeEdge.Split) {
+    $declared = -1
+    if ($declaredPerDept.ContainsKey([string]$t.Slug)) { $declared = [int]$declaredPerDept[[string]$t.Slug] }
+    if ($declared -ne [int]$t.Blocks) {
+      $problems += ("{0}: declared 'Function blocks: {1}', merge tree expects {2}" -f $t.Slug, $declared, $t.Blocks)
     }
   }
   if ($total -ne $UpgradeEdge.ExpectedBlocks) {
@@ -1905,7 +1965,7 @@ function Show-Status {
   $stillDefault = @(Get-MetricsStillAtDefault -State $state -Metrics $metrics)
   if ($stillDefault.Count -gt 0) {
     Write-Output ("NOTE host-supplied metrics still at their defaults: {0}" -f ($stillDefault -join ', '))
-    Write-Output '     No host has written them yet, so T1 and T3 cannot fire.'
+    Write-Output ("     No host has written these yet, so {0} cannot fire." -f (($stillDefault | ForEach-Object { if ($_ -eq 'agent_count') { 'T1' } else { 'T3' } }) -join ' and '))
     Write-Output '     See scaling.md section 3.1 for the host write-back contract.'
   }
   Write-Output ("tier_history entries    : {0}" -f @($state.tier_history).Count)
@@ -2105,7 +2165,8 @@ function Invoke-EvaluateFlow {
   Write-Log ("2 max_blocks_per_department={0} [{1}], error_code_reuse_ratio={2} [{3}]" -f $metrics.MaxBlocks, $metrics.Sources.max_blocks_per_department, $metrics.ReuseRatio, $metrics.Sources.error_code_reuse_ratio)
   $stillDefault = @(Get-MetricsStillAtDefault -State $state -Metrics $metrics)
   if ($stillDefault.Count -gt 0) {
-    Write-Log ("2 NOTE T1/T3 depend on host-supplied metrics that are still at their defaults ({0}); they cannot fire until the host writes them (scaling.md 3.1)." -f ($stillDefault -join ', '))
+    $stillDefaultTriggers = ($stillDefault | ForEach-Object { if ($_ -eq 'agent_count') { 'T1' } else { 'T3' } }) -join '/'
+    Write-Log ("2 NOTE host-supplied metrics still at their defaults: {0}; {1} cannot fire until the host writes them (scaling.md 3.1)." -f ($stillDefault -join ', '), $stillDefaultTriggers)
   }
   $evaluation = Invoke-ThresholdEvaluation -State $state -Metrics $metrics -Config $config
   $triggers = $evaluation.Triggers
