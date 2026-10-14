@@ -10,6 +10,22 @@ and this project adheres to
 
 ### Changed
 
+- **Package file set boundary defined** (D-1, `README-FOR-AI.md` §3):
+  repository tooling directories (`.git/`, `.github/`, `.workbuddy/`,
+  `.skill-upgrade/`) are declared non-package content — never counted and never
+  copied into an upgrade package. `AGENTS.md`, `CONTRIBUTING.md`, `README.md`,
+  `README.en.md`, `README.zh.md`, `README-FOR-AI.md` §2/§3/§15 and
+  `references/scaling.md` §2 adopt the same basis. This closes the P4 violation
+  where the three README trees listed 26 files while the repository tracked 29.
+- **Version locations reduced from four to three** (D-2 option A):
+  `_meta.json` / README badge / `SKILL.md` frontmatter. The former fourth
+  location — the `SKILL.md` body title — never existed in any shipped package,
+  so gate G6 checked it in vain and every proposal failed for a reason that
+  could not be satisfied (`README-FOR-AI.md` §6.1/§8/§15,
+  `references/scaling.md` §6/§8).
+- **G6 small-tier expected file count corrected 29 → 30** in
+  `README-FOR-AI.md` §12.3 and `references/scaling.md` §6, matching
+  `$TargetFileCount` and §12.6.
 - Documentation switched to standalone-project wording: `README-FOR-AI.md` is
   now cited as the self-contained, sole authoritative generation & maintenance
   spec of this package, and every former citation of an external or upstream
@@ -24,6 +40,67 @@ and this project adheres to
 
 ### Fixed
 
+- `scripts/self-scale.ps1` (H-1): the 5h copy walked the skill directory with a
+  full recursive `Get-ChildItem`, while the file count excluded `.github/` — and
+  in a real checkout also `.git/` and `.workbuddy/`. Measured on the live
+  directory the package held 602 files (561 of them `.git/`, including
+  `.git/config`) against an expected 30, so `propose` failed G6/`SCL_006` in
+  every checkout and quarantined a package containing the repository's own git
+  objects. Copy range, every file count, the report's current-file count and
+  gate G6 now share the single `Get-PackageRelativePaths` package file set
+  (`$ExcludedDirSegments`). Verified: clean copy → G1–G6 all PASSED, exit 0;
+  workspace containing `.git`/`.workbuddy`/`.github` → 0 non-package files in
+  the package.
+- `scripts/self-scale.ps1` (H-2a): `-Action record-metrics` was declared in
+  `ValidateSet` but had no `switch` branch — it printed nothing, changed nothing
+  and exited 0. Implemented as `Invoke-RecordMetrics` (a validated write to
+  `host_metrics`, mirrored to `last_metrics` and appended to `metrics_log`), and
+  the `switch` now has a `default` branch that stops with `SCL_007` so a
+  declared-but-unimplemented action can never be silent again.
+- `scripts/self-scale.ps1` (H-2b): `Receive-HostMetricsDrop` was dead code —
+  never called — so `host_metrics.drop_dir` and `log_cap` had no effect. It now
+  runs at the start of both `evaluate` and `propose`; accepted drop files are
+  validated, applied and **moved** to `processed/` (never deleted).
+- `scripts/self-scale.ps1` (H-2c): `Get-CurrentMetrics` was called without its
+  `$Config` argument at every call site, so `Get-HostMetricsFreshness` compared
+  age against an empty value and logged "past the -day freshness limit".
+  T1/T3 therefore skipped even a fresh, over-threshold host metric. `-Config` is
+  now passed everywhere; a recorded `agent_count = 9` (cap 3) correctly logs
+  `T1 agent capacity: agent_count = 9, threshold > 3` and `TRIGGERED T1`.
+- `scripts/self-scale.ps1` (H-2d): the "host metrics are still at their
+  defaults" note now prints only for metrics the host has never written;
+  previously it appeared on the same screen as a host-written
+  `agent_count = 9`.
+- `scripts/self-scale.ps1` (M-3 / P1-6): a failed gate's `Detail` is no longer
+  discarded. Each failure is written to the log and the full list is stored in
+  `last_failure.detail` in `.scaling-state.json` (verified: `G6 detail:
+  file_count: expected 30, found 31`).
+- `scripts/self-scale.ps1` (M-2): `Read-State` now materialises the top-level
+  `validation` block required by `README-FOR-AI.md` §12.6 (`gates_passed: 6`,
+  `file_count` = the tier expectation, `acceptance_passed`); it previously
+  existed only inside `pending_proposals[]` entries.
+- `SKILL.md` (M-1): normalised from CRLF to LF. The 31 pre-existing tests used
+  `read_text()`, whose universal-newline handling silently folds CRLF, so they
+  could not see it; a raw-byte assertion now guards the whole package.
+- `references/scaling.md` §7 step 3 and the three READMEs (L-1): the
+  write-back field lists now match the script (`next_evaluation`, `last_metrics`,
+  `metrics_provenance`, `routing_miss_streak`, `validation`).
+- `prompts/01-implement-method.md` (L-2): the broken sentence "an embedded
+  watermark in the content body that does not survive-free under simple
+  deletion" is rewritten to the honest tamper-evident wording of
+  `README-FOR-AI.md` §9.2, and the PII rule now says "phone numbers in their
+  common written forms (country code and separators included)" instead of
+  "11-digit phone numbers" (§9.3).
+- `references/method-patterns.md` §5.4 (L-3): "the host permission set declared
+  in `SKILL.md` §9.1" cited a section that does not exist in `SKILL.md`; it now
+  reads "`SKILL.md`'s `permissions` block (specification: `README-FOR-AI.md`
+  §9.1)".
+- `AGENTS.md`, `CONTRIBUTING.md`, `README.md`, `README.en.md`, `README.zh.md`,
+  `README-FOR-AI.md` §15 and `references/scaling.md` §11 (P2-12): the
+  acceptance commands now show `powershell -ExecutionPolicy Bypass -File ...`,
+  because a default Windows execution policy refuses an unsigned `.ps1`.
+- `AGENTS.md`: the edit-hygiene line claimed "CRLF for `.ps1`", contradicting
+  `.editorconfig`, `.gitattributes` and `README-FOR-AI.md` §16; corrected to LF.
 - `scripts/self-scale.ps1`: `Save-State` (and the two other JSON writers)
   replaced `ConvertTo-Json` with `ConvertTo-StableJson`, a hand-rolled
   serializer that emits stable 2-space-indented JSON with `[]` for empty
@@ -34,8 +111,8 @@ and this project adheres to
   `CONTRIBUTING.md`, `README-FOR-AI.md` §15: the `-Action evaluate` contract is
   now stated accurately. It was documented as "read-only" in four places while
   it does write back its own bookkeeping fields (`next_evaluation`,
-  `last_metrics`, `routing_miss_streak`) to `.scaling-state.json` — skill
-  content has always been untouched.
+  `last_metrics`, `metrics_provenance`, `routing_miss_streak`, `validation`) to
+  `.scaling-state.json` — skill content has always been untouched.
 - `README-FOR-AI.md` §7.1: removed the inlined `mask_sensitive_data`
   implementation. It duplicated the authoritative source in
   `references/method-patterns.md` §3.9, violating P10/P44 and failing the
@@ -134,6 +211,23 @@ and this project adheres to
 
 ### Added
 
+- `references/scaling.md` §3.1: the host metric write-back contract the script
+  already referenced from four places but no document defined — the two
+  channels, the drop-file shape, validation, freshness, the routing-sample
+  minimum, the audit log and the exact conditions under which T1/T3 skip.
+  `README-FOR-AI.md` §12.1/§12.2/§12.6 summarise it.
+- `tests/test-method-patterns.py`: eight regression assertions for the
+  2026-10-14 initial review — package file set vs declared count, upgrade
+  package excludes repository tooling, a propose smoke test on a clean copy, the
+  state-file schema (including `validation`), a package-wide raw-byte CRLF/BOM
+  check, `scaling.md` / `README-FOR-AI.md` section-anchor existence,
+  `record-metrics` implementation (`ValidateSet` vs `switch` plus `default`),
+  and host-metric freshness honouring the configured limit. Each was
+  **negative-verified** by re-injecting the defect into a throwaway copy and
+  confirming the assertion fails. Suite is now 39 tests (was 31).
+- `README-FOR-AI.md` §16: three recorded decisions — the package file set
+  boundary (D-1), the three-location version policy (D-2) and the host
+  write-back interface.
 - `README-FOR-AI.md` §16: two deviation records — the Chinese-language
   exemption for this spec document (versus §6.3's English source-file standard)
   and the line-ending policy decision. `AGENTS.md` updated to list

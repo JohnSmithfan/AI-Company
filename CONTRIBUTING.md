@@ -57,20 +57,26 @@ Key checks for the micro tier (the full list is in `README-FOR-AI.md` **§15**):
 
 | Check | Expected |
 |---|---|
-| Total file count | 26 |
+| Package file set | 26 (repository tooling directories `.git/`, `.github/`, `.workbuddy/`, `.skill-upgrade/` are excluded — `README-FOR-AI.md` §3) |
 | Function blocks across the two department files | 18 (`governance-and-delivery.md`: 8; `engineering-and-safety.md`: 10) |
 | `SKILL.md` frontmatter | ≤ 85 lines |
 | `SKILL.md` body | ≤ 120 lines, no code implementations or full error-code tables |
 | Governance and community files | 13/13 present (no tier trimming) |
 | `README.md` / `README.en.md` / `README.zh.md` Project Structure tree | Matches the disk exactly |
 | Internal links | No broken relative links; no orphan files under `prompts/` or `references/` |
+| Line endings | LF everywhere and no BOM, checked on **raw bytes** (a CRLF file is invisible to Python's universal-newline `read_text()`) |
+| Version locations | `_meta.json` / README badge / `SKILL.md` frontmatter all `1.0.0` (three locations — `README-FOR-AI.md` §8) |
 
 Tier readiness can be checked with (no skill content is modified; only the
 script's own bookkeeping fields are written back to `.scaling-state.json`):
 
 ```powershell
-powershell -File scripts/self-scale.ps1 -Action evaluate
+powershell -ExecutionPolicy Bypass -File scripts/self-scale.ps1 -Action evaluate
 ```
+
+On a default Windows execution policy (`Restricted` or `RemoteSigned`) an
+unsigned `.ps1` is refused, so the explicit `-ExecutionPolicy Bypass` (or an
+`Unblock-File` first) is required rather than optional.
 
 Any tier mutation (upgrade or downgrade) is lossy and requires explicit human
 approval — contributors must never run it inside a PR.

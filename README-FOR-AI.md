@@ -40,10 +40,10 @@ AI-COMPANY 是一套**供 LLM Agent 使用的企业治理规范**：把 AI Agent
 | prompts | **2** 个，均 `human-paste`（升 small 档时自动新增 `03-test-cases.md`，`agent-invoked`） |
 | 执行引擎触发器 | 微型档仅 `Manual` + `Schedule`（4 种执行模式 Auto/Approve/Review/Hybrid 全档有效） |
 | WFT 核心集 | 微型档启用 WFT-001 / WFT-002 / WFT-010（3 个） |
-| 文件总数 | **26**（见 §4） |
+| 文件总数 | **26**（包文件集，见 §3；仓库工具目录不计） |
 | 记忆系统 / 熔断 / 董事会阶梯 / 域路由 / 模型管理 / 可视化 / 数据集成 | 微型档**不引入**（M+ 或 L+ 档启用）；D2 中以 "at M+/L+ tiers" 限定语承载相应职能语义 |
 
-## 3. 文件树（26 文件，结构须与磁盘始终一致）
+## 3. 文件树（26 文件包文件集，结构须与包文件集始终一致）
 
 ```text
 ai-company/
@@ -77,10 +77,12 @@ ai-company/
 │   ├── self-scale.ps1         # 自我升级脚本（propose-only，六道门）
 │   └── scaling-config.json    # 升级配置（阈值/不可变路径）
 └── tests/
-    └── test-method-patterns.py  # 四类断言 A/B/C/D，31 条
+    └── test-method-patterns.py  # 四类断言 A/B/C/D + 2026-10-14 回归组，39 条
 ```
 
 > 26 = 治理层 13 + `.gitattributes` 1 + `.scaling-state.json` 1 + `README-FOR-AI.md`（本文）1 + prompts 2 + references 顶层 3 + 部门 D2 2 + scripts 2 + tests 1。升 small 档为 **30**（−2 旧 D2 +5 新 D2 +1 新 prompt = +4；`.gitattributes` 两档均有，不增不减）。
+>
+> **包文件集边界（D-1 决策，2026-10-14）**：**包文件集 = 仓库跟踪文件 − 仓库工具目录**。仓库工具目录固定四类：`.git/`、`.github/`、`.workbuddy/`、`.skill-upgrade/`——它们分别是版本库对象、仓库协作模板、Agent 工作区状态与本地产物，**不计入文件总数、不进结构树、不进升级包**。`scripts/self-scale.ps1` 的 `$ExcludedDirSegments` 与 `Get-PackageRelativePaths` 是本约束的**唯一实现处**（拷贝范围与计数基准共用它，防止二者再次分歧）。`AGENTS.md` 的"树与磁盘逐项一致"即指"树与**包文件集**逐项一致"；`README.md` / `README.en.md` / `README.zh.md` 三兄弟结构树只列包文件集，且三者必须逐字符相同。
 
 ## 4. 从零再生本包的工作流（内容依赖顺序）
 
@@ -195,7 +197,7 @@ metadata:
 ---
 ```
 
-`_meta.json`：`{ "ownerId": "ai-company", "slug": "ai-company", "version": "1.0.0", "license": "GPL-3.0", "publishedAt": <epoch_ms> }`。四处版本号（`_meta.json` / README badge / frontmatter / 正文标题）与四处许可（LICENSE / frontmatter / `_meta.json` / metadata）必须同值（P11）。
+`_meta.json`：`{ "ownerId": "ai-company", "slug": "ai-company", "version": "1.0.0", "license": "GPL-3.0", "publishedAt": <epoch_ms> }`。**三处**版本号（`_meta.json` / README badge / `SKILL.md` frontmatter）与四处许可（LICENSE / frontmatter / `_meta.json` / metadata）必须同值（P11）。原第四条"`SKILL.md` 正文标题"从未存在于任何发布包，已按 D-2 决策 A 从本节、§8、§15、`scaling.md` §8 与门 G6 中移除。
 
 ### 6.2 正文白名单（≤120 行；出现黑名单内容即不合格，P43）
 
@@ -502,7 +504,7 @@ harness_level: L3
 ③ 安装 Install   外部受信任安装器执行（技能永不安装，P36）
 ```
 
-`self-scale.ps1` 的 `param` 只有 `evaluate`/`propose`/`report`/`status`——**无 install/apply/commit 取值**。
+`self-scale.ps1` 的 `param` 只有 `evaluate`/`propose`/`report`/`status`/`record-metrics`——**无 install/apply/commit 取值**。`record-metrics` 只是宿主写入 T1/T3 指标的通道（§3.1），不是档位变更动作。
 
 ### 12.2 四类触发阈值（微型档值；写入 scaling.md 与 scaling-config.json）
 
@@ -520,6 +522,8 @@ harness_level: L3
 
 T1 的实际阈值是 `档位上限 × agent_count_headroom`，不是裸上限。出厂默认 `agent_count_headroom = 1.0` 使二者在每个档位上数值相同；宿主改动该参数后阈值随之改变，故文档只写"档位上限"会与实现不符（须与 `scaling-config.json` 保持同步）。
 
+> **宿主写回接口（完整契约见 `references/scaling.md` §3.1）**：T1/T3 由宿主经两条通道写入——`-Action record-metrics` 与 drop 目录（`scaling-config.json` 的 `host_metrics.drop_dir`，默认 `{WORKSPACE_ROOT}/.skill-metrics`）；后者在每次 `evaluate`/`propose` 开始时收集。两条通道共用同一校验、时间戳、新鲜度（`max_age_days`）、路由样本门槛（`min_routing_samples`）与审计路径：合法写入落 `host_metrics.<name>` 并镜像到 `last_metrics.<name>`，同时追加 `metrics_log`（上限 `log_cap`）。`record-metrics` 若未记录任何指标则以 `SCL_007` 停止，绝不静默空转。
+
 ### 12.3 六道升级安全门（实现什么写什么，P24）
 
 | # | 门 | 检查 | 失败错误码 |
@@ -529,9 +533,9 @@ T1 的实际阈值是 `档位上限 × agent_count_headroom`，不是裸上限�
 | G3 | deny 与门控不变 | deny 5 项完整；`self-scale.ps1` 哈希未变 | `SCL_004` |
 | G4 | 职能块守恒 | 升级后职能块总数 = 18 且逐部门分布 = 6/2/3/3/4 | `SCL_010` |
 | G5 | 别名完整 | 所有旧 slug 有别名映射，无一对多冲突 | `SCL_003` |
-| G6 | 验收通过 | 机器可查子集（file_count=29、frontmatter 三元组、四处版本一致、5 个 D2、前缀清单、enum=auto+5、03-prompt 存在且 agent-invoked≥L3）；完整 §15 验收为人工步骤 | `SCL_006` |
+| G6 | 验收通过 | 机器可查子集（file_count=30、frontmatter 三元组、三处版本一致、5 个 D2、前缀清单、enum=auto+5、03-prompt 存在且 agent-invoked≥L3）；失败明细写入日志与状态文件 `last_failure.detail`；完整 §15 验收为人工步骤 | `SCL_006` |
 
-G1–G3 不可绕过（即使人工批准）。升级包**排除** `__pycache__`/`*.pyc`。
+G1–G3 不可绕过（即使人工批准）。升级包**排除**仓库工具目录（`.git/`/`.github/`/`.workbuddy/`/`.skill-upgrade/`，§3）与 `__pycache__`/`*.pyc`。
 
 ### 12.4 slug 别名机制（向后兼容）
 
@@ -550,11 +554,12 @@ G1–G3 不可绕过（即使人工批准）。升级包**排除** `__pycache__`
   "tier_history": [],
   "next_evaluation": "<ISO8601，默认 +30 天>",
   "last_metrics": { "agent_count": 0, "routing_accuracy": 0.0, "max_blocks_per_department": 0, "error_code_reuse_ratio": 0.0 },
-  "pending_proposals": []
+  "pending_proposals": [],
+  "validation": { "gates_passed": 6, "file_count": 26, "acceptance_passed": false }
 }
 ```
 
-约束：`current_tier` 与 frontmatter `scale_tier` 一致（P41）；`tier_history` **只追加**不得改删（审计）；`validation.gates_passed` 必须 = 6；`validation.file_count` 用本档期望值（micro 26 / small 30）；初次生成时 `tier_history` 与 `pending_proposals` 为空。
+约束：`current_tier` 与 frontmatter `scale_tier` 一致（P41）；`tier_history` **只追加**不得改删（审计）；**顶层**`validation.gates_passed` 必须 = 6；`validation.file_count` 用本档期望值（micro 26 / small 30）；初次生成时 `tier_history` 与 `pending_proposals` 为空。脚本另维护 `routing_miss_streak`（T3 连续未命中计数）与 `metrics_provenance`（指标来源标注），并在门失败时写 `last_failure`（含 `code`/`gates_failed`/`detail`/`package_path`）。`record-metrics` 与 drop 目录另写 `host_metrics` 与 `metrics_log`。
 
 ---
 
@@ -565,6 +570,7 @@ G1–G3 不可绕过（即使人工批准）。升级包**排除** `__pycache__`
 - **B 源文件完整性**：`test_templates_source_exists`（权威源存在 + 10 个 def）、`test_phone_masking_in_source`（`[PHONE]` 在源中）、`test_legacy_templates_file_absent`（templates.md 不存在）、`test_def_unique_across_package`（★ R4 新增：全包递归扫描，每个 `def <fn>` 恰 1 处，且 10 个模板只出现在权威源 —— 守住 P10/P44；此前该检查只靠人工 grep，漏洞未被机器捕获）。
 - **C 结构一致性**：`test_function_block_conservation`（micro=18）、`test_scaling_files_present`（四件套 + propose-only）、`test_governance_files_present`（13 文件含 AGENTS.md）、`test_no_filename_with_space`、`test_prompt_modes_declared`（01/02 为 human-paste）、`test_human_paste_prompts_self_contained`（H1/H2/H6）、`test_language_policy_declared`、`test_skill_md_is_index_only`（正文 ≤120 行、无 def、无具体错误码）。
 - **D 不可变边界**：`test_upgrade_package_excludes_immutable`（扫描 `{WORKSPACE_ROOT}/.skill-upgrade/`，不含 tests/ 与 permissions 变更；目录不存在时 skip）。
+- **★ 2026-10-14 回归组（8 条，初审 H-1..H-4 / M-1..M-4）**：`test_package_file_set_matches_declared_count`（包文件集与结构树逐路径比对）、`test_upgrade_package_excludes_repo_tooling`（升级包内 `.git/`/`.workbuddy/`/`.github/` 计数为 0）、`test_propose_smoke_on_clean_copy`（`tempfile` 纯净副本内跑 propose，断言 exit 0 且日志含 `G6 PASSED`）、`test_scaling_state_schema_complete`（顶层必需字段含 `validation`，`gates_passed==6`、`file_count` 为本档期望值）、`test_no_crlf_and_no_bom_package_wide`（**读 bytes**；`read_text()` 的通用换行会掩盖 CRLF，这正是 M-1 逃过 31 条断言的原因）、`test_doc_section_anchors_exist`（`scaling.md` / `README-FOR-AI.md` 的章节引用目标必须存在）、`test_record_metrics_action_implemented`（`ValidateSet` 每个取值都能在 `switch` 找到分支，且 `switch` 有 `default`）、`test_host_metric_freshness_uses_config`（注入 `host_metrics` 后阈值按配置生效，日志不再出现 `-day freshness limit`）。**每条均做过"注回缺陷后必须失败"的反向验证。**
 
 工程要求：`unittest` 风格，`python tests/test-method-patterns.py` 直跑；`SKILL_DIR` 用 `Path(__file__).resolve().parent.parent` 相对推导（禁硬编码）；时间用 `datetime.now(timezone.utc)`（禁已弃用 `utcnow`）；仅标准库；UTF-8 无 BOM。
 
@@ -658,16 +664,26 @@ G1–G3 不可绕过（即使人工批准）。升级包**排除** `__pycache__`
 ## 15. 验收清单（每次生成/修改后必须执行）
 
 ```powershell
-# 1. 测试套件（31 条应全绿，1 skip 属预期）
+# Windows 默认执行策略（Restricted / RemoteSigned）会拒绝未签名的 .ps1；
+# 下面每条 powershell 命令都显式加 -ExecutionPolicy Bypass（下载得到的脚本
+# 也可先 Unblock-File）。
+# 1. 测试套件（39 条应全绿，1-2 skip 属预期：升级包相关断言在无 .skill-upgrade/ 时按设计跳过）
 python tests/test-method-patterns.py
 
 # 2. 升级就绪检查（不改动技能内容；仅回写自身记录字段到 .scaling-state.json）
-powershell -File scripts/self-scale.ps1 -Action evaluate
+powershell -ExecutionPolicy Bypass -File scripts/self-scale.ps1 -Action evaluate
+
+# 3. 宿主指标通道端到端（T1 必须能真的触发；验证后请还原为 0 并重新 evaluate）
+powershell -ExecutionPolicy Bypass -File scripts/self-scale.ps1 -Action record-metrics -AgentCount 9
+powershell -ExecutionPolicy Bypass -File scripts/self-scale.ps1 -Action evaluate
+
+# 4. 纯净副本 propose 冒烟（期望 exit 0 且 G1-G6 全 PASSED）
+#    由 tests/test-method-patterns.py 的 test_propose_smoke_on_clean_copy 覆盖
 ```
 
-**计数与一致性抽查**：文件总数 **26**；治理文件 **13/13**；职能块 **8+10=18**；错误码 **34**（CEO 12 + CTO 12 + SCL 10，编号无空洞）；frontmatter ≤85 行；SKILL 正文 ≤120 行；AGENTS.md ≤150 行；triggers 15 条。
+**计数与一致性抽查**：文件总数 **26**（包文件集；仓库工具目录不计）；治理文件 **13/13**；职能块 **8+10=18**；错误码 **34**（CEO 12 + CTO 12 + SCL 10，编号无空洞）；frontmatter ≤85 行；SKILL 正文 ≤120 行；AGENTS.md ≤150 行；triggers 15 条。
 
-**逐字符/一致性**：`permissions` 与 §9.1 逐字符一致；版本号四处同值（1.0.0）；许可四处同值（GPL-3.0）；D2 各 FB `### 4` 与 error-codes.md 同码同文；README 三兄弟结构树与磁盘 26 文件逐项一致；README.en.md 与 README.md 内容一致；无 BOM；无硬编码路径（`grep -rn 'C:\\Users\|c:/Users'` 零命中）；无 `templates.md`；每个 `def <fn>` 恰 1 处；无 `__pycache__` 残留。
+**逐字符/一致性**：`permissions` 与 §9.1 逐字符一致；版本号**三处**同值（1.0.0）；许可四处同值（GPL-3.0）；D2 各 FB `### 4` 与 error-codes.md 同码同文；README 三兄弟结构树与**包文件集** 26 文件逐项一致；README.en.md 与 README.md 内容一致；**无 BOM、无 CRLF（按原始字节检查，不得用 `read_text()` 的通用换行）**；无硬编码路径（`grep -rn 'C:\\Users\|c:/Users'` 零命中）；无 `templates.md`；每个 `def <fn>` 恰 1 处；无 `__pycache__` 残留。
 
 ## 16. 修改协议与已记录事项
 
@@ -686,6 +702,9 @@ powershell -File scripts/self-scale.ps1 -Action evaluate
 | 行尾策略（R4 审计） | 全包统一 **LF**（含 `.ps1`）。原 `.editorconfig` 要求 `[*.ps1] eol=crlf` 而文件实测为 LF，已按"文档服从实现"修订 `.editorconfig` 与 `CONTRIBUTING.md`——`self-scale.ps1` 含 LF 敏感 here-string，且其 E15 规范化逻辑强制产物为 LF，改文件风险高于改文档。新增 `.gitattributes`（`* text=auto eol=lf`）把行尾钉死在仓库层，抵消本机 `core.autocrlf=true` 造成的 "LF will be replaced by CRLF" 漂移；micro 档 25→26 与 small 档 29→30 的连带计数已同步（含 `self-scale.ps1` 内嵌目录树与 `$TargetFileCount`） |
 | 实质审查修复（2026-09-28） | 合规清单全绿**不等于机制有效**。本次实质审查（提取模板代码真实执行 + 对抗性输入）发现 2 高 / 4 中 / 7 低缺陷，均为"承诺已写入文档、实现却未兑现"。已修：H-1 缩放指标闭环（T4 改为实测、T1/T3 明确定性为宿主供给并在输出标注）、H-2 凭证擦除改片段匹配、M-1 水印绑定内容摘要并下调强度表述、M-2 手机号多写法覆盖、M-3 命令黑名单降格为"尽力而为防线"、M-4 子进程显式 `errors="replace"`、L-1~L-7 正则与语义修正。测试 25→31 条，新增断言全部做了注回缺陷的反向验证 |
 | T4 定义口径（实质审查后重定义） | `error_code_reuse_ratio` = **单前缀下被 ≥2 个职能块引用的码 / 该前缀在 error-codes.md 中定义的不同码数**，取各前缀最大值，4 位小数。原表述"不同职能共用同码的比例"未定义分子分母，且与"脚本自己写回再自己读回"的实现并存；现定义与 `Get-ErrorCodeReuseRatio` 逐行对应（P32） |
+| 包文件集边界（D-1 决策，2026-10-14） | 包文件集 = 仓库跟踪文件 − 仓库工具目录（`.git/`/`.github/`/`.workbuddy/`/`.skill-upgrade/`）。三者不计入文件总数、不进结构树、不进升级包。`self-scale.ps1` 的 `$ExcludedDirSegments` / `Get-PackageRelativePaths` 是唯一实现处，拷贝范围与计数基准共用它 |
+| 版本位数量（D-2 决策，2026-10-14） | 版本号**三处同值**：`_meta.json` / README badge / `SKILL.md` frontmatter。原"`SKILL.md` 正文标题"从未存在于任何发布包，已从本节、§8、§15、`scaling.md` §8 与门 G6 移除；否则 G6 恒不可通过，propose 通道等同死亡 |
+| 宿主写回接口（2026-10-14） | `record-metrics` 与 drop 目录两条通道的完整契约见 `references/scaling.md` §3.1，摘要见 §12.2。此前脚本自称该接口存在却无任何实现与文档（M-4），现二者一致 |
 
 ---
 

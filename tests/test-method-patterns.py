@@ -17,6 +17,7 @@ D. 不可变边界   —— 升级提案包不得修改 tests/、不得变更 pe
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -82,6 +83,76 @@ BASELINE_PERMISSIONS = [
 FB_HEADING_RE = re.compile(r"(?m)^## FB-\d+:")
 PYTHON_BLOCK_RE = re.compile(r"```python[ \t]*\r?\n(.*?)```", re.DOTALL)
 HEADING_RE = re.compile(r"^(#{1,6})\s*(.*)$")
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 2026-10-14 初审（H-1..H-4 / M-1..M-4）回归防线：包文件集与文档锚点的共享工具。
+# 包文件集边界 = 仓库工具目录与环境残留之外的全部文件（README-FOR-AI.md §3）；
+# 与 scripts/self-scale.ps1 的 $ExcludedDirSegments / Get-PackageRelativePaths
+# 保持同一口径。
+# ─────────────────────────────────────────────────────────────────────────────
+PACKAGE_EXCLUDED_DIRS = {".git", ".github", ".workbuddy", ".skill-upgrade"}
+
+
+def package_relative_paths(root=SKILL_DIR):
+    """包文件集：root 下属于包内容的文件，posix 相对路径，升序。"""
+    out = []
+    for path in Path(root).rglob("*"):
+        if not path.is_file():
+            continue
+        rel = path.relative_to(root).as_posix()
+        parts = rel.split("/")
+        if parts[0] in PACKAGE_EXCLUDED_DIRS:
+            continue
+        if "__pycache__" in parts:
+            continue
+        if rel.endswith(".pyc"):
+            continue
+        out.append(rel)
+    return sorted(out)
+
+
+def readme_tree_paths(doc="README.md"):
+    """解析 README 的 Project Structure 代码块，返回其中列出的相对路径。"""
+    text = (SKILL_DIR / doc).read_text(encoding="utf-8")
+    m = re.search(r"```text\n(.*?)```", text, re.S)
+    if not m:
+        return []
+    out, stack = [], []
+    for line in m.group(1).splitlines()[1:]:
+        if not line.strip():
+            continue
+        prefix = line[: len(line) - len(line.lstrip(" │├└─"))]
+        name = line.strip()
+        if " #" in name:
+            name = name.split(" #")[0].rstrip()
+        name = re.sub(r"^[\s│├└─]+", "", name)
+        name = re.sub(r"[\s│├└─]+$", "", name).strip()
+        if not name:
+            continue
+        depth = max(0, len(prefix.replace("│", " ")) // 4 - 1)
+        if name.endswith("/"):
+            stack = stack[:depth]
+            stack.append(name[:-1])
+        else:
+            out.append("/".join(stack[:depth] + [name]))
+    return sorted(out)
+
+
+def markdown_sections(path):
+    """收集 level 2-4 标题声明的章节号（如 '3'、'3.1'），跳过代码块内部。"""
+    text = (SKILL_DIR / path).read_text(encoding="utf-8")
+    in_fence = False
+    sections = set()
+    for line in text.splitlines():
+        if line.lstrip().startswith("```"):
+            in_fence = not in_fence
+            continue
+        if in_fence:
+            continue
+        m = re.match(r"^#{2,4}\s+(\d+(?:\.\d+)*)[\.\s、:：]", line)
+        if m:
+            sections.add(m.group(1))
+    return sections
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -928,6 +999,226 @@ class ImmutableBoundaryTests(unittest.TestCase):
                     f"升级包试图修改权限（自我提权）: {pkg}",
                 )
 
+
+# ═════════════════════════════════════════════════════════════════════════════
+# ★ 2026-10-14 初审回归防线（H-1..H-4 / M-1..M-4）
+#
+# 初审的教训：31 条断言全绿、13 个治理文件齐备、每条红线都打了勾，机制却是坏的。
+# 这些断言因此只测"机制是否真的跑起来"，不核对文档措辞。每条都做过注回缺陷的
+# 反向验证：把缺陷写回临时副本后，对应断言必须失败。
+# ═════════════════════════════════════════════════════════════════════════════
+class InitialReview20261014Tests(unittest.TestCase):
+    """初审高危/中危缺陷的机器防线。"""
+
+    def _run_self_scale(self, script, action, extra=None, timeout=180):
+        """在子进程中运行 self-scale.ps1，返回 CompletedProcess。"""
+        exe = shutil.which("powershell") or shutil.which("pwsh")
+        if exe is None:
+            self.skipTest("未找到 powershell/pwsh；跳过脚本冒烟断言")
+        cmd = [exe, "-ExecutionPolicy", "Bypass", "-File", str(script), "-Action", action]
+        if extra:
+            cmd.extend(extra)
+        return subprocess.run(
+            cmd, capture_output=True, text=True, encoding="utf-8",
+            errors="replace", timeout=timeout,
+        )
+
+    def _temp_workspace(self):
+        """创建一个可写的工作区目录。
+
+        不用 tempfile.TemporaryDirectory()：它创建的 0700 目录在本机沙箱下
+        会拒绝在其中再建子目录/再清理（WinError 5）。改为在系统临时目录下
+        自建唯一目录，失败时退回 .workbuddy/（已被包文件集排除）。
+        """
+        base = Path(tempfile.gettempdir())
+        for _ in range(20):
+            candidate = base / ("aic-selftest-" + uuid.uuid4().hex[:10])
+            try:
+                candidate.mkdir()
+                return candidate
+            except FileExistsError:
+                continue
+            except PermissionError:
+                break
+        fallback = SKILL_DIR / ".workbuddy" / "selftest" / uuid.uuid4().hex[:10]
+        fallback.mkdir(parents=True, exist_ok=True)
+        return fallback
+
+    def _clean_copy(self, dest):
+        """把包文件集复制到 dest（临时工作区内），保持相对结构。"""
+        dest = Path(dest)
+        for rel in package_relative_paths():
+            target = dest / rel
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(SKILL_DIR / rel, target)
+        return dest
+
+    # ── H-1 / H-3：包文件集必须与三兄弟结构树逐路径一致 ──────────────────────
+    def test_package_file_set_matches_declared_count(self):
+        """★ H-1/H-3：包文件集 = 26，且 README 三兄弟结构树逐路径一致。"""
+        declared = set(package_relative_paths())
+        self.assertEqual(
+            26, len(declared),
+            f"包文件集应为 26，实测 {len(declared)}：{sorted(declared)}",
+        )
+        for doc in ("README.md", "README.en.md", "README.zh.md"):
+            tree = set(readme_tree_paths(doc))
+            self.assertEqual(
+                declared, tree,
+                f"{doc} 结构树与包文件集不一致："
+                f"磁盘有/树里没有={sorted(declared - tree)}，"
+                f"树里有/磁盘没有={sorted(tree - declared)}",
+            )
+        blocks = []
+        for doc in ("README.md", "README.en.md", "README.zh.md"):
+            text = (SKILL_DIR / doc).read_text(encoding="utf-8")
+            blocks.append(re.search(r"```text\n(.*?)```", text, re.S).group(1))
+        self.assertEqual(blocks[0], blocks[1], "README.en.md 与 README.md 结构树不同")
+        self.assertEqual(blocks[0], blocks[2], "README.zh.md 与 README.md 结构树不同")
+
+    # ── H-1：升级包不得携带仓库工具目录 ─────────────────────────────────────
+    def test_upgrade_package_excludes_repo_tooling(self):
+        """★ H-1：.git//.workbuddy//.github/ 绝不进入升级包（无包则 skip）。"""
+        upgrade_root = WORKSPACE_ROOT / ".skill-upgrade"
+        if not upgrade_root.exists():
+            self.skipTest(f"暂无升级提案包（{upgrade_root} 不存在）")
+        packages = [
+            p for p in sorted(upgrade_root.rglob("*"))
+            if p.is_dir() and (p / "SKILL.md").exists()
+        ]
+        if not packages:
+            self.skipTest(".skill-upgrade/ 下无提案包目录")
+        for pkg in packages:
+            leaks = []
+            for f in pkg.rglob("*"):
+                if not f.is_file():
+                    continue
+                rel = f.relative_to(pkg).as_posix()
+                if rel.split("/")[0] in PACKAGE_EXCLUDED_DIRS:
+                    leaks.append(rel)
+            self.assertEqual(
+                [], leaks,
+                f"升级包携带了非包内容（H-1 发布包泄漏）: {pkg}: {leaks[:5]}",
+            )
+
+    # ── H-1 / H-4：本条纵贯线一次抓住全部 propose 缺陷 ───────────────────────
+    def test_propose_smoke_on_clean_copy(self):
+        """★ H-1/H-4：纯净副本内 propose 必须 exit 0 且 G1-G6 全 PASSED。"""
+        workspace = self._temp_workspace()
+        self.addCleanup(shutil.rmtree, workspace, ignore_errors=True)
+        pkg = self._clean_copy(workspace / "ai-company")
+        proc = self._run_self_scale(pkg / "scripts" / "self-scale.ps1", "propose")
+        combined = (proc.stdout or "") + "\n" + (proc.stderr or "")
+        self.assertEqual(
+            0, proc.returncode,
+            f"纯净副本 propose 应 exit 0，实际 {proc.returncode}：\n{combined[-3000:]}",
+        )
+        for gate in ("G1", "G2", "G3", "G4", "G5", "G6"):
+            self.assertIn(f"{gate} PASSED", combined,
+                          f"{gate} 未通过：\n{combined[-3000:]}")
+        proposals = list((workspace / ".skill-upgrade").rglob("UPGRADE-PROPOSAL.md"))
+        self.assertEqual(1, len(proposals), "未生成 UPGRADE-PROPOSAL.md")
+
+    # ── M-2：顶层 validation 块（§12.6 强制的字段） ──────────────────────────
+    def test_scaling_state_schema_complete(self):
+        """★ M-2：状态文件顶层必需字段齐备，validation.gates_passed == 6。"""
+        state = json.loads((SKILL_DIR / ".scaling-state.json").read_text(encoding="utf-8"))
+        required = {
+            "schema_version", "current_tier", "tier_history", "pending_proposals",
+            "next_evaluation", "last_metrics", "routing_miss_streak",
+            "metrics_provenance", "validation",
+        }
+        self.assertTrue(
+            required <= set(state),
+            f"状态文件缺字段：{sorted(required - set(state))}",
+        )
+        validation = state["validation"]
+        self.assertEqual(6, validation.get("gates_passed"),
+                         "validation.gates_passed 必须 = 6")
+        self.assertEqual(26, validation.get("file_count"),
+                         "micro 档 validation.file_count 应为 26")
+        self.assertIn("acceptance_passed", validation)
+
+    # ── M-1：必须读 bytes，read_text() 会掩盖 CRLF ───────────────────────────
+    def test_no_crlf_and_no_bom_package_wide(self):
+        """★ M-1：全包无 CRLF、无 BOM（按原始字节；通用换行看不见 CRLF）。"""
+        offenders_crlf, offenders_bom = [], []
+        for rel in package_relative_paths():
+            raw = (SKILL_DIR / rel).read_bytes()
+            if b"\xef\xbb\xbf" in raw[:3]:
+                offenders_bom.append(rel)
+            if b"\r\n" in raw:
+                offenders_crlf.append(rel)
+        self.assertEqual([], offenders_crlf, f"以下文件含 CRLF（须为 LF）：{offenders_crlf}")
+        self.assertEqual([], offenders_bom, f"以下文件以 BOM 开头：{offenders_bom}")
+
+    # ── M-4：章节引用必须真实存在 ────────────────────────────────────────────
+    def test_doc_section_anchors_exist(self):
+        """★ M-4：scaling.md / README-FOR-AI.md 的章节引用目标必须存在。"""
+        targets = {
+            "scaling.md": markdown_sections("references/scaling.md"),
+            "README-FOR-AI.md": markdown_sections("README-FOR-AI.md"),
+        }
+        scanned = [
+            "scripts/self-scale.ps1", "references/scaling.md",
+            "references/method-patterns.md", "SKILL.md", "AGENTS.md",
+            "CONTRIBUTING.md", "README.md", "README-FOR-AI.md",
+        ]
+        ref_re = re.compile(
+            r"(scaling\.md|README-FOR-AI\.md)[^\n]{0,60}?(?:§|sec(?:tion)?\.?)\s*(\d+(?:\.\d+)*)",
+            re.I,
+        )
+        missing = []
+        for rel in scanned:
+            text = (SKILL_DIR / rel).read_text(encoding="utf-8")
+            for m in ref_re.finditer(text):
+                doc, section = m.group(1), m.group(2)
+                if section not in targets[doc]:
+                    missing.append(f"{rel} -> {doc} §{section}")
+        self.assertEqual([], missing, f"引用了不存在的章节（P8/P19）：{missing}")
+
+    # ── H-2a：ValidateSet 的每个取值都必须有 switch 分支 ─────────────────────
+    def test_record_metrics_action_implemented(self):
+        """★ H-2a：声明了却无分支的动作不得存在；switch 必须有 default。"""
+        text = (SKILL_DIR / "scripts" / "self-scale.ps1").read_text(encoding="utf-8")
+        vs = re.search(r"\[ValidateSet\(([^)]*)\)\]", text)
+        self.assertIsNotNone(vs, "未找到 ValidateSet")
+        actions = [a.strip().strip("'\"") for a in vs.group(1).split(",") if a.strip()]
+        self.assertTrue(actions, "ValidateSet 为空")
+        for action in actions:
+            self.assertRegex(
+                text, r"'" + re.escape(action) + r"'\s*\{",
+                f"ValidateSet 声明了 '{action}'，但 switch 无对应分支（H-2 空转）",
+            )
+        self.assertRegex(
+            text, r"default\s*\{\s*Stop-WithCode",
+            "switch 缺 default 分支：声明了却未实现的动作会再次静默空转",
+        )
+
+    # ── H-2c / H-2d：新鲜宿主指标必须真的参与 T1 ─────────────────────────────
+    def test_host_metric_freshness_uses_config(self):
+        """★ H-2c/H-2d：注入新鲜超阈指标后 T1 必须触发，freshness 不再是空值。"""
+        workspace = self._temp_workspace()
+        self.addCleanup(shutil.rmtree, workspace, ignore_errors=True)
+        pkg = self._clean_copy(workspace / "ai-company")
+        script = pkg / "scripts" / "self-scale.ps1"
+        rec = self._run_self_scale(
+            script, "record-metrics", ["-AgentCount", "9", "-Source", "selftest"],
+        )
+        rec_out = (rec.stdout or "") + (rec.stderr or "")
+        self.assertEqual(0, rec.returncode, f"record-metrics 失败：\n{rec_out[-2000:]}")
+        ev = self._run_self_scale(script, "evaluate")
+        combined = (ev.stdout or "") + "\n" + (ev.stderr or "")
+        self.assertIn(
+            "T1 agent capacity: agent_count = 9, threshold > 3", combined,
+            f"新鲜宿主指标未按配置参与 T1：\n{combined[-2500:]}",
+        )
+        self.assertIn("TRIGGERED T1", combined,
+                      f"T1 未触发（H-2 复发）：\n{combined[-2500:]}")
+        self.assertNotIn(
+            "-day freshness limit", combined,
+            "freshness 日志退化为空（Get-CurrentMetrics 未传 -Config）",
+        )
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

@@ -32,9 +32,11 @@
                  .gitattributes (* text=auto eol=lf) so a contributor's local
                  core.autocrlf cannot rewrite it; every .md and .json artifact
                  it writes is likewise LF - see Write-TextFileNoBom.
- Copy policy   : upgrade packages exclude build residues (__pycache__/ and
-                 *.pyc) so the file count and gate hashes never depend on
-                 environment noise.
+ Copy policy   : the package file set is defined once (README-FOR-AI.md sec 3)
+                 and excludes repository tooling directories (.git/, .github/,
+                 .workbuddy/, .skill-upgrade/) plus build residues (__pycache__/,
+                 *.pyc), so the file count and the gate hashes never depend on
+                 the checkout environment.
 ========================================================================================
 #>
 
@@ -74,8 +76,19 @@ $TierAgentCaps = @{
   'micro' = 3; 'small' = 10; 'medium' = 50; 'large' = 200; 'group' = 200
 }
 $TierBlockMean = @{ 'micro' = 9.0; 'small' = 3.6; 'medium' = 2.0; 'large' = 1.0; 'group' = 1.0 }
-$TargetFileCount = @{ 'small' = 30 }   # 29 spec files + README-FOR-AI.md (package-local
-                                      # generation spec, user-approved spec deviation)
+
+# Package file set (README-FOR-AI.md sec 3). A "package file" is a file of the
+# skill itself; repository tooling directories are NEVER package content, so
+# they are excluded from the 5h copy, from every file count, and from the gate
+# hashes. Keeping this list in ONE place is what stops the counting basis and
+# the copy range from drifting apart again (the H-1 defect).
+$ExcludedDirSegments = @('.git', '.github', '.workbuddy', '.skill-upgrade')
+
+# Expected package-file-set size per tier (README-FOR-AI.md sec 3 / sec 15).
+# small = 30: 26 micro package files - 1 operational state file - 2 retired
+# legacy D2 pages + 5 split D2 pages + 1 new prompt + 1 package state file.
+$TierFileCount = @{ 'micro' = 26; 'small' = 30 }
+$TargetFileCount = @{ 'small' = $TierFileCount['small'] }
 
 # The deterministic micro -> small split mapping (merge tree, README-FOR-AI.md sec 10.1).
 # Split order = page order of FB sections inside each legacy D2 file (scaling.md 4.3).
@@ -138,12 +151,49 @@ function Read-TextFile {
 
 function Write-TextFileNoBom {
   # E15 : every .md / .json artifact written by this script keeps LF line
-  # endings (.editorconfig [*] = lf), even though the script itself is CRLF
-  # ([*.ps1] = crlf). Here-strings lifted from a CRLF file are normalized.
+  # endings (.editorconfig [*] = lf). The script itself is LF as well
+  # ([*.ps1] end_of_line = lf, pinned by .gitattributes). Here-strings are
+  # normalized anyway, so the function is safe even if a file arrives with CRLF.
   param([string]$Path, [string]$Text)
   if ($null -eq $Text) { $Text = '' }
   $normalized = $Text -replace "`r`n", "`n"
   [System.IO.File]::WriteAllText($Path, $normalized, $Utf8NoBom)
+}
+
+# --------------------------------------------------------------------------------------
+# Package file set (ONE definition, shared by the copy, the counts and the gates)
+# --------------------------------------------------------------------------------------
+
+function Test-PackagePathExcluded {
+  # True when a relative package path (either separator style) falls outside the
+  # package file set: its first path segment is a repository tooling directory,
+  # or it is a build residue.
+  param([string]$RelativePath)
+  if ([string]::IsNullOrWhiteSpace($RelativePath)) { return $true }
+  $normalized = $RelativePath.Replace('\', '/')
+  $segments = $normalized -split '/'
+  if ($segments.Count -gt 0) {
+    if ($ExcludedDirSegments -contains $segments[0]) { return $true }
+  }
+  if ($normalized -match '(^|/)__pycache__/') { return $true }
+  if ($normalized -match '\.pyc$') { return $true }
+  return $false
+}
+
+function Get-PackageRelativePaths {
+  # Every file under $Root that belongs to the package file set, as posix
+  # relative paths, sorted. This is the single counting basis used by the 5h
+  # copy, gate G6, the proposal report and the state file's validation.file_count.
+  param([string]$Root)
+  $out = @()
+  if (-not (Test-Path -LiteralPath $Root)) { return $out }
+  $files = @(Get-ChildItem -LiteralPath $Root -Recurse -File -Force -ErrorAction SilentlyContinue)
+  foreach ($f in $files) {
+    $rel = $f.FullName.Substring($Root.Length + 1).Replace('\', '/')
+    if (Test-PackagePathExcluded -RelativePath $rel) { continue }
+    $out += $rel
+  }
+  return @($out | Sort-Object)
 }
 
 # --------------------------------------------------------------------------------------
@@ -224,6 +274,7 @@ function Read-State {
       Stop-WithCode 'SCL_007' ("current_tier '{0}' does not match SKILL.md frontmatter scale_tier '{1}'" -f $state.current_tier, $fmTier)
     }
   }
+  Initialize-ValidationBlock -State $state
   return $state
 }
 
@@ -231,6 +282,34 @@ function Set-StateProperty {
   param($State, [string]$Name, $Value)
   if ($null -ne $State.PSObject.Properties[$Name]) { $State.$Name = $Value }
   else { $State | Add-Member -MemberType NoteProperty -Name $Name -Value $Value }
+}
+
+function Initialize-ValidationBlock {
+  # README-FOR-AI.md sec 12.6 requires a TOP-LEVEL 'validation' block on the state
+  # file: gates_passed must be 6 and file_count must be the expected package
+  # file count for the current tier (micro 26 / small 30). Before this fix the
+  # block only ever existed inside pending_proposals[] entries, so any machine
+  # reader of the top level saw a contract that was never implemented (M-2).
+  # acceptance_passed is carried over: only a human (or the external installer)
+  # may set it to true.
+  param($State)
+  $tier = [string]$State.current_tier
+  $expected = 0
+  if ($TierFileCount.ContainsKey($tier)) { $expected = [int]$TierFileCount[$tier] }
+  $block = [ordered]@{
+    gates_passed      = 6
+    file_count        = $expected
+    acceptance_passed = $false
+  }
+  if ($null -ne $State.PSObject.Properties['validation']) {
+    $existing = $State.validation
+    if ($null -ne $existing) {
+      if ($null -ne $existing.PSObject.Properties['acceptance_passed']) {
+        $block.acceptance_passed = [bool]$existing.acceptance_passed
+      }
+    }
+  }
+  Set-StateProperty -State $State -Name 'validation' -Value $block
 }
 
 function Format-JsonStringLiteral {
@@ -589,6 +668,28 @@ function Receive-HostMetricsDrop {
   return @{ Applied = $applied; Rejected = $rejected }
 }
 
+function Get-MetricsStillAtDefault {
+  # A host-supplied metric is "still at its default" only when the host has
+  # NEVER written it (no host_metrics entry) AND its current value equals the
+  # default. The previous test printed the note whenever the value equalled the
+  # default, so it claimed "still at their defaults" on the same screen that
+  # showed a host-written agent_count = 9 (H-2, misleading output).
+  param($State, $Metrics)
+  $names = @()
+  $hasHostMetrics = ($null -ne $State.PSObject.Properties['host_metrics']) -and ($null -ne $State.host_metrics)
+  foreach ($n in @('agent_count', 'routing_accuracy')) {
+    $hasEntry = $false
+    if ($hasHostMetrics) { $hasEntry = ($null -ne $State.host_metrics.PSObject.Properties[$n]) }
+    if ($hasEntry) { continue }
+    if ($n -eq 'agent_count') {
+      if ([int]$Metrics.AgentCount -eq 0) { $names += $n }
+    } else {
+      if ([double]$Metrics.RoutingAccuracy -eq 1.0) { $names += $n }
+    }
+  }
+  return $names
+}
+
 # --------------------------------------------------------------------------------------
 # Metric collection (step 2)
 # --------------------------------------------------------------------------------------
@@ -825,24 +926,24 @@ function New-UpgradePackage {
   # Retired legacy D2 pages (replaced by their splits), as normalized relative paths.
   $retiredD2 = @('references/departments/governance-and-delivery.md', 'references/departments/engineering-and-safety.md')
 
-  # 5h (basis) : copy the current package verbatim, except the retired legacy D2
-  # pages (replaced by their splits), the operational state file (regenerated),
-  # and build residues (E1 : __pycache__/ directories and *.pyc files are
-  # git-ignored compilation leftovers - they must never reach the package nor
-  # its file count or gate hashes).
-  $allFiles = @(Get-ChildItem -LiteralPath $SkillDir -Recurse -File -Force)
-  foreach ($f in $allFiles) {
-    $rel = $f.FullName.Substring($SkillDir.Length + 1).Replace('\', '/')
+  # 5h (basis) : copy the current package verbatim, using the ONE package file
+  # set definition (Get-PackageRelativePaths). That excludes repository tooling
+  # directories (.git/, .github/, .workbuddy/, .skill-upgrade/) and build
+  # residues (__pycache__/, *.pyc), so a release package can never carry the
+  # repository's own git objects or local audit artifacts (H-1). It also still
+  # excludes the retired legacy D2 pages (replaced by their splits) and the
+  # operational state file (regenerated below).
+  $allRels = @(Get-PackageRelativePaths -Root $SkillDir)
+  foreach ($rel in $allRels) {
     if ($rel -eq '.scaling-state.json') { continue }
     if ($retiredD2 -contains $rel) { continue }
-    if ($rel -match '(^|/)__pycache__/') { continue }
-    if ($rel -match '\.pyc$') { continue }
+    $src = Join-Path $SkillDir ($rel.Replace('/', '\'))
     $dest = Join-Path $PkgDir $rel
     $destDir = Split-Path -Parent $dest
     if (-not (Test-Path -LiteralPath $destDir)) {
       New-Item -ItemType Directory -Path $destDir -Force | Out-Null
     }
-    Copy-Item -LiteralPath $f.FullName -Destination $dest -Force
+    Copy-Item -LiteralPath $src -Destination $dest -Force
   }
   Write-Log ("5h copied current package files to {0} (tests/ and self-scale.ps1 verbatim)" -f $PkgDir)
 
@@ -957,7 +1058,7 @@ Task: produce a test suite for `<METHOD_NAME>` covering, at minimum:
 3. Retry behavior - transient failures are retried and the retry limit is
    enforced (see `references/method-patterns.md#3-5-retry_with_backoff`).
 4. PII masking - outputs replace email addresses, IPv4 addresses, and
-   11-digit phone numbers with their placeholders (see
+   phone numbers in their common written forms with their placeholders (see
    `references/method-patterns.md#3-9-mask_sensitive_data`).
 5. Boundary conditions - empty input, single element, maximum size, and
    off-by-one cases.
@@ -1305,6 +1406,11 @@ codes whose functions stay in the successor departments keep their codes.
       max_blocks_per_department = 6
       error_code_reuse_ratio    = 0.0
     }
+    validation          = [ordered]@{
+      gates_passed      = 6
+      file_count        = $TargetFileCount[$UpgradeEdge.To]
+      acceptance_passed = $false
+    }
   }
   Write-TextFileNoBom -Path (Join-Path $PkgDir '.scaling-state.json') -Text ((ConvertTo-StableJson -Value $pkgState) + "`n")
   Write-Log "package state file initialized for tier '$($UpgradeEdge.To)' (tier_history carries the upgrade skeleton entry, append-only)"
@@ -1497,15 +1603,17 @@ function Invoke-GateG6 {
   $fails = @()
   $expectedFiles = $TargetFileCount[$UpgradeEdge.To]
 
-  # File count (skill files; the UPGRADE-PROPOSAL.md report artifact is excluded).
+  # File count over the SAME package file set the 5h copy uses (H-1: the copy
+  # range and the counting basis must never diverge again). The
+  # UPGRADE-PROPOSAL.md report artifact is not package content and is excluded.
   $reportPath = Join-Path $PkgDir 'UPGRADE-PROPOSAL.md'
-  $fileCount = @(Get-ChildItem -LiteralPath $PkgDir -Recurse -File -ErrorAction SilentlyContinue).Count
+  $fileCount = @(Get-PackageRelativePaths -Root $PkgDir).Count
   if (Test-Path -LiteralPath $reportPath) { $fileCount = $fileCount - 1 }
   if ($fileCount -ne $expectedFiles) {
     $fails += "file_count: expected $expectedFiles, found $fileCount"
   }
 
-  # Frontmatter triple consistency (H12) and version (H15, 4 locations).
+  # Frontmatter triple consistency (H12) and version (H15, 3 locations).
   $fm = Get-FrontmatterText (Join-Path $PkgDir 'SKILL.md')
   if ($null -eq $fm) {
     $fails += 'SKILL.md frontmatter not found in the package'
@@ -1553,7 +1661,9 @@ function Invoke-GateG6 {
     }
   }
 
-  # Version agreement in the four required locations (H15).
+  # Version agreement in the three required locations (H15, D-2 option A:
+  # _meta.json, the README badge and the SKILL.md frontmatter; the former fourth
+  # "SKILL.md body title" location never existed in the shipped package).
   $metaPath = Join-Path $PkgDir '_meta.json'
   if (-not (Test-Path -LiteralPath $metaPath)) {
     $fails += '_meta.json missing from the package'
@@ -1572,8 +1682,11 @@ function Invoke-GateG6 {
   } else {
     $fails += 'README.md missing from the package'
   }
-  $pkgSk = Read-TextFile -Path (Join-Path $PkgDir 'SKILL.md')
-  if (($null -eq $pkgSk) -or (-not $pkgSk.Contains($UpgradeEdge.NewVersion))) { $fails += 'SKILL.md body does not contain version 2.0.0 (title)' }
+  # The former fourth version location ("SKILL.md body title") is deliberately
+  # NOT checked: no shipped package has ever carried a version string in the
+  # body, so the check was an unconditional failure that blocked every proposal
+  # (H-4). Recorded as decision D-2 option A in README-FOR-AI.md sec 8 / sec 15
+  # and sec 16.
 
   # Target-tier department D2 files present.
   $pkgDeptDir = Join-Path $PkgDir 'references\departments'
@@ -1605,7 +1718,7 @@ function Invoke-GateG6 {
   if ($fails.Count -gt 0) {
     return @{ Passed = $false; Detail = ($fails -join '; ') ; FailedItems = $fails }
   }
-  return @{ Passed = $true; Detail = "file_count=$fileCount; frontmatter triple consistent; version 2.0.0 agrees in all 4 locations (badge format verified); 5 D2 files present; prefixes complete; interface enum consistent (auto + 5 slugs); prompts/03-test-cases.md agent-invoked L3"; FailedItems = @() }
+  return @{ Passed = $true; Detail = "file_count=$fileCount; frontmatter triple consistent; version 2.0.0 agrees in all 3 locations (badge format verified); 5 D2 files present; prefixes complete; interface enum consistent (auto + 5 slugs); prompts/03-test-cases.md agent-invoked L3"; FailedItems = @() }
 }
 
 # --------------------------------------------------------------------------------------
@@ -1615,10 +1728,10 @@ function Invoke-GateG6 {
 function New-ProposalReport {
   param([string]$PkgDir, [string]$PkgName, $Triggers, $GateResults, $Metrics)
   $now = Get-UtcNowIso
-  # E1 : build residues (__pycache__/, *.pyc) are not package files and are
-  # excluded from this count, exactly as the package copy excludes them.
-  $curFileCount = @(Get-ChildItem -LiteralPath $SkillDir -Recurse -File -Force -ErrorAction SilentlyContinue |
-    Where-Object { ($_.FullName.Substring($SkillDir.Length + 1).Replace('\', '/') -notmatch '(^|/)__pycache__/') -and ($_.Name -notmatch '\.pyc$') }).Count
+  # The current package file count uses the SAME package file set definition as
+  # the 5h copy and gate G6 (repository tooling directories and build residues
+  # are not package files).
+  $curFileCount = @(Get-PackageRelativePaths -Root $SkillDir).Count
   $triggerText = 'SCL_001: forced proposal; no threshold was met (invoked with -Force / propose)'
   if ($Triggers.Count -gt 0) {
     $parts = @()
@@ -1727,10 +1840,59 @@ the tier_history entry recorded in .scaling-state.json at install time.
 # Main flows
 # --------------------------------------------------------------------------------------
 
+function Invoke-RecordMetrics {
+  # Host write-back channel 1 of 2 (scaling.md sec 3.1). The host calls this
+  # action directly; the drop directory is channel 2. Both share the same
+  # validation, timestamping and audit-log code path so the two channels can
+  # never drift apart. Before this fix 'record-metrics' was declared in
+  # ValidateSet but had no switch branch: it printed nothing, changed nothing
+  # and exited 0 (H-2).
+  param($Config)
+  if ($null -eq $Config) { $config = Load-Config } else { $config = $Config }
+  Write-Log '1 reading .scaling-state.json...'
+  $state = Read-State
+
+  $observed = ConvertTo-UtcIso $ObservedAt
+  if ([string]::IsNullOrWhiteSpace($observed)) {
+    if (-not [string]::IsNullOrWhiteSpace($ObservedAt)) {
+      Write-Log ("WARN observed_at '{0}' is unparseable; recording the current time instead" -f $ObservedAt)
+    }
+    $observed = Get-UtcNowIso
+  }
+
+  # Write-HostMetric stamps every audit entry with the channel it arrived on.
+  $script:WriteBackChannel = 'cli'
+
+  $wrote = 0
+  if ($AgentCount -ge 0) {
+    $check = Test-HostMetricValue -Name 'agent_count' -Value $AgentCount
+    if (-not $check.Ok) { Stop-WithCode 'SCL_007' ("record-metrics rejected: {0}" -f $check.Reason) }
+    Write-HostMetric -State $state -Name 'agent_count' -Value $AgentCount -ObservedAt $observed -Source $Source -SampleSize -1 -Config $config
+    Write-Log ("recorded agent_count = {0} (observed_at {1}, source {2})" -f $AgentCount, $observed, $Source)
+    $wrote++
+  }
+  if ($RoutingAccuracy -ge 0.0) {
+    $check = Test-HostMetricValue -Name 'routing_accuracy' -Value $RoutingAccuracy
+    if (-not $check.Ok) { Stop-WithCode 'SCL_007' ("record-metrics rejected: {0}" -f $check.Reason) }
+    Write-HostMetric -State $state -Name 'routing_accuracy' -Value $RoutingAccuracy -ObservedAt $observed -Source $Source -SampleSize $SampleSize -Config $config
+    $sampleNote = 'not supplied'
+    if ($SampleSize -ge 0) { $sampleNote = [string]$SampleSize }
+    Write-Log ("recorded routing_accuracy = {0} (sample_size {1}, observed_at {2}, source {3})" -f $RoutingAccuracy, $sampleNote, $observed, $Source)
+    $wrote++
+  }
+  if ($wrote -eq 0) {
+    Stop-WithCode 'SCL_007' 'record-metrics called without -AgentCount or -RoutingAccuracy; nothing was recorded (a silent no-op is exactly the H-2 defect)'
+  }
+
+  Save-State -State $state
+  Write-Log ("host metrics recorded ({0} metric(s)); run -Action evaluate to evaluate T1/T3" -f $wrote)
+  exit 0
+}
+
 function Show-Status {
   $state = Read-State
   $config = Load-Config
-  $metrics = Get-CurrentMetrics -State $state
+  $metrics = Get-CurrentMetrics -State $state -Config $config
   Write-Output '=== self-scale status ==='
   Write-Output ("current_tier            : {0}" -f $state.current_tier)
   Write-Output ("next_evaluation         : {0}" -f $state.next_evaluation)
@@ -1740,10 +1902,11 @@ function Show-Status {
   Write-Output ("max_blocks_per_dept     : {0}  [{1}]" -f $metrics.MaxBlocks, $src.max_blocks_per_department)
   Write-Output ("error_code_reuse_ratio  : {0}  [{1}]" -f $metrics.ReuseRatio, $src.error_code_reuse_ratio)
   Write-Output ("upgrade_policy          : {0}" -f 'propose-only')
-  if ($metrics.AgentCount -eq 0 -or $metrics.RoutingAccuracy -eq 1.0) {
-    Write-Output 'NOTE agent_count / routing_accuracy are host-supplied (not measured by this'
-    Write-Output '     script). No host has written them yet, so T1 and T3 cannot fire.'
-    Write-Output '     See scaling.md section 3 for the host write-back contract.'
+  $stillDefault = @(Get-MetricsStillAtDefault -State $state -Metrics $metrics)
+  if ($stillDefault.Count -gt 0) {
+    Write-Output ("NOTE host-supplied metrics still at their defaults: {0}" -f ($stillDefault -join ', '))
+    Write-Output '     No host has written them yet, so T1 and T3 cannot fire.'
+    Write-Output '     See scaling.md section 3.1 for the host write-back contract.'
   }
   Write-Output ("tier_history entries    : {0}" -f @($state.tier_history).Count)
   Write-Output ("pending_proposals       : {0}" -f @($state.pending_proposals).Count)
@@ -1838,6 +2001,18 @@ function Invoke-Proposal {
   $gateResults['G6'] = $g6
   if ($g6.Passed) { Write-Log 'G6 PASSED' } else { Write-Log 'G6 FAILED'; $failedGates += 'G6' }
 
+  # P1-6 / scaling.md sec 6: a failed gate must state WHY. The failed-item detail
+  # used to be computed and then thrown away, leaving only "G6 FAILED" in the
+  # log and nothing at all in last_failure.
+  $gateDetails = @()
+  foreach ($gName in @('G1', 'G2', 'G3', 'G4', 'G5', 'G6')) {
+    if (-not $gateResults[$gName].Passed) {
+      $detailLine = ("{0}: {1}" -f $gName, $gateResults[$gName].Detail)
+      $gateDetails += $detailLine
+      Write-Log ("{0} detail: {1}" -f $gName, $gateResults[$gName].Detail)
+    }
+  }
+
   if ($failedGates.Count -gt 0) {
     $codeByGate = @{ 'G1' = 'SCL_004'; 'G2' = 'SCL_005'; 'G3' = 'SCL_004'; 'G4' = 'SCL_010'; 'G5' = 'SCL_003'; 'G6' = 'SCL_006' }
     $code = $codeByGate[$failedGates[0]]
@@ -1854,6 +2029,7 @@ function Invoke-Proposal {
       at = (Get-UtcNowIso)
       code = $code
       gates_failed = $failedGates
+      detail = $gateDetails
       package_path = $rejectedDir
     })
     Save-State -State $State
@@ -1916,11 +2092,20 @@ function Invoke-EvaluateFlow {
   # --- Step 2 : collect metrics, evaluate T1-T4 ----------------------------------
   Write-Log '2 collecting the four scaling metrics and evaluating thresholds T1-T4...'
   $config = Load-Config
-  $metrics = Get-CurrentMetrics -State $state
+  # Host write-back channel 2 of 2 (scaling.md sec 3.1): files dropped into the
+  # configured .skill-metrics/ directory are validated and applied here, BEFORE
+  # the metrics are read. Accepted files are MOVED to processed/ (P23).
+  $drop = Receive-HostMetricsDrop -State $state -Config $config
+  if (($drop.Applied + $drop.Rejected) -gt 0) {
+    Write-Log ("2 host metric drop directory: {0} file(s) applied, {1} rejected" -f $drop.Applied, $drop.Rejected)
+    Save-State -State $state
+  }
+  $metrics = Get-CurrentMetrics -State $state -Config $config
   Write-Log ("2 agent_count={0} [{1}], routing_accuracy={2} [{3}]" -f $metrics.AgentCount, $metrics.Sources.agent_count, $metrics.RoutingAccuracy, $metrics.Sources.routing_accuracy)
   Write-Log ("2 max_blocks_per_department={0} [{1}], error_code_reuse_ratio={2} [{3}]" -f $metrics.MaxBlocks, $metrics.Sources.max_blocks_per_department, $metrics.ReuseRatio, $metrics.Sources.error_code_reuse_ratio)
-  if ($metrics.AgentCount -eq 0 -or $metrics.RoutingAccuracy -eq 1.0) {
-    Write-Log '2 NOTE T1/T3 depend on host-supplied metrics that are still at their defaults; they cannot fire until the host writes them (scaling.md 3).'
+  $stillDefault = @(Get-MetricsStillAtDefault -State $state -Metrics $metrics)
+  if ($stillDefault.Count -gt 0) {
+    Write-Log ("2 NOTE T1/T3 depend on host-supplied metrics that are still at their defaults ({0}); they cannot fire until the host writes them (scaling.md 3.1)." -f ($stillDefault -join ', '))
   }
   $evaluation = Invoke-ThresholdEvaluation -State $state -Metrics $metrics -Config $config
   $triggers = $evaluation.Triggers
@@ -1959,7 +2144,14 @@ function Invoke-ProposeFlow {
   $state = Read-State
   Write-Log '2 collecting metrics for the proposal report...'
   $config = Load-Config
-  $metrics = Get-CurrentMetrics -State $state
+  # Same drop-directory intake as -Action evaluate: a proposal must be based on
+  # the same metrics the readiness check sees (scaling.md sec 3.1).
+  $drop = Receive-HostMetricsDrop -State $state -Config $config
+  if (($drop.Applied + $drop.Rejected) -gt 0) {
+    Write-Log ("2 host metric drop directory: {0} file(s) applied, {1} rejected" -f $drop.Applied, $drop.Rejected)
+    Save-State -State $state
+  }
+  $metrics = Get-CurrentMetrics -State $state -Config $config
   $evaluation = Invoke-ThresholdEvaluation -State $state -Metrics $metrics -Config $config
   $triggers = $evaluation.Triggers
   if ($triggers.Count -eq 0) {
@@ -1973,8 +2165,12 @@ function Invoke-ProposeFlow {
 # --------------------------------------------------------------------------------------
 
 switch ($Action) {
-  'status'   { Show-Status }
-  'report'   { Show-Report }
-  'evaluate' { Invoke-EvaluateFlow }
-  'propose'  { Invoke-ProposeFlow }
+  'status'         { Show-Status }
+  'report'         { Show-Report }
+  'evaluate'       { Invoke-EvaluateFlow }
+  'propose'        { Invoke-ProposeFlow }
+  'record-metrics' { Invoke-RecordMetrics -Config (Load-Config) }
+  # No default fall-through may exist: a ValidateSet value without a branch was
+  # a silent no-op (H-2). The default makes any future mismatch loud.
+  default          { Stop-WithCode 'SCL_007' ("no handler for -Action '{0}' (declared in ValidateSet but not implemented)" -f $Action) }
 }
