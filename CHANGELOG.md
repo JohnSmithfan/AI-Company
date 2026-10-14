@@ -21,7 +21,7 @@ and this project adheres to
   `_meta.json` / README badge / `SKILL.md` frontmatter. The former fourth
   location — the `SKILL.md` body title — never existed in any shipped package,
   so gate G6 checked it in vain and every proposal failed for a reason that
-  could not be satisfied (`README-FOR-AI.md` §6.1/§8/§15,
+  could not be satisfied (`README-FOR-AI.md` §6.1/§15,
   `references/scaling.md` §6/§8).
 - **G6 small-tier expected file count corrected 29 → 30** in
   `README-FOR-AI.md` §12.3 and `references/scaling.md` §6, matching
@@ -39,6 +39,80 @@ and this project adheres to
   in the `README` files.
 
 ### Fixed
+
+- **复审 R2（2026-10-14 第二轮审查）** — `scripts/self-scale.ps1` (R2-B1,
+  blocker): `Write-HostMetric` copied the existing `host_metrics` with
+  `PSObject.Properties`, which on an in-process `[ordered]` dictionary returns
+  the .NET members (`Count`/`Keys`/`Values`/…), not the metric entries. The
+  **second** write in one run therefore destroyed `host_metrics` — a drop
+  directory carrying two files, or one `record-metrics` call carrying both
+  `-AgentCount` and `-RoutingAccuracy`, was enough — and T1/T3 then reported
+  "never supplied by any host", silently disabling the host-supplied metrics.
+  The copy is now key-aware for an `IDictionary` and property-aware for the
+  reloaded `PSCustomObject`.
+- `scripts/self-scale.ps1` (R2-B2): T3 ignored the usability verdict that
+  `Get-HostMetricsFreshness` computes (only T1 consumed it). A stale observation
+  or a sample below `min_routing_samples` still advanced
+  `routing_miss_streak`, so five samples on three runs generated an upgrade
+  proposal — exactly what the two config knobs exist to prevent. T3 now skips
+  with an explicit `T3 SKIPPED` line and leaves the streak unchanged.
+- `scripts/self-scale.ps1` (R2-B3): the micro→small split rewrote each page's
+  preamble with `$preamble.Replace($src, $t.Slug)`, a no-op because the preamble
+  carries the department **display name**, not the slug. All five generated D2
+  pages inherited the legacy title and the legacy count (`Governance and
+  Delivery`/`Function blocks: 8.` twice,
+  `Engineering and Safety`/`Function blocks: 10.` three times) instead of
+  6/2/3/3/4. The split now writes the target display name and block count, and
+  gate G4 reads the mandatory `Function blocks: <N>` field (§10.2) instead of
+  counting headings alone, so a mislabelled page fails `SCL_010`.
+- `scripts/self-scale.ps1` (R2-B4): the base64-embedded small-tier structure
+  tree was rooted `ai-company-governance/`, so every generated README described a
+  folder that is not the package; it is now `ai-company/`.
+- `scripts/self-scale.ps1` (R2-B5): gate G2 re-implemented the build-residue
+  half of the package-file-set boundary inline, contradicting §3's "sole
+  implementation" claim; it now calls `Test-PackagePathExcluded`. Two overclaims
+  were also reworded — "no `Remove-Item -Recurse -Force` pattern anywhere" (the
+  proposal report quotes one as an example) and "T1 and T3 cannot fire" (printed
+  even when only one metric was still at its default).
+- `references/method-patterns.md` §3.9 (R2-B6, security): the L-2 version-keyword
+  exemption leaked real addresses — `release 192.168.1.100`, `build 10.0.0.1`,
+  `rev 8.8.4.4` and `v 10.0.0.1` all passed through unmasked, while §9.3 makes IP
+  masking mandatory. The exemption is removed: every octet-valid dotted quad is
+  masked, and the accepted false positive (a four-part version number becomes
+  `[IP]`) is documented instead of leaking.
+- `references/method-patterns.md` §3.8 (R2-B7): the `check_rate_limit` docstring
+  claimed eviction only touched callers idle for a full window, but the overflow
+  path evicted oldest-inserted keys regardless; the docstring now states the
+  best-effort guarantee, and expired buckets are actually pruned across all keys
+  before eviction (previously only already-empty buckets were).
+- `tests/test-method-patterns.py` (R2-B8): `test_def_unique_across_package` and
+  `test_no_filename_with_space` recursed the whole working tree while skipping
+  only `.git`, unlike the package-file-set helper they share a file with. Any
+  local copy under `.workbuddy/` — which the repository's own review tooling
+  creates — turned the authoritative acceptance command red. Both now iterate
+  `package_relative_paths()` (README-FOR-AI.md §3).
+- `tests/test-method-patterns.py`: three hollow assertions were made real. The
+  out-of-bounds `read_reference_file` probe asserted nothing (its secret
+  sentinel came from a file that does not exist), the cwd probe allowed the skill
+  directory and the temp directory (so `cwd=None` passed), the human-paste
+  denylist checked four strings out of the H1/H2 set, and the L-3/L-6 tests
+  `skipTest`-ed instead of failing when the guarded symbol was deleted.
+- Documentation resynced with the implementation (P4/P32): `references/scaling.md`
+  §7 step 5i said the generated tree is the **29**-file skeleton (it is 30),
+  §7 step 3 omitted `validation` from the write-back list, §3's T1 row quoted the
+  bare tier cap without `agent_count_headroom`, §6's G4 row did not mention the
+  `Function blocks:` check, the T4 denominator is now stated as the union of
+  catalog and referenced codes, and §3.1 documents how `{WORKSPACE_ROOT}` is
+  derived. The three READMEs, `CONTRIBUTING.md` and `SECURITY.md` now state that
+  `-Action evaluate` also generates a pending package on a threshold hit;
+  `CONTRIBUTING.md` cites §6.1/§15 (not §8) for the version locations and matches
+  the **package file set** (not "the disk"); `SECURITY.md` lists all five
+  bookkeeping fields; `README-FOR-AI.md` §11.4's prompt skeleton is English
+  (matching §6.3/P47 and the shipped prompts) and §12.6's example records the
+  shipped `routing_accuracy` default of `1.0`.
+- `scripts/scaling-config.json`: removed the inert `immutable_paths` key. Gates
+  G1–G3 enforce those three paths directly (they are named in §9.5); a config key
+  that nothing reads advertised an interface that did not exist (P32).
 
 - `scripts/self-scale.ps1` (H-1): the 5h copy walked the skill directory with a
   full recursive `Get-ChildItem`, while the file count excluded `.github/` — and
@@ -211,6 +285,19 @@ and this project adheres to
 
 ### Added
 
+- `tests/test-method-patterns.py`: five regression assertions for the 2026-10-14
+  re-review (`Recheck20261014Tests`) — host metrics survive a two-metric write,
+  T3 skips below `min_routing_samples`, IP masking has no version-keyword
+  escape, `_scrubbed_environment()` really removes credentials while keeping
+  benign variables, and all three AIGC layers are asserted (including that the
+  embedded marker is digest-bound). The propose smoke test now also asserts each
+  split page's own title and `Function blocks:` figure and that the generated
+  tree is rooted `ai-company/`. **Every new assertion was negative-verified**:
+  the defect was re-injected into a throwaway copy and the assertion was
+  confirmed to fail. Suite is now 44 tests (was 39).
+- `tests/test-method-patterns.py` (added earlier in this round): the required
+  discipline is unchanged — a new regression assertion is only accepted after it
+  fails on the re-injected defect.
 - `references/scaling.md` §3.1: the host metric write-back contract the script
   already referenced from four places but no document defined — the two
   channels, the drop-file shape, validation, freshness, the routing-sample

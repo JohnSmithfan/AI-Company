@@ -95,7 +95,7 @@ All thresholds are quantified. No "when the department feels overloaded" or
 
 | # | Trigger | Quantified condition | Provenance | Data source |
 |---|---|---|---|---|
-| **T1** | Agent capacity overflow | Actual agent count > tier cap (micro 3 / small 10 / medium 50 / large 200) | **host-supplied** | `.scaling-state.json` → `last_metrics.agent_count`, written by the host runtime |
+| **T1** | Agent capacity overflow | Actual agent count > tier cap × `agent_count_headroom` (shipped default 1.0, so micro > 3 / small > 10 / medium > 50 / large > 200; a host that changes the headroom changes the threshold, see the T1 note below) | **host-supplied** | `.scaling-state.json` → `last_metrics.agent_count`, written by the host runtime |
 | **T2** | Function-block overload | Blocks in a single department > tier mean × 1.5. Micro mean = 18 / 2 = 9.0, so the threshold is **> 13.5**: a single department with **≥ 14 blocks** overflows | **measured** | Live count of `^## FB-\d+:` headings in D2 pages |
 | **T3** | Routing accuracy drop | `department: auto` hit rate **< 85%** on **3 consecutive evaluations** | **host-supplied** | `last_metrics.routing_accuracy`, written by the host runtime; the `routing_miss_streak` counter is maintained by the script in the state file |
 | **T4** | Error-code reuse excess | Worst per-prefix share of codes referenced by **more than one** function block **> 25%** | **measured** | Live scan of `references/error-codes.md` (code universe) plus the `### 4. Error Codes` tables of every `## FB-N:` section in the D2 pages |
@@ -129,6 +129,12 @@ ratio(prefix) = |{ codes of prefix referenced by >= 2 distinct function blocks }
 
 metric = max over prefixes, rounded to 4 decimals (0.0 when no data)
 ```
+
+The denominator is the union of the codes **defined** in `error-codes.md` and the
+codes **referenced** by a D2 `### 4. Error Codes` table: a code referenced but
+absent from the catalog still counts. `Get-ErrorCodeReuseRatio` computes the
+union, so a half-defined catalog can never deflate (and therefore hide) the
+metric. At micro tier the two sets are equal, so the value is `0.0`.
 
 "Referenced by" is parsed from the `### 4. Error Codes` table inside each
 `## FB-N:` section of the D2 pages; the same code listed twice inside one
@@ -172,6 +178,19 @@ Trigger rules:
   generated, and the report's first line carries the `SCL_001` warning.
 
 ### 3.1 Host metric write-back (record-metrics and the drop directory)
+
+**Placeholder resolution.** The executor derives `{WORKSPACE_ROOT}` as the parent
+directory of `{SKILL_DIR}` and never reads an ambient environment variable
+(the Python templates resolve `WORKSPACE_ROOT` from the environment instead; the
+executor deliberately does not, because the surrounding host also owns that name
+and reading it would redirect the upgrade package and the drop directory into the
+host's own workspace). Consequence to keep in mind: in a standalone checkout
+`{SKILL_DIR}` lives *under* `{WORKSPACE_ROOT}`, so the declared write scope
+`{WORKSPACE_ROOT}/**` textually also covers the skill directory. The only write
+the executor performs there is the sanctioned operational state file
+`.scaling-state.json` (Section 1); skill content is never written. A host that
+installs the skill outside its workspace keeps the same derivation and gets the
+same single exception.
 
 T1 (`agent_count`) and T3 (`routing_accuracy`) are **host-supplied**: nothing
 inside the package can observe the live agent population or the routing hit
@@ -328,7 +347,7 @@ executor; gates are never merged into a single conditional.
 | **G1** | Permission-unchanged | SHA-256 of the `permissions` block extracted from the package `SKILL.md` frontmatter equals the SHA-256 of the current one. Zero-change; the hash is computed over normalized text (line-ending insensitive) | Reject: package quarantined | `SCL_004` |
 | **G2** | Tests-unchanged | Every file under `tests/**` in the package is byte-identical (SHA-256, same relative path set) to the current package — no additions, no deletions, no modifications; equivalently, the package diff contains no `tests/**` paths. Build residues (`__pycache__/`, `*.pyc`) are excluded on both sides, so they can never fail or pad this gate | Reject: package quarantined | `SCL_005` |
 | **G3** | Deny-and-gate-unchanged | The 5 `deny` items are present and unrewritten in the package, and `scripts/self-scale.ps1` in the package has the same SHA-256 as the running script | Reject: package quarantined | `SCL_004` |
-| **G4** | Function-block conservation | Total `## FB-N:` headings across the package's D2 pages equals the target expectation (18 for small) **and** every department's count equals its merge-tree expectation (small tier: 6/2/3/3/4), and no unexpected D2 page exists in the package; on failure, a per-department expected-vs-found list is reported. The split itself aborts with `SCL_010` before any package is completed when a legacy page holds more or fewer sections than the merge tree expects (nothing is silently dropped or padded) | Reject: package quarantined | `SCL_010` |
+| **G4** | Function-block conservation | Total `## FB-N:` headings across the package's D2 pages equals the target expectation (18 for small) **and** every department's count equals its merge-tree expectation (small tier: 6/2/3/3/4), and no unexpected D2 page exists in the package; every page's declared `Function blocks: <N>` figure (mandatory per README-FOR-AI.md §10.2) must equal its merge-tree share, so a page that keeps the legacy count fails the gate; on failure, a per-department expected-vs-found list is reported. The split itself aborts with `SCL_010` before any package is completed when a legacy page holds more or fewer sections than the merge tree expects (nothing is silently dropped or padded) | Reject: package quarantined | `SCL_010` |
 | **G5** | Alias completeness | Every legacy slug has at least one alias row, every target slug is reachable, and no new slug collides with any historical alias | Reject: package quarantined | `SCL_003` |
 | **G6** | Acceptance passed | Machine-checkable acceptance items on the package: file count = expected value (30 for small, counted over the package file set of Section 2 / README-FOR-AI.md §3, which excludes `UPGRADE-PROPOSAL.md` and build residues); frontmatter triple consistency (`scale_tier` / `department_count` / `function_block_count`); version agreement in the three required locations (`_meta.json`, README badge in the concrete `version-2.0.0-blue` format, `SKILL.md` frontmatter); `interface.department.enum` lists exactly `auto` plus the 5 small-tier department slugs (item count = department_count + 1, no retired slug); presence of all 5 target D2 files; `error_code_prefixes` lists the 5 department prefixes plus `SCL_`; `prompts/03-test-cases.md` present, `agent-invoked`, harness level ≥ L3. On failure the failed-item detail is written to the log and to `last_failure.detail` in the state file. Full §15 acceptance including AI-content review (A–G groups, H, I, U) remains a human step recorded in the report | Reject: package quarantined with the failed-item list | `SCL_006` |
 
@@ -362,7 +381,7 @@ Notes:
       at its default prints an explicit "cannot fire" note
 
 3. No trigger -> write back next_evaluation (+30 days), last_metrics,
-   metrics_provenance and routing_miss_streak, exit 0.
+   metrics_provenance, routing_miss_streak and validation, exit 0.
    -> if invoked with -Force, log the SCL_001 warning and continue instead
 
 4. Triggered -> look up the split mapping from the merge tree (Section 4)
@@ -401,7 +420,7 @@ Notes:
        [Unreleased] (Keep a Changelog order, never appended at the end);
        version strings replaced with counted, context-exact rewrites (badge,
        version table rows), every replacement location logged; the README
-       Project Structure tree is rewritten to the 29-file small-tier
+       Project Structure tree is rewritten to the 30-file small-tier
        skeleton and marked as requiring human review;
        LICENSE / SECURITY.md / .editorconfig / CODE_OF_CONDUCT.md /
        CONTRIBUTING.md / AGENTS.md are never touched

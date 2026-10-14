@@ -75,9 +75,9 @@ ai-company/
 │       └── engineering-and-safety.md    # D2，10 FB
 ├── scripts/
 │   ├── self-scale.ps1         # 自我升级脚本（propose-only，六道门）
-│   └── scaling-config.json    # 升级配置（阈值/不可变路径）
+│   └── scaling-config.json    # 升级配置（阈值/宿主指标/输出目录）
 └── tests/
-    └── test-method-patterns.py  # 四类断言 A/B/C/D + 2026-10-14 回归组，39 条
+    └── test-method-patterns.py  # 四类断言 A/B/C/D + 初审/复审回归组，44 条
 ```
 
 > 26 = 治理层 13 + `.gitattributes` 1 + `.scaling-state.json` 1 + `README-FOR-AI.md`（本文）1 + prompts 2 + references 顶层 3 + 部门 D2 2 + scripts 2 + tests 1。升 small 档为 **30**（−2 旧 D2 +5 新 D2 +1 新 prompt = +4；`.gitattributes` 两档均有，不增不减）。
@@ -466,31 +466,38 @@ A1 路径用占位符（`{SKILL_DIR}`/`{WORKSPACE_ROOT}`，禁硬编码）；A2 
 
 ```markdown
 ---
-mode: human-paste            # 或 agent-invoked
-id: 01-implement-method      # 与文件名主干一致
-title: Implement Method      # 英语
+mode: human-paste            # or agent-invoked
+id: 01-implement-method      # matches the file-name stem
+title: Implement Method      # English
 output_language: user-specified
 harness_level: L3
 ---
 
-> **模式**：人工粘贴（human-paste）
-> **用途**：复制到任意 AI 对话窗口，让该 AI 按本规范实现一个方法。
-> **本文件不由 Agent 自动调用。**
+> **Mode**: human-paste (paste into any AI chat window)
+> **Purpose**: Copy this prompt into any AI chat window and have that AI
+> implement one method to the standard below.
+> **This file is not invoked automatically by an agent.**
 >
-> **使用前需填写**：
-> - `<METHOD_NAME>` — 要实现的方法名
-> - `<LANGUAGE>` — 目标编程语言
-> - `<CONSTRAINTS>` — 项目特定约束
+> **Fill in before use**:
+> - `<METHOD_NAME>` - name of the method to implement
+> - `<LANGUAGE>` - target programming language
+> - `<CONSTRAINTS>` - project-specific constraints
 >
-> **输出语言**：跟随你当前对话所用的语言。
+> **Output language**: follow the language you are currently using in this
+> conversation.
 
 ## Prompt
-（以下整块可复制）
-## 期望输出
-## 自检清单
+
+(The block below is copied as a whole)
+
+## Expected Output
+
+## Self-Check Checklist
 ```
 
 `agent-invoked` 差异：`mode` 值不同；去掉"使用前需填写"与"本文件不由 Agent 自动调用"；增加"期望产物路径""失败错误码""引用的模板锚点"三项。
+
+骨架为**英语**：源文件一律英语（§6.3 / P47），逐字符照抄的是**结构**（frontmatter 五个键、四行抬头、三个正文标题），不是某种语言的措辞；`prompts/` 下的两个文件即此骨架的英语实例。
 
 ---
 
@@ -553,13 +560,13 @@ G1–G3 不可绕过（即使人工批准）。升级包**排除**仓库工具�
   "current_tier": "micro",
   "tier_history": [],
   "next_evaluation": "<ISO8601，默认 +30 天>",
-  "last_metrics": { "agent_count": 0, "routing_accuracy": 0.0, "max_blocks_per_department": 0, "error_code_reuse_ratio": 0.0 },
+  "last_metrics": { "agent_count": 0, "routing_accuracy": 1.0, "max_blocks_per_department": 0, "error_code_reuse_ratio": 0.0 },
   "pending_proposals": [],
   "validation": { "gates_passed": 6, "file_count": 26, "acceptance_passed": false }
 }
 ```
 
-约束：`current_tier` 与 frontmatter `scale_tier` 一致（P41）；`tier_history` **只追加**不得改删（审计）；**顶层**`validation.gates_passed` 必须 = 6；`validation.file_count` 用本档期望值（micro 26 / small 30）；初次生成时 `tier_history` 与 `pending_proposals` 为空。脚本另维护 `routing_miss_streak`（T3 连续未命中计数）与 `metrics_provenance`（指标来源标注），并在门失败时写 `last_failure`（含 `code`/`gates_failed`/`detail`/`package_path`）。`record-metrics` 与 drop 目录另写 `host_metrics` 与 `metrics_log`。
+约束：`current_tier` 与 frontmatter `scale_tier` 一致（P41）；`tier_history` **只追加**不得改删（审计）；**顶层**`validation.gates_passed` 必须 = 6；`validation.file_count` 用本档期望值（micro 26 / small 30）；初次生成时 `tier_history` 与 `pending_proposals` 为空。宿主供给指标的出厂默认值为 `agent_count = 0` / `routing_accuracy = 1.0`（见 `scaling.md` §3；`routing_accuracy` 取 1.0 是为了让"尚无样本"不被误判为精度不达标）。脚本另维护 `routing_miss_streak`（T3 连续未命中计数）与 `metrics_provenance`（指标来源标注），并在门失败时写 `last_failure`（含 `code`/`gates_failed`/`detail`/`package_path`）。`record-metrics` 与 drop 目录另写 `host_metrics` 与 `metrics_log`。
 
 ---
 
@@ -571,6 +578,7 @@ G1–G3 不可绕过（即使人工批准）。升级包**排除**仓库工具�
 - **C 结构一致性**：`test_function_block_conservation`（micro=18）、`test_scaling_files_present`（四件套 + propose-only）、`test_governance_files_present`（13 文件含 AGENTS.md）、`test_no_filename_with_space`、`test_prompt_modes_declared`（01/02 为 human-paste）、`test_human_paste_prompts_self_contained`（H1/H2/H6）、`test_language_policy_declared`、`test_skill_md_is_index_only`（正文 ≤120 行、无 def、无具体错误码）。
 - **D 不可变边界**：`test_upgrade_package_excludes_immutable`（扫描 `{WORKSPACE_ROOT}/.skill-upgrade/`，不含 tests/ 与 permissions 变更；目录不存在时 skip）。
 - **★ 2026-10-14 回归组（8 条，初审 H-1..H-4 / M-1..M-4）**：`test_package_file_set_matches_declared_count`（包文件集与结构树逐路径比对）、`test_upgrade_package_excludes_repo_tooling`（升级包内 `.git/`/`.workbuddy/`/`.github/` 计数为 0）、`test_propose_smoke_on_clean_copy`（`tempfile` 纯净副本内跑 propose，断言 exit 0 且日志含 `G6 PASSED`）、`test_scaling_state_schema_complete`（顶层必需字段含 `validation`，`gates_passed==6`、`file_count` 为本档期望值）、`test_no_crlf_and_no_bom_package_wide`（**读 bytes**；`read_text()` 的通用换行会掩盖 CRLF，这正是 M-1 逃过 31 条断言的原因）、`test_doc_section_anchors_exist`（`scaling.md` / `README-FOR-AI.md` 的章节引用目标必须存在）、`test_record_metrics_action_implemented`（`ValidateSet` 每个取值都能在 `switch` 找到分支，且 `switch` 有 `default`）、`test_host_metric_freshness_uses_config`（注入 `host_metrics` 后阈值按配置生效，日志不再出现 `-day freshness limit`）。**每条均做过"注回缺陷后必须失败"的反向验证。**
+- **★ 2026-10-14 复审回归组（5 条，R2）**：`test_host_metrics_survive_multiple_writes`（一次调用写两个宿主指标后 `host_metrics` 仍须能被 T1 读取；此前第二次写入把它替换成 .NET 成员属性，T1/T3 随即报 "never supplied"）、`test_t3_skips_when_samples_below_minimum`（样本低于 `min_routing_samples` 时 T3 必须跳过且不累加 miss）、`test_ip_masking_has_no_version_keyword_escape`（`release`/`build`/`rev` 之后的真实 IPv4 必须脱敏）、`test_credential_scrubbing_removes_real_names`（擦除必须经真正的 `_scrubbed_environment()`，良性变量保留）、`test_format_output_json_aigc_three_layers`（三层标识逐层断言，且内嵌披露标记绑定内容摘要）。拆分页标题与 `Function blocks:` 计数的断言并入 `test_propose_smoke_on_clean_copy`。**每条均已注回缺陷验证其失败。**
 
 工程要求：`unittest` 风格，`python tests/test-method-patterns.py` 直跑；`SKILL_DIR` 用 `Path(__file__).resolve().parent.parent` 相对推导（禁硬编码）；时间用 `datetime.now(timezone.utc)`（禁已弃用 `utcnow`）；仅标准库；UTF-8 无 BOM。
 
@@ -667,10 +675,13 @@ G1–G3 不可绕过（即使人工批准）。升级包**排除**仓库工具�
 # Windows 默认执行策略（Restricted / RemoteSigned）会拒绝未签名的 .ps1；
 # 下面每条 powershell 命令都显式加 -ExecutionPolicy Bypass（下载得到的脚本
 # 也可先 Unblock-File）。
-# 1. 测试套件（39 条应全绿，1-2 skip 属预期：升级包相关断言在无 .skill-upgrade/ 时按设计跳过）
+# 1. 测试套件（44 条应全绿，1-2 skip 属预期：升级包相关断言在无 .skill-upgrade/ 时按设计跳过）
 python tests/test-method-patterns.py
 
-# 2. 升级就绪检查（不改动技能内容；仅回写自身记录字段到 .scaling-state.json）
+# 2. 升级就绪检查（不改动技能内容）。未命中阈值时仅回写自身记录字段到
+#    .scaling-state.json；任一阈值命中时会额外生成升级提案包到
+#    {WORKSPACE_ROOT}/.skill-upgrade/<ts>/ 并记录 pending_proposals —— 仍不安装、
+#    不改技能内容、不请求权限
 powershell -ExecutionPolicy Bypass -File scripts/self-scale.ps1 -Action evaluate
 
 # 3. 宿主指标通道端到端（T1 必须能真的触发；验证后请还原为 0 并重新 evaluate）

@@ -62,13 +62,16 @@ Key checks for the micro tier (the full list is in `README-FOR-AI.md` **§15**):
 | `SKILL.md` frontmatter | ≤ 85 lines |
 | `SKILL.md` body | ≤ 120 lines, no code implementations or full error-code tables |
 | Governance and community files | 13/13 present (no tier trimming) |
-| `README.md` / `README.en.md` / `README.zh.md` Project Structure tree | Matches the disk exactly |
+| `README.md` / `README.en.md` / `README.zh.md` Project Structure tree | Matches the **package file set** (26 files) exactly — not the raw working tree, which also holds repository tooling |
 | Internal links | No broken relative links; no orphan files under `prompts/` or `references/` |
 | Line endings | LF everywhere and no BOM, checked on **raw bytes** (a CRLF file is invisible to Python's universal-newline `read_text()`) |
-| Version locations | `_meta.json` / README badge / `SKILL.md` frontmatter all `1.0.0` (three locations — `README-FOR-AI.md` §8) |
+| Version locations | `_meta.json` / README badge / `SKILL.md` frontmatter all `1.0.0` (three locations — `README-FOR-AI.md` §6.1 / §15, `references/scaling.md` §8) |
 
-Tier readiness can be checked with (no skill content is modified; only the
-script's own bookkeeping fields are written back to `.scaling-state.json`):
+Tier readiness can be checked with (no skill content is modified). With no
+threshold hit only the script's own bookkeeping fields are written back to
+`.scaling-state.json`; when a threshold hits it also generates a pending
+upgrade package under `{WORKSPACE_ROOT}/.skill-upgrade/<timestamp>/` and records
+it in `pending_proposals` — it never installs and never edits skill content:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts/self-scale.ps1 -Action evaluate

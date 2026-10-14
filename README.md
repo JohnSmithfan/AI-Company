@@ -98,10 +98,14 @@ and are excluded from the count (`README-FOR-AI.md` §3).
 ## Upgrading
 
 This package is designed to grow. `scripts/self-scale.ps1 -Action evaluate`
-checks tier readiness against `scripts/scaling-config.json` and writes back
-only its own bookkeeping fields to `.scaling-state.json` (`next_evaluation`,
-`last_metrics`, `metrics_provenance`, `routing_miss_streak`, `validation`); it
-never modifies skill content. The
+checks tier readiness against `scripts/scaling-config.json`. With no threshold
+hit it writes back only its own bookkeeping fields to `.scaling-state.json`
+(`next_evaluation`, `last_metrics`, `metrics_provenance`,
+`routing_miss_streak`, `validation`). When a threshold *does* hit it also
+generates a pending upgrade package under
+`{WORKSPACE_ROOT}/.skill-upgrade/<timestamp>/` and records it in
+`pending_proposals` — it still never installs anything and never modifies skill
+content. The
 actual upgrade always requires human approval and is recorded in
 `.scaling-state.json`. Thresholds, paths, and aliases are specified in
 [references/scaling.md](references/scaling.md); the scale-tier ladder itself is

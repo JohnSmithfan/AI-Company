@@ -92,10 +92,12 @@ ai-company/
 ## 档位升级
 
 本技能包为成长而设计：`scripts/self-scale.ps1 -Action evaluate` 会依据
-`scripts/scaling-config.json` 做就绪度检查，并只把自身的记录字段
+`scripts/scaling-config.json` 做就绪度检查。未命中阈值时，只把自身的记录字段
 （`next_evaluation`、`last_metrics`、`metrics_provenance`、`routing_miss_streak`、
 `validation`）回写到
-`.scaling-state.json`，不改动任何技能内容；真正的档位变更始终需要
+`.scaling-state.json`；一旦有阈值命中，还会在
+`{WORKSPACE_ROOT}/.skill-upgrade/<时间戳>/` 生成待批准的升级包并记入
+`pending_proposals`——但仍不安装、不改动任何技能内容。真正的档位变更始终需要
 人工批准，并记录到 `.scaling-state.json`。阈值、路径与别名等升级规格见
 [references/scaling.md](references/scaling.md)；本包的档位阶梯在
 `README-FOR-AI.md` §1 本地定义。
