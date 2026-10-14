@@ -432,8 +432,9 @@ class BehaviorTests(unittest.TestCase):
         self.assertIn("CWDPROBE=", out, "良性命令未成功执行或输出不可读")
         m = re.search(r"CWDPROBE=(\S+)", out)
         cwd = Path(m.group(1)).resolve()
-        allowed_roots = [SKILL_DIR.resolve(), WORKSPACE_ROOT.resolve(),
-                         Path(tempfile.gettempdir()).resolve()]
+        # 只允许 {WORKSPACE_ROOT}：把技能目录与沙箱临时目录也算"受限"，就无法
+        # 发现 cwd=None（继承包根目录）的实现。
+        allowed_roots = [WORKSPACE_ROOT.resolve()]
         self.assertTrue(
             any(cwd == root or root in cwd.parents for root in allowed_roots),
             f"cwd 不受限: {cwd}（应位于 {{WORKSPACE_ROOT}}、技能目录或沙箱临时目录内）",
@@ -576,27 +577,17 @@ class BehaviorTests(unittest.TestCase):
                 break
         self.assertTrue(read_ok, "允许路径（references/ 内真实文件）应可读且内容一致")
 
-        # 边界：越界路径拒绝（包外相对路径 / 绝对路径，均为只读探测，无需落盘）
-        outside_real = WORKSPACE_ROOT / "README-FOR-AI.md"
-        secret_head = ""
-        if outside_real.is_file():
-            secret_head = outside_real.read_text(encoding="utf-8")[:200]
+        # 边界：越界路径必须抛 PermissionError 拒绝（只读探测，无需落盘）。
+        # 此前的写法是"返回内容包含包外文件前 200 字符才算失败"，而探针目标
+        # WORKSPACE_ROOT/README-FOR-AI.md 并不存在，secret_head 恒为空，于是
+        # rejected 恒为 True —— 一条永不生效的空断言（README-FOR-AI.md §13/§14.5）。
         temp_outside = Path(tempfile.gettempdir()).resolve() / "oob-probe.md"
         rel_outside = os.path.relpath(temp_outside, SKILL_DIR)
         probes = ["../outside.md", str(temp_outside),
                   rel_outside, rel_outside.replace("\\", "/")]
-        if outside_real.is_file():
-            probes.append(os.path.relpath(outside_real, SKILL_DIR).replace("\\", "/"))
-        rejected = True
         for p in probes:
-            try:
-                out = fn(p)
-            except Exception:
-                continue  # 抛异常拒绝
-            if isinstance(out, str) and secret_head and secret_head in out:
-                rejected = False  # 返回了越界文件内容（泄露）
-                break
-        self.assertTrue(rejected, "越界路径必须被拒绝且不得泄露内容")
+            with self.assertRaises(PermissionError, msg=f"越界路径未被拒绝: {p}"):
+                fn(p)
 
     # ── 7. generate_trace_id：默认前缀 / 自定义前缀 / 唯一性 ──────────────────
     def test_generate_trace_id(self):
@@ -761,8 +752,9 @@ class BehaviorTests(unittest.TestCase):
         cap = self.ns.get("_MAX_RATE_IDENTIFIERS")
         buckets = self.ns.get("_rate_buckets")
         if not isinstance(cap, int) or not hasattr(buckets, "__len__"):
-            self.skipTest("权威源未声明限流器上界（L-3）")
-            return
+            self.fail(
+                "权威源未声明限流器上界（L-3 回归）：删除被守护的符号不得让断言 skip"
+            )
         for _ in range(cap + 500):
             fn("bounded-" + uuid.uuid4().hex, limit=10, window=60)
         self.assertLessEqual(
@@ -775,8 +767,10 @@ class BehaviorTests(unittest.TestCase):
         fn = self._fn("read_reference_file")
         flag = "SKILL_ROOT_CONFIGURED"
         if flag not in self.ns:
-            self.skipTest("权威源未声明 SKILL_ROOT_CONFIGURED（L-6 fail-closed）")
-            return
+            self.fail(
+                "权威源未声明 SKILL_ROOT_CONFIGURED（L-6 fail-closed 回归）："
+                "删除被守护的符号不得让断言 skip"
+            )
         saved = self.ns[flag]
         self.ns[flag] = False
         try:
@@ -821,19 +815,23 @@ class SourceIntegrityTests(unittest.TestCase):
         两条防线并存：权威源"含"10 个 def（test_templates_source_exists）+
         全包"仅"1 处（本断言），后者才能守住单一权威源。
         """
-        scanned = ["*.md", "*.py", "*.ps1"]
+        # Scan the PACKAGE FILE SET, never the whole working tree. Repository
+        # tooling directories (.workbuddy/, .github/, .skill-upgrade/) hold local
+        # copies of the package — review reports, upgrade packages, scratch
+        # copies — and are not package content (README-FOR-AI.md §3). An rglob
+        # over everything made this assertion fail as soon as a maintainer ran
+        # the repository's own review scripts, which write under .workbuddy/.
         hits = {}
-        for pattern in scanned:
-            for path in SKILL_DIR.rglob(pattern):
-                if ".git" in path.parts:
-                    continue
-                try:
-                    text = path.read_text(encoding="utf-8")
-                except (UnicodeDecodeError, OSError):
-                    continue
-                for match in re.finditer(r"^def ([A-Za-z_][A-Za-z0-9_]*)", text, re.M):
-                    rel = path.relative_to(SKILL_DIR).as_posix()
-                    hits.setdefault(match.group(1), set()).add(rel)
+        for rel in package_relative_paths():
+            if not rel.endswith((".md", ".py", ".ps1")):
+                continue
+            path = SKILL_DIR / rel
+            try:
+                text = path.read_text(encoding="utf-8")
+            except (UnicodeDecodeError, OSError):
+                continue
+            for match in re.finditer(r"^def ([A-Za-z_][A-Za-z0-9_]*)", text, re.M):
+                hits.setdefault(match.group(1), set()).add(rel)
 
         duplicated = {name: sorted(locs) for name, locs in hits.items() if len(locs) > 1}
         self.assertEqual(
@@ -904,8 +902,10 @@ class StructureTests(unittest.TestCase):
 
     def test_no_filename_with_space(self):
         """★ R3-7：断言无文件名含空格（防 'CODE OF CONDUCT.md'）"""
-        for f in SKILL_DIR.rglob("*"):
-            self.assertNotIn(" ", f.name, f"文件名含空格: {f}")
+        # Same package-file-set basis as test_def_unique_across_package: a
+        # scratch copy under .workbuddy/ is not package content (§3).
+        for rel in package_relative_paths():
+            self.assertNotIn(" ", Path(rel).name, f"文件名含空格: {rel}")
 
     def test_prompt_modes_declared(self):
         """★ R3-3：断言每个 prompt 声明 mode，且 01/02 为 human-paste"""
@@ -925,7 +925,17 @@ class StructureTests(unittest.TestCase):
             content = f.read_text(encoding="utf-8")
             if "mode: human-paste" not in content[:400]:
                 continue
-            for bad in ["references/", "{SKILL_DIR}", "SKILL.md", "All content in English"]:
+            # H1 禁内部路径（references/ prompts/ scripts/ {SKILL_DIR} SKILL.md
+            # method-patterns）；H2 禁内部标识符（部门 slug、错误码、FB-N、WFT-NNN）；
+            # H6 禁写死输出语言。原名单只查了 4 项，未来把 method-patterns 或
+            # 错误码抄进 prompt 也能通过。
+            for bad in [
+                "references/", "prompts/", "scripts/", "{SKILL_DIR}",
+                "SKILL.md", "method-patterns",
+                "governance-and-delivery", "engineering-and-safety",
+                "CEO_", "CTO_", "SCL_", "FB-", "WFT-",
+                "All content in English",
+            ]:
                 self.assertNotIn(bad, content, f"{f.name} 违反自包含约束: {bad}")
 
     def test_language_policy_declared(self):
@@ -1119,6 +1129,42 @@ class InitialReview20261014Tests(unittest.TestCase):
         proposals = list((workspace / ".skill-upgrade").rglob("UPGRADE-PROPOSAL.md"))
         self.assertEqual(1, len(proposals), "未生成 UPGRADE-PROPOSAL.md")
 
+        # 复审 B1/H-5：拆分页必须改成自己的显示名与自己的职能块数。
+        # 此前 $preamble.Replace($src, $t.Slug) 是空操作（preamble 里是显示名，
+        # 不是 slug），五个拆分页全部沿用 legacy 标题与 8/10 的计数，而 G4 只数
+        # '## FB-N:' 标题，照样 PASSED。
+        pkg_dir = proposals[0].parent
+        expected = {
+            "governance-and-operations": ("Governance and Operations", 6),
+            "quality-and-delivery": ("Quality and Delivery", 2),
+            "technology-and-platform": ("Technology and Platform", 3),
+            "security-and-compliance": ("Security and Compliance", 3),
+            "people-and-growth": ("People and Growth", 4),
+        }
+        actual_slugs = set()
+        for f in sorted((pkg_dir / "references" / "departments").glob("*.md")):
+            actual_slugs.add(f.stem)
+            self.assertIn(f.stem, expected, f"生成了多余的部门页: {f.name}")
+            title, blocks = expected[f.stem]
+            head = f.read_text(encoding="utf-8").splitlines()
+            self.assertEqual(
+                f"# {title}", head[0].strip(),
+                f"{f.name} 未改写为本部门标题（沿用 legacy 标题）",
+            )
+            self.assertIn(
+                f"Function blocks: {blocks}.", head[2],
+                f"{f.name} 的 Function blocks 声明未随拆分改写（§10.2 守恒基准）",
+            )
+        self.assertEqual(
+            set(expected), actual_slugs,
+            f"拆分页集合不完整: {sorted(set(expected) - actual_slugs)}",
+        )
+        tree = (pkg_dir / "README.md").read_text(encoding="utf-8")
+        self.assertIn(
+            "```text\nai-company/", tree,
+            "生成的 README 结构树根目录不是包名 ai-company/",
+        )
+
     # ── M-2：顶层 validation 块（§12.6 强制的字段） ──────────────────────────
     def test_scaling_state_schema_complete(self):
         """★ M-2：状态文件顶层必需字段齐备，validation.gates_passed == 6。"""
@@ -1219,6 +1265,199 @@ class InitialReview20261014Tests(unittest.TestCase):
             "-day freshness limit", combined,
             "freshness 日志退化为空（Get-CurrentMetrics 未传 -Config）",
         )
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# ★ 2026-10-14 复审（第二轮）回归防线
+#
+# 初审的 39 条断言全绿，机制仍然坏了三处：宿主指标多写一次即损坏、T3 无视
+# min_routing_samples/freshness、拆分页沿用 legacy 标题与计数。本轮每条断言都
+# 按 CONTRIBUTING.md 的 negative-verify 规则先注回缺陷确认失败，再保留。
+# ═════════════════════════════════════════════════════════════════════════════
+class Recheck20261014Tests(unittest.TestCase):
+    """复审批次（2026-10-14 R2）发现缺陷的机器防线。"""
+
+    @classmethod
+    def setUpClass(cls):
+        os.environ.setdefault("SKILL_DIR", str(SKILL_DIR))
+        os.environ.setdefault("WORKSPACE_ROOT", str(WORKSPACE_ROOT))
+        cls.ns = load_template_namespace()
+
+    def _fn(self, name):
+        fn = self.ns.get(name)
+        self.assertTrue(callable(fn), f"模板 {name} 不可调用")
+        return fn
+
+    def _run_self_scale(self, script, action, extra=None, timeout=180):
+        exe = shutil.which("powershell") or shutil.which("pwsh")
+        if exe is None:
+            self.skipTest("未找到 powershell/pwsh；跳过脚本冒烟断言")
+        cmd = [exe, "-ExecutionPolicy", "Bypass", "-File", str(script), "-Action", action]
+        if extra:
+            cmd.extend(extra)
+        return subprocess.run(
+            cmd, capture_output=True, text=True, encoding="utf-8",
+            errors="replace", timeout=timeout,
+        )
+
+    def _temp_workspace(self):
+        base = Path(tempfile.gettempdir())
+        for _ in range(20):
+            candidate = base / ("aic-recheck-" + uuid.uuid4().hex[:10])
+            try:
+                candidate.mkdir()
+                return candidate
+            except FileExistsError:
+                continue
+            except PermissionError:
+                break
+        fallback = SKILL_DIR / ".workbuddy" / "selftest" / uuid.uuid4().hex[:10]
+        fallback.mkdir(parents=True, exist_ok=True)
+        return fallback
+
+    def _clean_copy(self, dest):
+        dest = Path(dest)
+        for rel in package_relative_paths():
+            target = dest / rel
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(SKILL_DIR / rel, target)
+        return dest
+
+    # ── 复审 B1：宿主指标多写一次不得损坏 host_metrics ────────────────────────
+    def test_host_metrics_survive_multiple_writes(self):
+        """★ 复审 B1：一次调用写两个宿主指标后，T1 仍必须能读到它们。
+
+        此前 Write-HostMetric 用 PSObject.Properties 复制既有的 [ordered]
+        字典，复制到的是 .NET 成员（Count/Keys/Values/...）而不是指标条目，
+        因此同一进程内的第二次写入把 host_metrics 变成垃圾；T1/T3 随即报告
+        "never supplied by any host"，宿主供给的指标静默失效——drop 目录一次
+        投递两个文件（文档推荐的用法）即可触发。
+        """
+        workspace = self._temp_workspace()
+        self.addCleanup(shutil.rmtree, workspace, ignore_errors=True)
+        pkg = self._clean_copy(workspace / "ai-company")
+        script = pkg / "scripts" / "self-scale.ps1"
+        rec = self._run_self_scale(
+            script, "record-metrics",
+            ["-AgentCount", "9", "-RoutingAccuracy", "0.5", "-SampleSize", "100"],
+        )
+        self.assertEqual(
+            0, rec.returncode,
+            f"record-metrics 失败：\n{(rec.stdout or '')[-1500:]}",
+        )
+        state = json.loads((pkg / ".scaling-state.json").read_text(encoding="utf-8"))
+        host = state.get("host_metrics", {})
+        self.assertEqual(
+            {"agent_count", "routing_accuracy"}, set(host),
+            f"host_metrics 被损坏（多写一次后条目丢失/被 .NET 成员替换）：{host}",
+        )
+        self.assertEqual(9, host["agent_count"].get("value"), "agent_count 条目被损坏")
+        self.assertEqual(0.5, host["routing_accuracy"].get("value"),
+                         "routing_accuracy 条目被损坏")
+        ev = self._run_self_scale(script, "evaluate")
+        combined = (ev.stdout or "") + "\n" + (ev.stderr or "")
+        self.assertIn("T1 agent capacity: agent_count = 9", combined,
+                      f"宿主指标未被读取：\n{combined[-1500:]}")
+        self.assertNotIn("never supplied by any host", combined,
+                         "指标已由宿主写入却被判为从未供给（host_metrics 损坏复发）")
+
+    # ── 复审 B2：T3 必须遵守 min_routing_samples / freshness ─────────────────
+    def test_t3_skips_when_samples_below_minimum(self):
+        """★ 复审 B2：样本数低于 min_routing_samples 时 T3 必须跳过且不计数。
+
+        契约（references/scaling.md §3.1）：样本不足或观测过期时 T3 跳过，
+        never guess。此前该判定只被 T1 消费，T3 直接读回镜像值并累加 miss
+        计数，5 个样本连续三次就能生成升级提案。
+        """
+        workspace = self._temp_workspace()
+        self.addCleanup(shutil.rmtree, workspace, ignore_errors=True)
+        pkg = self._clean_copy(workspace / "ai-company")
+        script = pkg / "scripts" / "self-scale.ps1"
+        rec = self._run_self_scale(
+            script, "record-metrics", ["-RoutingAccuracy", "0.5", "-SampleSize", "5"],
+        )
+        self.assertEqual(
+            0, rec.returncode,
+            f"record-metrics 失败：\n{(rec.stdout or '')[-1500:]}",
+        )
+        for _ in range(4):
+            ev = self._run_self_scale(script, "evaluate")
+            combined = (ev.stdout or "") + "\n" + (ev.stderr or "")
+            self.assertNotIn("TRIGGERED T3", combined,
+                             f"低于样本门槛的路由数据触发了升级提案：\n{combined[-1500:]}")
+            self.assertIn("T3 SKIPPED", combined,
+                          f"T3 未按 min_routing_samples 跳过：\n{combined[-1500:]}")
+        state = json.loads((pkg / ".scaling-state.json").read_text(encoding="utf-8"))
+        self.assertEqual(0, state.get("routing_miss_streak"),
+                         "不可用的路由样本推进了 routing_miss_streak")
+
+    # ── 复审 B3：version/release/build 不得成为 IPv4 脱敏的豁免 ──────────────
+    def test_ip_masking_has_no_version_keyword_escape(self):
+        """★ 复审 B3：关键词后的真实 IPv4 必须被脱敏（§9.3 强制）。"""
+        mask = self._fn("mask_sensitive_data")
+        cases = {
+            "release 192.168.1.100": "release [IP]",
+            "build 10.0.0.1": "build [IP]",
+            "rev 8.8.4.4": "rev [IP]",
+            "v 10.0.0.1": "v [IP]",
+        }
+        for raw, expected in cases.items():
+            self.assertEqual(
+                expected, mask(raw),
+                f"{raw!r} 未被脱敏（版本关键词豁免漏洞复发）",
+            )
+
+    # ── 复审 B4：凭证擦除必须真的移除变量，且不误删良性变量 ──────────────────
+    def test_credential_scrubbing_removes_real_names(self):
+        """★ 复审 B4：_scrubbed_environment 真的移除凭证，PATH/HOME 保留。"""
+        scrub = self._fn("_scrubbed_environment")
+        # _scrubbed_environment() reads os.environ itself (zero-argument contract),
+        # so inject the names, call it, and always restore.
+        injected = {
+            "AWS_SECRET_ACCESS_KEY": "x",
+            "GITHUB_TOKEN": "x",
+            "OPENAI_APIKEY": "x",
+            "PATH": "/usr/bin",
+            "HOME": "/root",
+            "LANG": "C.UTF-8",
+            "TERM": "xterm",
+        }
+        saved = {k: os.environ.get(k) for k in injected}
+        os.environ.update(injected)
+        try:
+            out = scrub()
+        finally:
+            for k, v in saved.items():
+                if v is None:
+                    os.environ.pop(k, None)
+                else:
+                    os.environ[k] = v
+        for secret in ("AWS_SECRET_ACCESS_KEY", "GITHUB_TOKEN", "OPENAI_APIKEY"):
+            self.assertNotIn(secret, out, f"凭证变量未从子进程环境移除: {secret}")
+        for benign in ("PATH", "HOME", "LANG", "TERM"):
+            self.assertIn(benign, out, f"良性变量被误删: {benign}")
+
+    # ── 复审 B5：AIGC 三层标识（含摘要绑定的内嵌披露） ───────────────────────
+    def test_format_output_json_aigc_three_layers(self):
+        """★ 复审 B5：三层标识逐层断言，披露标记必须绑定内容摘要。"""
+        fmt = self._fn("format_output_json")
+        out = fmt("body one", "openai/gpt-4")
+        data = json.loads(out)
+        self.assertIs(data.get("ai_generated"), True, "第 2 层缺 ai_generated: true")
+        self.assertIn("generated_at", data, "第 2 层缺 generated_at（此前可被静默删除）")
+        self.assertRegex(
+            data["generated_at"], r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}",
+            "generated_at 不是 ISO8601",
+        )
+        self.assertEqual("openai/gpt-4", data.get("model"),
+                         "model 字段未按 <provider/model> 输出")
+        first = re.search(r"\[aigc:[0-9a-f]+\]", data["content"])
+        self.assertIsNotNone(first, "第 3 层缺内容本体内嵌披露标记 [aigc:...]")
+        second = re.search(r"\[aigc:[0-9a-f]+\]",
+                           json.loads(fmt("body two", "openai/gpt-4"))["content"])
+        self.assertIsNotNone(second)
+        self.assertNotEqual(first.group(0), second.group(0),
+                            "披露标记未绑定内容摘要（改正文不失效）")
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
