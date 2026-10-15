@@ -10,6 +10,14 @@ and this project adheres to
 
 ### Changed
 
+- **`tests/test-method-patterns.py` language** (R5): all 332 Chinese
+  natural-language lines — the module docstring, comments and assertion
+  messages — were translated to English per the maintainer decision, so
+  §6.3's "source files are English" now holds everywhere outside the two
+  §16 exemptions. Code, identifiers and every assertion expectation are
+  byte-identical: a line-by-line audit confirms 332 prose changes and zero
+  code-signature changes. Only the two regex character classes that tolerate
+  Chinese-style section separators remain, as code rather than prose.
 - **Package file set boundary defined** (D-1, `README-FOR-AI.md` §3):
   repository tooling directories (`.git/`, `.github/`, `.workbuddy/`,
   `.skill-upgrade/`) are declared non-package content — never counted and never

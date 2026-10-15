@@ -718,7 +718,7 @@ powershell -ExecutionPolicy Bypass -File scripts/self-scale.ps1 -Action evaluate
 | 版本位数量（D-2 决策，2026-10-14） | 版本号**三处同值**：`_meta.json` / README badge / `SKILL.md` frontmatter。原"`SKILL.md` 正文标题"从未存在于任何发布包，已从本节、§8、§15、`scaling.md` §8 与门 G6 移除；否则 G6 恒不可通过，propose 通道等同死亡 |
 | 宿主写回接口（2026-10-14） | `record-metrics` 与 drop 目录两条通道的完整契约见 `references/scaling.md` §3.1，摘要见 §12.2。此前脚本自称该接口存在却无任何实现与文档（M-4），现二者一致 |
 | 终审加固（2026-10-16，R5） | 终审确认升级机制健康（纯净副本 `propose` = G1–G6 全 PASSED、exit 0；T1 端到端可触发；抽查三条回归断言注回缺陷后均失败），但发现 §6.1/§15 有一批不变量**此前没有任何机器断言**（frontmatter 行数、description/tags/triggers 预算、permissions 逐字符、错误码目录完整性、三处版本一致、AGENTS.md 行数、裸围栏）。已补 12 条断言并逐条反向验证，测试数 44 → 56；同时补齐 `references/scaling.md` 四处裸围栏的语言标识 |
-| 语言范围（2026-10-16，R5） | `tests/**` 的自然语言注释与断言消息沿用中文（面向维护者，与本文同源）；代码、标识符与全部交付内容仍为英语。是否把该范围写入 §6.3 豁免名录属规则范围决策，留待维护者定夺 |
+| 语言范围（2026-10-16，R5） | 应维护者决定，`tests/test-method-patterns.py` 的自然语言注释与断言消息已由终审**整体英文化**（332 行：模块 docstring、注释、断言消息）；代码、标识符与全部交付内容均为英语。仅保留两处用于解析中文规格标题的正则字符类（属代码，非行文）。`README.zh.md` 与本文仍按本节豁免 |
 
 ---
 

