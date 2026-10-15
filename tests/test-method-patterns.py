@@ -1483,5 +1483,237 @@ class Recheck20261014Tests(unittest.TestCase):
         self.assertNotEqual(first.group(0), second.group(0),
                             "披露标记未绑定内容摘要（改正文不失效）")
 
+
+# ═════════════════════════════════════════════════════════════════════════════
+# ★ 2026-10-16 terminal review (R5) coverage group
+#
+# The R5 terminal review confirmed the upgrade mechanism itself is healthy
+# (clean-copy propose = G1-G6 PASSED and exit 0; T1 fires end to end; the three
+# sampled regression guards still fail on the injected defect). It also found
+# that several invariants README-FOR-AI.md section 6.1 / section 15 lists as
+# acceptance checks had NO assertion: the frontmatter, description, tag and
+# trigger budgets; the byte-exact permissions block; error-code catalog
+# integrity (34 codes, continuous numbering, D2 tables identical to the
+# catalog); the three version locations; the AGENTS.md budget; and the
+# no-bare-fence rule. A documented invariant with no machine check is exactly
+# the "all green but broken" class this project has been bitten by, so each one
+# is asserted below. Every assertion in this group was negative-verified
+# (defect injected -> assertion fails) before being kept.
+# ═════════════════════════════════════════════════════════════════════════════
+
+_FENCE = chr(96) * 3  # three backticks, built from a code point so this file stays readable
+_EC_ROW_RE = re.compile(
+    r"^\|\s*((?:CEO|CTO|SCL)_\d{3})\s*\|([^|]*)\|([^|]*)\|([^|]*)\|\s*$", re.M
+)
+
+# README-FOR-AI.md section 10.3: the SCL_ messages are fixed across every tier.
+_FIXED_SCL_MESSAGES = {
+    "SCL_001": "Upgrade threshold not met",
+    "SCL_002": "Upgrade path undefined in merge tree",
+    "SCL_003": "Alias collision detected",
+    "SCL_004": "Permission self-modification attempted",
+    "SCL_005": "Test self-modification attempted",
+    "SCL_006": "Upgrade package validation failed",
+    "SCL_007": "Scaling state file corrupted",
+    "SCL_008": "Downgrade requires manual approval",
+    "SCL_009": "Tier already at maximum (group)",
+    "SCL_010": "Function block conservation violated",
+}
+
+
+def parse_error_code_rows(text):
+    """Return {code: (message, trigger, resolution)} for a four-element code table."""
+    rows = {}
+    for m in _EC_ROW_RE.finditer(text):
+        rows[m.group(1)] = tuple(cell.strip() for cell in m.groups()[1:])
+    return rows
+
+
+class TerminalReview20261016Tests(unittest.TestCase):
+    """Machine enforcement for README-FOR-AI.md section 6.1 / section 15 invariants."""
+
+    def _frontmatter_lines(self):
+        lines = (SKILL_DIR / "SKILL.md").read_text(encoding="utf-8").splitlines()
+        self.assertEqual("---", lines[0].strip(), "SKILL.md does not start with frontmatter")
+        end = next((i for i, l in enumerate(lines[1:], start=1) if l.strip() == "---"), None)
+        self.assertIsNotNone(end, "SKILL.md frontmatter has no closing '---'")
+        return lines, end
+
+    def test_skill_md_frontmatter_line_budget(self):
+        """section 6.1: the SKILL.md frontmatter must be <= 85 lines."""
+        _lines, end = self._frontmatter_lines()
+        self.assertLessEqual(end + 1, 85, f"frontmatter is {end + 1} lines; section 6.1 allows <= 85")
+
+    def test_description_length_within_spec_budget(self):
+        """section 6.1: description is a 700-900 character English paragraph (P16 <= 1024)."""
+        fm = parse_frontmatter(SKILL_DIR / "SKILL.md")
+        desc = str(fm.get("description", ""))
+        self.assertGreaterEqual(len(desc), 700, f"description is {len(desc)} chars; section 6.1 requires >= 700")
+        self.assertLessEqual(len(desc), 900, f"description is {len(desc)} chars; section 6.1 allows <= 900")
+
+    def test_tags_and_triggers_budgets(self):
+        """section 6.1 / section 2: 8-16 tags and exactly 15 unique lowercase triggers."""
+        lines, end = self._frontmatter_lines()
+        fm_lines = lines[1:end]
+        tags_line = next((l for l in fm_lines if re.match(r"^tags\s*:", l)), None)
+        self.assertIsNotNone(tags_line, "frontmatter has no tags line")
+        tags = [t.strip() for t in re.search(r"\[(.*)\]", tags_line).group(1).split(",") if t.strip()]
+        self.assertGreaterEqual(len(tags), 8, f"{len(tags)} tags; section 6.1 requires >= 8")
+        self.assertLessEqual(len(tags), 16, f"{len(tags)} tags; section 6.1 allows <= 16")
+        triggers, in_triggers = [], False
+        for line in fm_lines:
+            if re.match(r"^triggers\s*:\s*$", line):
+                in_triggers = True
+                continue
+            if in_triggers:
+                if re.match(r"^\S", line):
+                    break
+                m = re.match(r"^\s*-\s+(.*\S)\s*$", line)
+                if m:
+                    triggers.append(m.group(1))
+        self.assertEqual(15, len(triggers), f"{len(triggers)} triggers; section 2 requires exactly 15")
+        self.assertEqual(len(set(triggers)), len(triggers), f"duplicate triggers: {triggers}")
+        self.assertEqual(
+            [t for t in triggers if t != t.lower()], [],
+            "triggers must be lowercase task phrases",
+        )
+
+    def test_permissions_block_byte_identical_to_spec(self):
+        """section 9.1 / section 15: the permissions block is copied character-for-character."""
+        lines = (SKILL_DIR / "SKILL.md").read_text(encoding="utf-8").splitlines()
+        start = next((i for i, l in enumerate(lines) if l == "permissions:"), None)
+        self.assertIsNotNone(start, "permissions block not found in SKILL.md")
+        end = next(i for i in range(start + 1, len(lines)) if lines[i] and not lines[i][0].isspace())
+        actual = "\n".join(lines[start:end])
+        canonical = "\n".join([
+            "permissions:",
+            "  files:",
+            '    read:  ["{WORKSPACE_ROOT}/**", "{SKILL_DIR}/**"]',
+            '    write: ["{WORKSPACE_ROOT}/**"]',
+            '    deny:  ["~/.ssh/**", "~/.aws/**", "~/.config/**", "/etc/**", "{WINDOWS_DIR}/**"]',
+            "  network: []",
+            "  commands: []",
+            "  mcp: [sessions_send, subagents]",
+        ])
+        self.assertEqual(canonical, actual, "permissions block differs from README-FOR-AI.md section 9.1")
+
+    def test_dependency_and_prefix_declarations(self):
+        """section 6.1: dependencies is empty; error_code_prefixes lists exactly the three prefixes."""
+        fm = parse_frontmatter(SKILL_DIR / "SKILL.md")
+        self.assertEqual("[]", str(fm.get("dependencies", "")).strip(), "dependencies must be an empty array")
+        lines, end = self._frontmatter_lines()
+        prefix_line = next((l for l in lines[1:end] if re.match(r"^error_code_prefixes\s*:", l)), None)
+        self.assertIsNotNone(prefix_line, "error_code_prefixes missing from the frontmatter")
+        prefixes = [p.strip() for p in re.search(r"\[(.*)\]", prefix_line).group(1).split(",")]
+        self.assertEqual(["CEO_", "CTO_", "SCL_"], prefixes,
+                         "error_code_prefixes must be exactly [CEO_, CTO_, SCL_]")
+
+    def test_errors_empty_and_self_scaling_propose_only(self):
+        """P17: frontmatter errors is empty. P36: upgrade_policy is propose-only."""
+        lines, end = self._frontmatter_lines()
+        fm_text = "\n".join(lines[1:end])
+        self.assertRegex(fm_text, r"(?m)^errors:\s*\[\s*\]",
+                         "frontmatter errors must be an empty list (P17)")
+        self.assertRegex(fm_text, r"(?m)^\s*upgrade_policy:\s*propose-only\s*$",
+                         "self_scaling.upgrade_policy must be propose-only (P36)")
+        self.assertRegex(fm_text, r"(?m)^\s*max_tier:\s*group\s*$",
+                         "self_scaling.max_tier must be group")
+
+    def test_harness_baseline_declared(self):
+        """section 8.2: metadata.harness_baseline is L3 and every D2 page declares the same."""
+        fm = parse_frontmatter(SKILL_DIR / "SKILL.md")
+        self.assertEqual("L3", str(fm.get("metadata", {}).get("harness_baseline")),
+                         "metadata.harness_baseline must be L3")
+        for name in ("governance-and-delivery.md", "engineering-and-safety.md"):
+            text = (SKILL_DIR / "references" / "departments" / name).read_text(encoding="utf-8")
+            self.assertIn("Department Harness Baseline: L3", text,
+                          f"{name} lacks the section 8.2 baseline declaration")
+
+    def test_agents_md_line_budget_and_scope(self):
+        """P55: AGENTS.md stays under 150 lines and keeps its first-screen scope declaration."""
+        lines = (SKILL_DIR / "AGENTS.md").read_text(encoding="utf-8").splitlines()
+        self.assertLessEqual(len(lines), 150, f"AGENTS.md is {len(lines)} lines; P55 allows <= 150")
+        self.assertIn("maintain", "\n".join(lines[:6]).lower(),
+                      "AGENTS.md lacks the first-screen maintainer-scope declaration")
+
+    def test_three_version_locations_agree(self):
+        """section 6.1 / section 15: _meta.json, the README badge and the frontmatter carry one version."""
+        meta = json.loads((SKILL_DIR / "_meta.json").read_text(encoding="utf-8"))
+        self.assertEqual({"ownerId", "slug", "version", "license", "publishedAt"}, set(meta),
+                         "_meta.json keys differ from section 6.1")
+        fm = parse_frontmatter(SKILL_DIR / "SKILL.md")
+        badge = re.search(r"version-(\d+\.\d+\.\d+)-blue",
+                          (SKILL_DIR / "README.md").read_text(encoding="utf-8"))
+        self.assertIsNotNone(badge, "README.md badge is not in the version-<semver>-blue format")
+        self.assertEqual({str(meta["version"]), str(fm.get("version")), badge.group(1)}, {SKILL_VERSION},
+                         "the three version locations do not agree")
+
+    def test_license_locations_agree(self):
+        """section 6.1 / section 15: the four license declarations are all GPL-3.0."""
+        meta = json.loads((SKILL_DIR / "_meta.json").read_text(encoding="utf-8"))
+        fm = parse_frontmatter(SKILL_DIR / "SKILL.md")
+        self.assertEqual("GPL-3.0", str(fm.get("license")))
+        self.assertEqual("GPL-3.0", str(meta.get("license")))
+        self.assertEqual("GPL-3.0", str(fm.get("metadata", {}).get("license")))
+        license_text = (SKILL_DIR / "LICENSE").read_text(encoding="utf-8")
+        self.assertIn("GNU GENERAL PUBLIC LICENSE", license_text)
+        self.assertIn("Version 3", license_text)
+
+    def test_error_code_catalog_integrity(self):
+        """section 10.3 / section 15: 34 codes, continuous, D2 tables identical to the catalog."""
+        catalog = parse_error_code_rows(
+            (SKILL_DIR / "references" / "error-codes.md").read_text(encoding="utf-8")
+        )
+        self.assertEqual(34, len(catalog), f"catalog has {len(catalog)} codes; section 2 requires 34")
+        for prefix, count in (("CEO_", 12), ("CTO_", 12), ("SCL_", 10)):
+            nums = sorted(int(c.split("_")[1]) for c in catalog if c.startswith(prefix))
+            self.assertEqual(list(range(1, count + 1)), nums,
+                             f"{prefix} numbering is not continuous 001..{count:03d}")
+        owners = {}
+        for name in ("governance-and-delivery.md", "engineering-and-safety.md"):
+            text = (SKILL_DIR / "references" / "departments" / name).read_text(encoding="utf-8")
+            blocks = list(re.finditer(r"(?ms)^## FB-(\d+)\s*:.*?(?=^## FB-\d+\s*:|\Z)", text))
+            self.assertEqual(len(blocks), 10 if name.startswith("engineering") else 8,
+                             f"{name} does not expose the expected function blocks")
+            for block_m in blocks:
+                fb = block_m.group(1)
+                sec = re.search(r"(?ms)^### 4\..*?(?=^### 5\.|\Z)", block_m.group(0))
+                self.assertIsNotNone(sec, f"{name} FB-{fb} has no '### 4' error-code section")
+                for code, cells in parse_error_code_rows(sec.group(0)).items():
+                    owners.setdefault(code, []).append(f"{name}:FB-{fb}")
+                    self.assertIn(code, catalog,
+                                  f"{name} FB-{fb} references {code}, absent from error-codes.md")
+                    self.assertEqual(catalog[code], cells,
+                                     f"{code} wording differs between {name} FB-{fb} and error-codes.md")
+        for code, holders in owners.items():
+            self.assertEqual(1, len(holders), f"{code} is owned by multiple function blocks: {holders}")
+        department_codes = {c for c in catalog if c.startswith(("CEO_", "CTO_"))}
+        self.assertEqual(department_codes, set(owners),
+                         "department codes and FB '### 4' ownership do not cover each other")
+        for code, message in _FIXED_SCL_MESSAGES.items():
+            self.assertEqual(message, catalog[code][0], f"{code} message differs from section 10.3")
+
+    def test_no_bare_code_fences(self):
+        """section 6.3 / section 14.5: every opening code fence carries a language tag."""
+        offenders = []
+        for rel in package_relative_paths():
+            if not rel.endswith(".md"):
+                continue
+            lines = (SKILL_DIR / rel).read_text(encoding="utf-8").splitlines()
+            open_fence = False
+            for number, line in enumerate(lines, start=1):
+                m = re.match(r"^\s*" + _FENCE + r"(.*)$", line)
+                if not m:
+                    continue
+                if not open_fence:
+                    open_fence = True
+                    if not m.group(1).strip():
+                        offenders.append(f"{rel}:{number}")
+                else:
+                    open_fence = False
+        self.assertEqual([], offenders,
+                         f"bare opening code fences (a language tag is required): {offenders}")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

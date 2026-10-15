@@ -123,7 +123,7 @@ The script records the split in `metrics_provenance` in the state file, and
 
 #### T4 formula (implemented exactly as written by `Get-ErrorCodeReuseRatio`)
 
-```
+```text
 ratio(prefix) = |{ codes of prefix referenced by >= 2 distinct function blocks }|
                 / |{ distinct codes of prefix defined in error-codes.md }|
 
@@ -367,7 +367,7 @@ Notes:
 
 ## 7. Eight-Step Execution Sequence (as implemented)
 
-```
+```text
 1. Read .scaling-state.json
    -> confirm current_tier, last evaluation result, pending_proposals
    -> a missing, invalid, or tier-inconsistent state file stops the run (SCL_007)
@@ -471,7 +471,7 @@ frontmatter is rebuilt, legacy slugs move into alias resolution), therefore:
 Tier-to-major mapping — **the major version number equals the tier ordinal**,
 double-confirming `scale_tier`:
 
-```
+```text
 micro   v1.x.x
 small   v2.x.x   <- from a micro upgrade
 medium  v3.x.x
@@ -574,7 +574,7 @@ failure (package quarantined).
 
 ### 11.1 External installer requirements (recorded in every proposal report)
 
-```
+```text
 The installer must: Copy-Item to a temporary directory -> verify integrity ->
 atomically replace -> only delete the old directory after confirming success.
 Forbidden: Remove-Item -Path {SKILL_DIR} -Recurse -Force followed by a

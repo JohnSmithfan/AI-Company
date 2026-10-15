@@ -77,7 +77,7 @@ ai-company/
 │   ├── self-scale.ps1         # 自我升级脚本（propose-only，六道门）
 │   └── scaling-config.json    # 升级配置（阈值/宿主指标/输出目录）
 └── tests/
-    └── test-method-patterns.py  # 四类断言 A/B/C/D + 初审/复审回归组，44 条
+    └── test-method-patterns.py  # 四类断言 A/B/C/D + 初审/复审/终审回归组，56 条
 ```
 
 > 26 = 治理层 13 + `.gitattributes` 1 + `.scaling-state.json` 1 + `README-FOR-AI.md`（本文）1 + prompts 2 + references 顶层 3 + 部门 D2 2 + scripts 2 + tests 1。升 small 档为 **30**（−2 旧 D2 +5 新 D2 +1 新 prompt = +4；`.gitattributes` 两档均有，不增不减）。
@@ -579,6 +579,7 @@ G1–G3 不可绕过（即使人工批准）。升级包**排除**仓库工具�
 - **D 不可变边界**：`test_upgrade_package_excludes_immutable`（扫描 `{WORKSPACE_ROOT}/.skill-upgrade/`，不含 tests/ 与 permissions 变更；目录不存在时 skip）。
 - **★ 2026-10-14 回归组（8 条，初审 H-1..H-4 / M-1..M-4）**：`test_package_file_set_matches_declared_count`（包文件集与结构树逐路径比对）、`test_upgrade_package_excludes_repo_tooling`（升级包内 `.git/`/`.workbuddy/`/`.github/` 计数为 0）、`test_propose_smoke_on_clean_copy`（`tempfile` 纯净副本内跑 propose，断言 exit 0 且日志含 `G6 PASSED`）、`test_scaling_state_schema_complete`（顶层必需字段含 `validation`，`gates_passed==6`、`file_count` 为本档期望值）、`test_no_crlf_and_no_bom_package_wide`（**读 bytes**；`read_text()` 的通用换行会掩盖 CRLF，这正是 M-1 逃过 31 条断言的原因）、`test_doc_section_anchors_exist`（`scaling.md` / `README-FOR-AI.md` 的章节引用目标必须存在）、`test_record_metrics_action_implemented`（`ValidateSet` 每个取值都能在 `switch` 找到分支，且 `switch` 有 `default`）、`test_host_metric_freshness_uses_config`（注入 `host_metrics` 后阈值按配置生效，日志不再出现 `-day freshness limit`）。**每条均做过"注回缺陷后必须失败"的反向验证。**
 - **★ 2026-10-14 复审回归组（5 条，R2）**：`test_host_metrics_survive_multiple_writes`（一次调用写两个宿主指标后 `host_metrics` 仍须能被 T1 读取；此前第二次写入把它替换成 .NET 成员属性，T1/T3 随即报 "never supplied"）、`test_t3_skips_when_samples_below_minimum`（样本低于 `min_routing_samples` 时 T3 必须跳过且不累加 miss）、`test_ip_masking_has_no_version_keyword_escape`（`release`/`build`/`rev` 之后的真实 IPv4 必须脱敏）、`test_credential_scrubbing_removes_real_names`（擦除必须经真正的 `_scrubbed_environment()`，良性变量保留）、`test_format_output_json_aigc_three_layers`（三层标识逐层断言，且内嵌披露标记绑定内容摘要）。拆分页标题与 `Function blocks:` 计数的断言并入 `test_propose_smoke_on_clean_copy`。**每条均已注回缺陷验证其失败。**
+- **★ 2026-10-16 终审回归组（12 条，R5）**：`test_skill_md_frontmatter_line_budget`、`test_description_length_within_spec_budget`、`test_tags_and_triggers_budgets`、`test_permissions_block_byte_identical_to_spec`、`test_dependency_and_prefix_declarations`、`test_errors_empty_and_self_scaling_propose_only`、`test_harness_baseline_declared`、`test_agents_md_line_budget_and_scope`、`test_three_version_locations_agree`、`test_license_locations_agree`、`test_error_code_catalog_integrity`、`test_no_bare_code_fences`。补齐 §6.1/§15 中此前**没有任何断言**的不变量（frontmatter/description/tags/triggers 预算、permissions 逐字符、错误码目录完整性、三处版本、AGENTS.md 行数、裸围栏）。**每条均已注回缺陷验证其失败。**
 
 工程要求：`unittest` 风格，`python tests/test-method-patterns.py` 直跑；`SKILL_DIR` 用 `Path(__file__).resolve().parent.parent` 相对推导（禁硬编码）；时间用 `datetime.now(timezone.utc)`（禁已弃用 `utcnow`）；仅标准库；UTF-8 无 BOM。
 
@@ -675,7 +676,7 @@ G1–G3 不可绕过（即使人工批准）。升级包**排除**仓库工具�
 # Windows 默认执行策略（Restricted / RemoteSigned）会拒绝未签名的 .ps1；
 # 下面每条 powershell 命令都显式加 -ExecutionPolicy Bypass（下载得到的脚本
 # 也可先 Unblock-File）。
-# 1. 测试套件（44 条应全绿，1-2 skip 属预期：升级包相关断言在无 .skill-upgrade/ 时按设计跳过）
+# 1. 测试套件（56 条应全绿，1-2 skip 属预期：升级包相关断言在无 .skill-upgrade/ 时按设计跳过）
 python tests/test-method-patterns.py
 
 # 2. 升级就绪检查（不改动技能内容）。未命中阈值时仅回写自身记录字段到
@@ -716,6 +717,8 @@ powershell -ExecutionPolicy Bypass -File scripts/self-scale.ps1 -Action evaluate
 | 包文件集边界（D-1 决策，2026-10-14） | 包文件集 = 仓库跟踪文件 − 仓库工具目录（`.git/`/`.github/`/`.workbuddy/`/`.skill-upgrade/`）。三者不计入文件总数、不进结构树、不进升级包。`self-scale.ps1` 的 `$ExcludedDirSegments` / `Get-PackageRelativePaths` 是唯一实现处，拷贝范围与计数基准共用它 |
 | 版本位数量（D-2 决策，2026-10-14） | 版本号**三处同值**：`_meta.json` / README badge / `SKILL.md` frontmatter。原"`SKILL.md` 正文标题"从未存在于任何发布包，已从本节、§8、§15、`scaling.md` §8 与门 G6 移除；否则 G6 恒不可通过，propose 通道等同死亡 |
 | 宿主写回接口（2026-10-14） | `record-metrics` 与 drop 目录两条通道的完整契约见 `references/scaling.md` §3.1，摘要见 §12.2。此前脚本自称该接口存在却无任何实现与文档（M-4），现二者一致 |
+| 终审加固（2026-10-16，R5） | 终审确认升级机制健康（纯净副本 `propose` = G1–G6 全 PASSED、exit 0；T1 端到端可触发；抽查三条回归断言注回缺陷后均失败），但发现 §6.1/§15 有一批不变量**此前没有任何机器断言**（frontmatter 行数、description/tags/triggers 预算、permissions 逐字符、错误码目录完整性、三处版本一致、AGENTS.md 行数、裸围栏）。已补 12 条断言并逐条反向验证，测试数 44 → 56；同时补齐 `references/scaling.md` 四处裸围栏的语言标识 |
+| 语言范围（2026-10-16，R5） | `tests/**` 的自然语言注释与断言消息沿用中文（面向维护者，与本文同源）；代码、标识符与全部交付内容仍为英语。是否把该范围写入 §6.3 豁免名录属规则范围决策，留待维护者定夺 |
 
 ---
 

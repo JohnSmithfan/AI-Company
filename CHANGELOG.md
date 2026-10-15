@@ -40,7 +40,13 @@ and this project adheres to
 
 ### Fixed
 
-- **复审 R2（2026-10-14 第二轮审查）** — `scripts/self-scale.ps1` (R2-B1,
+- **Bare code fences in `references/scaling.md`** (R5): four opening fences
+  (the T4 formula, the eight-step execution sequence, the tier-to-major table
+  and the installer requirements) carried no language tag, which
+  `README-FOR-AI.md` §6.3 / §14.5 forbid. All four now open with a `text`
+  language tag, and the new `test_no_bare_code_fences` assertion keeps them
+  that way.
+- **Recheck R2 (2026-10-14 second review round)** — `scripts/self-scale.ps1` (R2-B1,
   blocker): `Write-HostMetric` copied the existing `host_metrics` with
   `PSObject.Properties`, which on an in-process `[ordered]` dictionary returns
   the .NET members (`Count`/`Keys`/`Values`/…), not the metric entries. The
@@ -296,6 +302,19 @@ and this project adheres to
 
 ### Added
 
+- `tests/test-method-patterns.py`: the 2026-10-16 terminal-review coverage
+  group (`TerminalReview20261016Tests`, 12 assertions) now machine-enforces the
+  `README-FOR-AI.md` §6.1 / §15 invariants that previously had no assertion —
+  the SKILL.md frontmatter line budget (<= 85), the description (700–900 chars),
+  the tag budget (8–16), exactly 15 unique lowercase triggers, the byte-exact
+  `permissions` block, empty `dependencies` and `errors`, the three error-code
+  prefixes, `harness_baseline: L3`, the AGENTS.md line budget (<= 150), the three
+  agreeing version locations, the four agreeing GPL-3.0 license declarations,
+  error-code catalog integrity (34 codes, continuous numbering, D2 tables
+  identical to the catalog, fixed `SCL_` messages) and the no-bare-fence rule.
+  **Every new assertion was negative-verified**: the defect was re-injected into
+  a throwaway copy and the assertion was confirmed to fail. Suite is now 56
+  tests (was 44).
 - `tests/test-method-patterns.py`: five regression assertions for the 2026-10-14
   re-review (`Recheck20261014Tests`) — host metrics survive a two-metric write,
   T3 skips below `min_routing_samples`, IP masking has no version-keyword
