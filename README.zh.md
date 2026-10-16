@@ -3,6 +3,7 @@
 [![Version](https://img.shields.io/badge/version-1.0.0-blue)](CHANGELOG.md)
 [![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-blue.svg)](LICENSE)
 [![Scale tier](https://img.shields.io/badge/scale_tier-micro-teal)](references/scaling.md)
+[![CI](https://github.com/JohnSmithfan/AI-Company/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/JohnSmithfan/AI-Company/actions/workflows/ci.yml)
 
 **LLM Agent 治理技能 —— 微型档（micro）：2 个部门、18 个职能块、一个可安装的技能包。**
 
@@ -10,6 +11,15 @@
 
 > `README.en.md` 是 `README.md` 的同内容英文副本，保留它是为了让 `.en` /
 > `.zh` 语言后缀保持对称，便于 i18n 工具识别。
+
+## 目录
+
+- [快速开始](#快速开始)
+- [包速览](#包速览)
+- [项目结构（Project Structure）](#项目结构project-structure)
+- [文档](#文档)
+- [档位升级](#档位升级)
+- [许可证](#许可证)
 
 ## 快速开始
 

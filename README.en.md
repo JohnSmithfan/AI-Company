@@ -3,6 +3,7 @@
 [![Version](https://img.shields.io/badge/version-1.0.0-blue)](CHANGELOG.md)
 [![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-blue.svg)](LICENSE)
 [![Scale tier](https://img.shields.io/badge/scale_tier-micro-teal)](references/scaling.md)
+[![CI](https://github.com/JohnSmithfan/AI-Company/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/JohnSmithfan/AI-Company/actions/workflows/ci.yml)
 
 **An LLM Agent governance skill — micro tier: 2 departments, 18 function
 blocks, one installable skill package.**
@@ -11,6 +12,15 @@ English | [简体中文](README.zh.md)
 
 > `README.en.md` is an identical English copy of this file, kept so the
 > `.en` / `.zh` language suffixes stay symmetric for i18n tooling.
+
+## Contents
+
+- [Quick Start](#quick-start)
+- [Package at a glance](#package-at-a-glance)
+- [Project Structure](#project-structure)
+- [Documentation](#documentation)
+- [Upgrading](#upgrading)
+- [License](#license)
 
 ## Quick Start
 

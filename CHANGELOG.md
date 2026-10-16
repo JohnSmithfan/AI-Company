@@ -8,6 +8,27 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Added
+
+- **GitHub community-health and platform configuration** (2026-10-17 audit):
+  `.github/SUPPORT.md`, `.github/PULL_REQUEST_TEMPLATE.md`,
+  `.github/CODEOWNERS`, `.github/dependabot.yml` (github-actions, weekly) and
+  `.github/workflows/ci.yml` — the latter runs the full test suite on push to
+  `main` and on pull requests. `CONTRIBUTING.md` already required a green suite
+  before a PR, but no gate enforced it. The three default `.md` issue templates
+  (including a boilerplate bug form that still asked reporters for smartphone
+  and browser details) were replaced by `.yml` form templates
+  (`bug_report.yml`, `feature_request.yml`) plus `config.yml`
+  (`blank_issues_enabled: false`). Every addition lives under `.github/`, which
+  `README-FOR-AI.md` §3 declares non-package content, so the package file set
+  stays at 26 and no tier count changes.
+- `.gitignore` now ignores `.env` / `.env.*` (keeping `!.env.example`
+  committable) — defensive hygiene for the environment-variable credential
+  model (`README-FOR-AI.md` §9.4).
+- `README.md` / `README.en.md` / `README.zh.md` gained a CI status badge and a
+  contents directory (the README passed 100 lines, where a table of contents
+  becomes worthwhile).
+
 ### Changed
 
 - **`tests/test-method-patterns.py` language** (R5): all 332 Chinese

@@ -1,0 +1,9 @@
+version: 2
+updates:
+  # This repository ships no package manifest (no installable distribution -
+  # the test suite runs against the source files directly), so the only
+  # updatable ecosystem is GitHub Actions itself.
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
