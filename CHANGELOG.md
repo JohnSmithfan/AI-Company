@@ -8,6 +8,15 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-10-19 - tier upgrade proposal (micro -> small)
+
+- Departments: 2 -> 5 (merge-tree split, function blocks conserved at 18)
+- Revived error-code prefixes: CISO_, CHO_, CQO_ (alias-table skeleton appended to references/error-codes.md)
+- New agent-invoked prompt: prompts/03-test-cases.md
+- Slug aliases appended to references/scaling.md (Alias Map)
+- Installed 2026-10-19T13:16:24Z by an external trusted installer; human-accepted
+  2026-10-19 (acceptance_passed=true in .scaling-state.json).
+
 ### Added
 
 - **GitHub community-health and platform configuration** (2026-10-17 audit):
@@ -400,6 +409,62 @@ and this project adheres to
 - `README-FOR-AI.md` §13, §16 and `CONTRIBUTING.md`: the practice that a new
   regression assertion must be proven to fail when the defect is re-injected, so
   the suite cannot accumulate assertions that always pass.
+
+### Installed & Accepted (2026-10-19, human acceptance of micro -> small)
+
+The package install (external trusted installer, backup + overwrite + retire
+two D2 pages + state write-back) landed `current_tier=small` with
+`acceptance_passed=false` — the 13 failing tests were the proposal's explicitly
+deferred **human-acceptance** items. Acceptance was executed and the suite is
+now green: **56 tests OK, 3 skipped** (all skips legitimate: two
+immutable-boundary tests skip when no proposal package is present, and
+`test_propose_smoke_on_clean_copy` skips on non-micro tiers because
+`small -> medium` is undefined and would trip `SCL_002`).
+
+- **`tests/test-method-patterns.py` re-based to small** (was asserting micro
+  values): `SCALE_TIER="small"`, `SKILL_VERSION="2.0.0"`;
+  `EXPECTED_DEPARTMENT_BLOCKS` = `{governance-and-operations.md:6,
+  quality-and-delivery.md:2, technology-and-platform.md:3,
+  security-and-compliance.md:3, people-and-growth.md:4}`; new
+  `EXPECTED_CODES_BY_PREFIX = {CEO_:9, CTO_:4, CISO_:4, CHO_:4, CQO_:3,
+  SCL_:10}`; declared `file_count` 26 -> 30; `error_code_prefixes` now expects
+  the six prefixes `CEO_ CTO_ CISO_ CHO_ CQO_ SCL_`; `_EC_ROW_RE` extended to
+  also parse `CISO_/CHO_/CQO_` (the catalog had only 23 of 34 codes without it).
+- **Behaviour tests de-micro'd**: `test_propose_smoke_on_clean_copy` skips when
+  `SCALE_TIER != "micro"`; `test_host_metric_freshness_uses_config` drives
+  `record-metrics -AgentCount 15` (above both the small cap 10 and micro cap 3)
+  and asserts on the threshold prefix rather than a hard-coded number;
+  `test_upgrade_package_excludes_immutable` now asserts **byte-equality** between
+  the package's `tests/` and the skill's `tests/` (the package carries `tests/`
+  verbatim per G2, so "directory absent" can no longer be the check);
+  `test_harness_baseline_declared` and `test_error_code_catalog_integrity`
+  iterate all five D2 pages and validate per-prefix code continuity against
+  `EXPECTED_CODES_BY_PREFIX`.
+- **`references/error-codes.md` rewritten**: header states `34 codes in 6
+  prefixes`; six prefix partition tables (CEO_001-009, CTO_001-004,
+  CISO_001-004, CHO_001-004, CQO_001-003, SCL_001-010); the 24-line "requires
+  human review" placeholder alias table removed and replaced by a resolved
+  "Alias history (micro -> small)" table (e.g. CEO_010 -> CQO_001).
+- **Five D2 department pages corrected**: error-code renames applied
+  (CEO_010-012 -> CQO_001-003, CTO_005-008 -> CISO_001-004,
+  CTO_009-012 -> CHO_001-004); Core Identity prose rewritten to drop micro-tier
+  wording; stale `governance-and-delivery` references fixed to
+  `governance-and-operations` and `engineering-and-safety` to
+  `technology-and-platform` (the latter two departments were retired at install
+  and their names had leaked into the five surviving pages).
+- **`SKILL.md` narrative re-based**: `description` normalised to 834 chars
+  (700-900 band); `tags` `micro-tier` -> `small-tier`; body intro now reads
+  "Small-tier (S) LLM agent governance skill for growing organizations of 3-10
+  agents"; Departments table expanded 2 -> 5 rows; Error Code Prefixes table
+  expanded 3 -> 6 prefixes (adds CISO_/CHO_/CQO_).
+- **Stale proposal package removed** from the correct path
+  `C:\Users\Admin\.agents\skills\.skill-upgrade` (the package lives in the
+  skill's *parent* directory, not inside the package — an earlier mis-deletion
+  targeted the wrong location and left a stale package that broke the
+  immutable-boundary byte-equality test).
+- **`.scaling-state.json` acceptance closed out**: `acceptance_passed` set to
+  `true` in the top-level `validation`, `tier_history[0].validation` and
+  `pending_proposals[0].validation` (written LF, no CRLF).
 
 ## [1.0.0] - 2026-09-21
 

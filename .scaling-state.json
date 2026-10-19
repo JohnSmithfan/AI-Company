@@ -1,9 +1,44 @@
 {
   "schema_version": 1,
-  "current_tier": "micro",
-  "tier_history": [],
-  "pending_proposals": [],
-  "next_evaluation": "2026-11-13T13:47:36Z",
+  "current_tier": "small",
+  "tier_history": [
+    {
+      "from": "micro",
+      "to": "small",
+      "proposed_at": "2026-10-19T13:05:14Z",
+      "approved_by": "human",
+      "installed_at": "2026-10-19T13:16:24Z",
+      "package_path": "C:\\Users\\Admin\\.agents\\skills\\.skill-upgrade\\20261019-210513",
+      "validation": {
+        "file_count": 30,
+        "function_blocks": 18,
+        "gates_passed": 6,
+        "acceptance_passed": true
+      }
+    }
+  ],
+  "pending_proposals": [
+    {
+      "proposal_id": "20261019-210513",
+      "from_tier": "micro",
+      "to_tier": "small",
+      "proposed_at": "2026-10-19T13:05:14Z",
+      "trigger_reasons": [
+        "SCL_001: forced proposal, no threshold met"
+      ],
+      "package_path": "C:\\Users\\Admin\\.agents\\skills\\.skill-upgrade\\20261019-210513",
+      "status": "installed",
+      "approved_by": "human",
+      "installed_at": "2026-10-19T13:16:24Z",
+      "validation": {
+        "file_count": 30,
+        "function_blocks": 18,
+        "gates_passed": 6,
+        "acceptance_passed": true
+      }
+    }
+  ],
+  "next_evaluation": "2026-11-18T13:16:24Z",
   "last_metrics": {
     "agent_count": 0,
     "routing_accuracy": 1.0,
@@ -19,7 +54,7 @@
   },
   "validation": {
     "gates_passed": 6,
-    "file_count": 26,
-    "acceptance_passed": false
+    "file_count": 30,
+    "acceptance_passed": true
   }
 }

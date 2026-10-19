@@ -1,11 +1,11 @@
 # ai-company
 
-[![Version](https://img.shields.io/badge/version-1.0.0-blue)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.0.0-blue)](CHANGELOG.md)
 [![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-blue.svg)](LICENSE)
-[![Scale tier](https://img.shields.io/badge/scale_tier-micro-teal)](references/scaling.md)
+[![Scale tier](https://img.shields.io/badge/scale_tier-small-teal)](references/scaling.md)
 [![CI](https://github.com/JohnSmithfan/AI-Company/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/JohnSmithfan/AI-Company/actions/workflows/ci.yml)
 
-**LLM Agent 治理技能 —— 微型档（micro）：2 个部门、18 个职能块、一个可安装的技能包。**
+**LLM Agent 治理技能 —— 小型档（small）：5 个部门、18 个职能块、一个可安装的技能包。**
 
 [English](README.md) | 简体中文
 
@@ -41,11 +41,11 @@
 | 项目 | 值 |
 |---|---|
 | 技能名 | `ai-company` |
-| 版本 | 1.0.0 |
-| 档位 | `micro`（XS，微型） |
-| 部门数 | 2（`governance-and-delivery`、`engineering-and-safety`） |
-| 职能块 | 18（8 + 10） |
-| 文件总数 | 26 |
+| 版本 | 2.0.0 |
+| 档位 | `small`（S，小型） |
+| 部门数 | 5（`governance-and-operations`、`quality-and-delivery`、`technology-and-platform`、`security-and-compliance`、`people-and-growth`） |
+| 职能块 | 18（6 + 2 + 3 + 3 + 4） |
+| 文件总数 | 30 |
 | 许可证 | GPL-3.0 |
 
 ## 项目结构（Project Structure）
@@ -70,20 +70,27 @@ ai-company/
 ├── _meta.json
 ├── prompts/
 │   ├── 01-implement-method.md
-│   └── 02-robustness-checks.md
+│   ├── 02-robustness-checks.md
+│   └── 03-test-cases.md
 ├── references/
 │   ├── method-patterns.md
 │   ├── error-codes.md
 │   ├── scaling.md
 │   └── departments/
-│       ├── governance-and-delivery.md
-│       └── engineering-and-safety.md
+│       ├── governance-and-operations.md
+│       ├── quality-and-delivery.md
+│       ├── technology-and-platform.md
+│       ├── security-and-compliance.md
+│       └── people-and-growth.md
 ├── scripts/
 │   ├── self-scale.ps1
 │   └── scaling-config.json
 └── tests/
     └── test-method-patterns.py
+
 ```
+
+> 结构树已由升级生成器改写为 30 个文件的小型档骨架（small）——安装前需人工复核。
 
 结构树列出的是**包文件集**：仓库工具目录（`.git/`、`.github/`、`.workbuddy/`、
 `.skill-upgrade/`）不属于包内容，不计入文件总数（`README-FOR-AI.md` §3）。

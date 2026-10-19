@@ -1,10 +1,10 @@
-# Self-Scaling Governance Reference (micro tier)
+# Self-Scaling Governance Reference (small tier)
 
 | Field | Value |
 |---|---|
 | Applies to | `ai-company` skill package |
-| scale_tier | `micro` |
-| Version | 1.0.0 (major = tier ordinal, see Section 8) |
+| scale_tier | `small` |
+| Version | 2.0.0 (major = tier ordinal, see Section 8) |
 | Upgrade policy | `propose-only` (never auto-install) |
 | State file | `.scaling-state.json` (schema_version 1) |
 | Config file | `scripts/scaling-config.json` (schema_version 1) |
@@ -320,7 +320,11 @@ ignored):
 
 | Legacy slug | Legacy tier | Resolves to | Since |
 |---|---|---|---|
-| _(none — initial micro tier, no upgrade has occurred)_ | — | — | — |
+| governance-and-delivery | micro | governance-and-operations | v2.0.0 |
+| governance-and-delivery | micro | quality-and-delivery | v2.0.0 |
+| engineering-and-safety | micro | technology-and-platform | v2.0.0 |
+| engineering-and-safety | micro | security-and-compliance | v2.0.0 |
+| engineering-and-safety | micro | people-and-growth | v2.0.0 |
 
 Planned rows appended by the micro → small upgrade (illustrative, not active):
 

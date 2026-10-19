@@ -6,8 +6,8 @@
 
 ## What this repository is
 
-`ai-company` is a standalone, micro-tier LLM Agent governance skill
-package (version 1.0.0): 2 departments, 18 function blocks, 26 package files,
+`ai-company` is a standalone, small-tier LLM Agent governance skill
+package (version 2.0.0): 5 departments, 18 function blocks, 30 package files,
 including its own self-contained generation spec `README-FOR-AI.md`. For a
 human overview, read `README.md`. For skill runtime behavior, the *only* entry
 point is `SKILL.md` — never duplicate or paraphrase its content in any other

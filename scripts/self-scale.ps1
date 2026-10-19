@@ -1,7 +1,7 @@
 <#
 ========================================================================================
- self-scale.ps1 - Self-scaling evaluator and proposal generator (micro tier)
- Package : ai-company | Version : 1.0.0 | scale_tier : micro
+ self-scale.ps1 - Self-scaling evaluator and proposal generator (small tier)
+ Package : ai-company | Version : 2.0.0 | scale_tier : small
 ========================================================================================
  Governance model : PROPOSE-ONLY, three-stage architecture (references/scaling.md #1).
 
