@@ -3,7 +3,7 @@
 > **文档性质**：这是给 LLM Agent 阅读的**生成规格**，不是项目介绍。
 > 读本文的 Agent 的任务是：**从零生成、再生或扩展 `ai-company` 这个 LLM Agent 治理技能包**，并保持其与本文一致。
 >
-> **独立性声明（重要）**：`ai-company` 是一个**独立项目**。本文是它的**唯一权威生成规格，完全自包含**——生成/维护本包所需的全部参数、契约、红线、验收项都已内联在本文，**不依赖、不引用任何外部或上层规格文档**。本文任何章节号（如 §9.1）与红线号（如 P21）都是**本地定义**，包内其他文件的 `(README-FOR-AI.md §x.y)` / `P##` 引用一律指向本文。
+> **独立性声明（重要）**：`ai-company` 是一个**独立项目**。本文是它的**唯一权威生成规格，完全自包含**——生成/维护本包所需的全部参数、契约、红线、验收项都已内联在本文，**不依赖、不引用任何外部或上层规格文档**。本文任何章节号（如 §9.1）与红线号（如 P21）都是**本地定义**，包内其他文件的 `(README_FOR_AI.md §x.y)` / `P##` 引用一律指向本文。
 >
 > ⚠️ 本文不参与技能运行时路由。运行时唯一入口是 `SKILL.md`；面向维护仓库的编码 Agent 的简明贡献入口是 `AGENTS.md`。三者职责互斥，不得互相复述内容（见 P55）。
 
@@ -56,7 +56,7 @@ ai-company/
 ├── CODE_OF_CONDUCT.md         # Contributor Covenant 2.1
 ├── CONTRIBUTING.md            # 分支/提交/测试/验收规则
 ├── LICENSE                    # GPL-3.0 全文（四处许可同值）
-├── README-FOR-AI.md           # ★ 本文：独立自包含生成规格（ASCII 序 '-' < '.'，故在 README.en.md 前）
+├── README_FOR_AI.md           # ★ 本文：独立自包含生成规格（ASCII 序 '-' < '.'，故在 README.en.md 前）
 ├── README.en.md               # 与 README.md 相同的英文副本（语言后缀对称）
 ├── README.md                  # 人类主入口（结构树与磁盘逐项一致）
 ├── README.zh.md               # 中文版（标识符六类不译，见 §6.3）
@@ -84,7 +84,7 @@ ai-company/
     └── test-method-patterns.py  # 四类断言 A/B/C/D + 初审/复审/终审回归组，56 条
 ```
 
-> 30 = 治理层 13 + `.gitattributes` 1 + `.scaling-state.json` 1 + `README-FOR-AI.md`（本文）1 + prompts 3 + references 顶层 3 + 部门 D2 5 + scripts 2 + tests 1。与 micro 档相比：−2 旧 D2 +5 新 D2 +1 新 prompt = +4（`.gitattributes` 两档均有，不增不减）。
+> 30 = 治理层 13 + `.gitattributes` 1 + `.scaling-state.json` 1 + `README_FOR_AI.md`（本文）1 + prompts 3 + references 顶层 3 + 部门 D2 5 + scripts 2 + tests 1。与 micro 档相比：−2 旧 D2 +5 新 D2 +1 新 prompt = +4（`.gitattributes` 两档均有，不增不减）。
 >
 > **包文件集边界（D-1 决策，2026-10-14）**：**包文件集 = 仓库跟踪文件 − 仓库工具目录**。仓库工具目录固定四类：`.git/`、`.github/`、`.workbuddy/`、`.skill-upgrade/`——它们分别是版本库对象、仓库协作模板、Agent 工作区状态与本地产物，**不计入文件总数、不进结构树、不进升级包**。`scripts/self-scale.ps1` 的 `$ExcludedDirSegments` 与 `Get-PackageRelativePaths` 是本约束的**唯一实现处**（拷贝范围与计数基准共用它，防止二者再次分歧）。`AGENTS.md` 的"树与磁盘逐项一致"即指"树与**包文件集**逐项一致"；`README.md` / `README.en.md` / `README.zh.md` 三兄弟结构树只列包文件集，且三者必须逐字符相同。
 
@@ -103,7 +103,7 @@ ai-company/
 | 8 | `tests/` | 四类断言照 §13 |
 | 9 | `SKILL.md` + `_meta.json` | frontmatter 逐字段照 §6.1（≤85 行）；正文 ≤120 行白名单内容 |
 | 10 | 13 个治理文件 | 按文件树 ASCII 顺序（`.editorconfig` → … → `SECURITY.md`）；`AGENTS.md` 首屏职责声明 + ≤150 行 |
-| 11 | 本文 `README-FOR-AI.md` | 独立项目的生成规格 |
+| 11 | 本文 `README_FOR_AI.md` | 独立项目的生成规格 |
 | 12 | 自检 | 跑 §15 验收清单，全部通过才算完成（P39） |
 
 ## 5. 硬规则速览（完整清单见 §14 的 P1–P55）
@@ -581,7 +581,7 @@ G1–G3 不可绕过（即使人工批准）。升级包**排除**仓库工具�
 - **B 源文件完整性**：`test_templates_source_exists`（权威源存在 + 10 个 def）、`test_phone_masking_in_source`（`[PHONE]` 在源中）、`test_legacy_templates_file_absent`（templates.md 不存在）、`test_def_unique_across_package`（★ R4 新增：全包递归扫描，每个 `def <fn>` 恰 1 处，且 10 个模板只出现在权威源 —— 守住 P10/P44；此前该检查只靠人工 grep，漏洞未被机器捕获）。
 - **C 结构一致性**：`test_function_block_conservation`（micro=18）、`test_scaling_files_present`（四件套 + propose-only）、`test_governance_files_present`（13 文件含 AGENTS.md）、`test_no_filename_with_space`、`test_prompt_modes_declared`（01/02 为 human-paste）、`test_human_paste_prompts_self_contained`（H1/H2/H6）、`test_language_policy_declared`、`test_skill_md_is_index_only`（正文 ≤120 行、无 def、无具体错误码）。
 - **D 不可变边界**：`test_upgrade_package_excludes_immutable`（扫描 `{WORKSPACE_ROOT}/.skill-upgrade/`，不含 tests/ 与 permissions 变更；目录不存在时 skip）。
-- **★ 2026-10-14 回归组（8 条，初审 H-1..H-4 / M-1..M-4）**：`test_package_file_set_matches_declared_count`（包文件集与结构树逐路径比对）、`test_upgrade_package_excludes_repo_tooling`（升级包内 `.git/`/`.workbuddy/`/`.github/` 计数为 0）、`test_propose_smoke_on_clean_copy`（`tempfile` 纯净副本内跑 propose，断言 exit 0 且日志含 `G6 PASSED`）、`test_scaling_state_schema_complete`（顶层必需字段含 `validation`，`gates_passed==6`、`file_count` 为本档期望值）、`test_no_crlf_and_no_bom_package_wide`（**读 bytes**；`read_text()` 的通用换行会掩盖 CRLF，这正是 M-1 逃过 31 条断言的原因）、`test_doc_section_anchors_exist`（`scaling.md` / `README-FOR-AI.md` 的章节引用目标必须存在）、`test_record_metrics_action_implemented`（`ValidateSet` 每个取值都能在 `switch` 找到分支，且 `switch` 有 `default`）、`test_host_metric_freshness_uses_config`（注入 `host_metrics` 后阈值按配置生效，日志不再出现 `-day freshness limit`）。**每条均做过"注回缺陷后必须失败"的反向验证。**
+- **★ 2026-10-14 回归组（8 条，初审 H-1..H-4 / M-1..M-4）**：`test_package_file_set_matches_declared_count`（包文件集与结构树逐路径比对）、`test_upgrade_package_excludes_repo_tooling`（升级包内 `.git/`/`.workbuddy/`/`.github/` 计数为 0）、`test_propose_smoke_on_clean_copy`（`tempfile` 纯净副本内跑 propose，断言 exit 0 且日志含 `G6 PASSED`）、`test_scaling_state_schema_complete`（顶层必需字段含 `validation`，`gates_passed==6`、`file_count` 为本档期望值）、`test_no_crlf_and_no_bom_package_wide`（**读 bytes**；`read_text()` 的通用换行会掩盖 CRLF，这正是 M-1 逃过 31 条断言的原因）、`test_doc_section_anchors_exist`（`scaling.md` / `README_FOR_AI.md` 的章节引用目标必须存在）、`test_record_metrics_action_implemented`（`ValidateSet` 每个取值都能在 `switch` 找到分支，且 `switch` 有 `default`）、`test_host_metric_freshness_uses_config`（注入 `host_metrics` 后阈值按配置生效，日志不再出现 `-day freshness limit`）。**每条均做过"注回缺陷后必须失败"的反向验证。**
 - **★ 2026-10-14 复审回归组（5 条，R2）**：`test_host_metrics_survive_multiple_writes`（一次调用写两个宿主指标后 `host_metrics` 仍须能被 T1 读取；此前第二次写入把它替换成 .NET 成员属性，T1/T3 随即报 "never supplied"）、`test_t3_skips_when_samples_below_minimum`（样本低于 `min_routing_samples` 时 T3 必须跳过且不累加 miss）、`test_ip_masking_has_no_version_keyword_escape`（`release`/`build`/`rev` 之后的真实 IPv4 必须脱敏）、`test_credential_scrubbing_removes_real_names`（擦除必须经真正的 `_scrubbed_environment()`，良性变量保留）、`test_format_output_json_aigc_three_layers`（三层标识逐层断言，且内嵌披露标记绑定内容摘要）。拆分页标题与 `Function blocks:` 计数的断言并入 `test_propose_smoke_on_clean_copy`。**每条均已注回缺陷验证其失败。**
 - **★ 2026-10-16 终审回归组（12 条，R5）**：`test_skill_md_frontmatter_line_budget`、`test_description_length_within_spec_budget`、`test_tags_and_triggers_budgets`、`test_permissions_block_byte_identical_to_spec`、`test_dependency_and_prefix_declarations`、`test_errors_empty_and_self_scaling_propose_only`、`test_harness_baseline_declared`、`test_agents_md_line_budget_and_scope`、`test_three_version_locations_agree`、`test_license_locations_agree`、`test_error_code_catalog_integrity`、`test_no_bare_code_fences`。补齐 §6.1/§15 中此前**没有任何断言**的不变量（frontmatter/description/tags/triggers 预算、permissions 逐字符、错误码目录完整性、三处版本、AGENTS.md 行数、裸围栏）。**每条均已注回缺陷验证其失败。**
 
@@ -709,7 +709,7 @@ powershell -ExecutionPolicy Bypass -File scripts/self-scale.ps1 -Action evaluate
 
 | 项 | 说明 |
 |---|---|
-| 文件数 26 | 本文（`README-FOR-AI.md`）与 `.gitattributes` 均为独立项目的组成部分，非偏离项 |
+| 文件数 26 | 本文（`README_FOR_AI.md`）与 `.gitattributes` 均为独立项目的组成部分，非偏离项 |
 | Core Identity 无「所属域」 | 微型档无域概念（域路由 L+ 档启用） |
 | 记忆/熔断/董事会阶梯 | D2 中以 "at M+/L+ tiers" 限定语承载（微型档不引入这些子系统） |
 | G6 为机器可查子集 | `self-scale.ps1` 的 G6 实现可自动化子集，完整 §15 验收为人工步骤（已如实声明，非 P24） |
