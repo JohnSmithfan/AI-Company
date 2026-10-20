@@ -1,11 +1,11 @@
 ---
 name: "ai-company"
 slug: "ai-company"
-version: 2.0.0
-description: "Small-tier governance skill for growing AI agent organizations (3-10 agents). Distributes 18 enterprise function blocks across 5 departments - governance-and-operations, quality-and-delivery, technology-and-platform, security-and-compliance, and people-and-growth - spanning strategy, operations, quality, architecture, security, compliance, and people growth. Ships ten harness code templates, three prompt frameworks, a 34-code error catalog, and a propose-only self-scaling spec that evaluates thresholds and proposes tier upgrades up to group. Provides two human-paste prompts and one agent-invoked test-case prompt. Authored in English; runtime output follows the user's language with English fallback. Use for enterprise governance, engineering harnesses, PII masking, AIGC disclosure, or tier-upgrade assessment."
+version: 3.0.0
+description: "Medium-tier governance skill for scaling AI agent organizations (10-50 agents). Distributes 18 enterprise function blocks across 9 departments — governance-and-operations, technology-and-platform, security-and-compliance, quality-and-delivery, people-and-growth, legal-and-risk, data-and-analytics, product-and-strategy, and customer-and-partnerships — spanning strategy, operations, finance, risk, legal, privacy, architecture, security, compliance, quality, delivery, data, analytics, product, intelligence, brand, and partnerships. Ships ten harness code templates, three prompt frameworks, a 34-code error catalog with ten prefixes, and propose-only self-scaling. Use when a scaling team needs enterprise-grade governance, legal and privacy review, data and analytics pipelines, product and partnership coordination, or tier-upgrade assessment."
 license: "GPL-3.0"
 author: "AI Company Team"
-tags: [governance, llm-agents, agent-organization, compliance, error-codes, harness-engineering, pii-masking, aigc-disclosure, self-scaling, small-tier, method-templates, robustness-checks]
+tags: [governance, llm-agents, agent-organization, compliance, error-codes, harness-engineering, pii-masking, aigc-disclosure, self-scaling, medium-tier, method-templates, robustness-checks]
 dependencies: []
 triggers:
   - evaluate scaling threshold
@@ -34,7 +34,7 @@ interface:
           description: Task description
         department:
           type: string
-enum: [auto, governance-and-operations, technology-and-platform, security-and-compliance, people-and-growth, quality-and-delivery]
+enum: [auto, governance-and-operations, technology-and-platform, security-and-compliance, quality-and-delivery, people-and-growth, legal-and-risk, data-and-analytics, product-and-strategy, customer-and-partnerships]
           description: Which department to invoke; omit or "auto" to auto-route
         output_language:
           type: string
@@ -47,7 +47,7 @@ enum: [auto, governance-and-operations, technology-and-platform, security-and-co
     type: object
     schema: { type: object, properties: { result: { type: string, description: Operation result }, report: { type: object, description: Detailed report data } }, required: [result] }
 errors: []
-error_code_prefixes: [CEO_, CTO_, CISO_, CHO_, CQO_, SCL_]
+error_code_prefixes: [CEO_, CTO_, CISO_, CHO_, CQO_, CLR_, CDO_, CPO_, CCO_, SCL_]
 language_policy:
   authoring: en
   encoding: utf-8
@@ -77,8 +77,8 @@ metadata:
   maturity: STABLE
   license: GPL-3.0
   standardized: true
-  scale_tier: small
-  department_count: 5
+  scale_tier: medium
+  department_count: 9
   function_block_count: 18
   harness_baseline: L3
 department_aliases: references/scaling.md#alias-map

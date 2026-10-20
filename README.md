@@ -1,6 +1,6 @@
 # ai-company
 
-[![Version](https://img.shields.io/badge/version-2.0.0-blue)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-3.0.0-blue)](CHANGELOG.md)
 [![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-blue.svg)](LICENSE)
 [![Scale tier](https://img.shields.io/badge/scale_tier-small-teal)](references/scaling.md)
 [![CI](https://github.com/JohnSmithfan/AI-Company/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/JohnSmithfan/AI-Company/actions/workflows/ci.yml)
@@ -45,7 +45,7 @@ English | [简体中文](README.zh.md)
 | Item | Value |
 |---|---|
 | Skill name | `ai-company` |
-| Version | 2.0.0 |
+| Version | 3.0.0 |
 | Scale tier | `small` (S) |
 | Departments | 5 (`governance-and-operations`, `quality-and-delivery`, `technology-and-platform`, `security-and-compliance`, `people-and-growth`) |
 | Function blocks | 18 (6 + 2 + 3 + 3 + 4) |
@@ -80,21 +80,30 @@ ai-company/
 │   ├── method-patterns.md
 │   ├── error-codes.md
 │   ├── scaling.md
-│   └── departments/
-│       ├── governance-and-operations.md
-│       ├── quality-and-delivery.md
-│       ├── technology-and-platform.md
-│       ├── security-and-compliance.md
-│       └── people-and-growth.md
+│   ├── departments/
+│   │   ├── governance-and-operations.md
+│   │   ├── technology-and-platform.md
+│   │   ├── security-and-compliance.md
+│   │   ├── quality-and-delivery.md
+│   │   ├── people-and-growth.md
+│   │   ├── legal-and-risk.md
+│   │   ├── data-and-analytics.md
+│   │   ├── product-and-strategy.md
+│   │   └── customer-and-partnerships.md
+│   └── shared/
+│       ├── glossary.md
+│       ├── cross-department-handoff.md
+│       └── common-patterns.md
 ├── scripts/
 │   ├── self-scale.ps1
 │   └── scaling-config.json
 └── tests/
     └── test-method-patterns.py
-
 ```
 
-> Structure tree rewritten to the 30-file small-tier skeleton by the upgrade generator - requires human review before installation.
+> Structure tree rewritten to the 37-file medium-tier skeleton by the upgrade generator - requires human review before installation.
+
+
 
 The tree lists the **package file set**: repository tooling directories
 (`.git/`, `.github/`, `.workbuddy/`, `.skill-upgrade/`) are not package content

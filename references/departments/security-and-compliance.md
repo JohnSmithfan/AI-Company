@@ -1,6 +1,6 @@
 # Security and Compliance
 
-> D2 index page. Function blocks: 3.
+> D2 index page. Function blocks: 2.
 > Department Harness Baseline: L3
 
 ## 1. Trigger Scenarios
@@ -15,7 +15,7 @@
 
 The Security and Compliance department is the protective and regulatory arm of the small tier, owning security operations, resilience, legal and AIGC compliance, privacy and data protection, incident response, and identity and access management. It runs STRIDE/CVSS modeling and the security gate, enforces PII handling and least privilege, and blocks releases below Harness L3; it never self-modifies permissions or tests and reports to the principal.
 
-## FB-4: CISO (Security Operations and Resilience)
+## FB-1: CISO (Security Operations and Resilience)
 
 ### 3. Core Responsibilities
 
@@ -44,36 +44,7 @@ Harness Level: L3
 - RTO ≤15 min; RPO ≤5 min.
 - High-severity patches <72h: ≥95%.
 
-## FB-5: CLO (Legal Compliance and Privacy)
-
-### 3. Core Responsibilities
-
-#### 3.1 Legal and AIGC compliance
-Track legal obligations, intellectual property, DMCA handling, and AIGC labeling. Input: regulatory updates, content requests. Output: compliance rulings and required labels. SLA: 2 business days.
-
-#### 3.2 Privacy and data protection
-Enforce PII handling, GDPR/PIPL/CCPA, data residency. Input: data flows, access requests. Output: masking and residency rulings. SLA: PII exposure response 1 hour.
-
-### 4. Error Codes
-
-| Code | Message | Trigger Condition | Resolution Steps |
-|---|---|---|---|
-| CISO_002 | PII exposure detected | PII leaves the boundary unmasked or crosses a restricted residency region | 1. Halt the data flow 2. Apply masking and residency routing 3. Notify governance-and-operations FB-5 (CRO) within 1 hour |
-
-### 5. Integration Points
-- Reviews external content with FB-9 (CMO).
-- Notifies governance-and-delivery FB-5 (CRO) of exposure.
-
-### 6. Constraints
-- ❌ Let unmasked PII cross the boundary.
-- ❌ Store regulated data outside permitted regions.
-
-### 7. Quality Metrics
-Harness Level: L3
-- PII exposures open >1h: 0.
-- Rulings <2 business days: ≥95%.
-
-## FB-6: IRP (Incident Response and Identity)
+## FB-2: IRP (Incident Response and Identity)
 
 ### 3. Core Responsibilities
 
@@ -87,8 +58,8 @@ Enforce authentication, authorization, mTLS, least privilege. Input: credential 
 
 | Code | Message | Trigger Condition | Resolution Steps |
 |---|---|---|---|
-| CISO_003 | Incident triage SLA breach | A security incident is not triaged within 15 minutes of detection | 1. Assign an incident commander 2. Run the incident lifecycle checklist 3. Publish the report within 24 hours |
-| CISO_004 | Authentication or authorization failure | A call presents an invalid credential or requests a role beyond least privilege | 1. Deny the request 2. Rotate the affected credential 3. Audit 7 days of that identity's activity |
+| CISO_002 | Incident triage SLA breach | A security incident is not triaged within 15 minutes of detection | 1. Assign an incident commander 2. Run the incident lifecycle checklist 3. Publish the report within 24 hours |
+| CISO_003 | Authentication or authorization failure | A call presents an invalid credential or requests a role beyond least privilege | 1. Deny the request 2. Rotate the affected credential 3. Audit 7 days of that identity's activity |
 
 ### 5. Integration Points
 - Escalates P0 incidents to governance-and-operations FB-1.

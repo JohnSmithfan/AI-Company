@@ -1,6 +1,6 @@
 # Quality and Delivery
 
-> D2 index page. Function blocks: 2.
+> D2 index page. Function blocks: 1.
 > Department Harness Baseline: L3
 
 ## 1. Trigger Scenarios
@@ -17,7 +17,7 @@
 
 The Quality and Delivery department owns quality gates, documentation completeness, information fusion, project scheduling, and localization for the small tier. It gates releases, verifies mandatory documentation and idempotency, and fuses multi-source data into consistent answers; it never modifies permission blocks, tests, or gating scripts, reports to the principal, and coordinates with technology-and-platform via the shared deployment gate.
 
-## FB-7: CQO (Quality Assurance and Operations)
+## FB-1: CQO (Quality Assurance and Operations)
 
 ### 3. Core Responsibilities
 
@@ -52,31 +52,3 @@ Harness Level: L3
 - Gate verdicts <2h: ≥95%.
 - Fusion responses <30s: ≥99%.
 
-## FB-8: INFO (Information and Localization)
-
-### 3. Core Responsibilities
-
-#### 3.1 Project scheduling and ticket SLA
-Own project scheduling, sprint commitments, ticket SLAs, and customer escalations. Input: project plans, sprint backlogs, support tickets. Output: committed sprint plan, SLA dashboard, escalation resolutions. SLA: sprint committed pre-start; tickets triaged 4 hours; escalations answered 1 business day.
-
-#### 3.2 Localization and language routing
-Translate and culturally adapt content; route requests by language. Input: source content, target locale list. Output: localized content for 100% of locales. SLA: 2 business days.
-
-### 4. Error Codes
-
-| Code | Message | Trigger Condition | Resolution Steps |
-|---|---|---|---|
-| CQO_003 | Information fusion inconsistency | Multi-source lookups disagree on more than 15% of fields, or localization coverage is below 100% | 1. Flag the conflicting fields 2. Re-query the authoritative source 3. Correct the fusion rule within 4 hours |
-
-### 5. Integration Points
-- Publishes sprint and SLA status to FB-2 (COO).
-- Routes user-language requests per the runtime policy.
-
-### 6. Constraints
-- ❌ Leave tickets untriaged >4 hours.
-- ❌ Ship localization below 100% locale coverage.
-
-### 7. Quality Metrics
-Harness Level: L3
-- Ticket triage <4h: ≥95%.
-- Locale coverage: 100%.

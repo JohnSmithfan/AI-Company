@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""test-method-patterns.py — self-check suite for the micro-tier LLM Agent governance skill package (four assertion classes).
+"""test-method-patterns.py — self-check suite for the medium-tier LLM Agent governance skill package (four assertion classes).
 
 A. Behaviour tests     — extract the ```python code blocks of section 3 (Shared Code Templates)
                    in references/method-patterns.md, exec them into an isolated namespace and call them.
@@ -33,8 +33,8 @@ from pathlib import Path
 SKILL_DIR = Path(__file__).resolve().parent.parent
 WORKSPACE_ROOT = SKILL_DIR.parent  # the real root behind the {WORKSPACE_ROOT} placeholder
 
-SCALE_TIER = "small"
-SKILL_VERSION = "2.0.0"
+SCALE_TIER = "medium"
+SKILL_VERSION = "3.0.0"
 
 AUTHORITATIVE_SOURCE = "references/method-patterns.md"  # ★ the single authoritative source
 LEGACY_TEMPLATES_FILE = "references/templates.md"       # cancelled by R3-2; must not exist
@@ -70,24 +70,32 @@ TEN_TEMPLATE_SIGNATURES = [
 # Function-block conservation (README_FOR_AI.md §10.1): XS/S/M/L = 18, G = 36
 EXPECTED_FB_BY_TIER = {"micro": 18, "small": 18, "medium": 18, "large": 18, "group": 36}
 EXPECTED_FB_TOTAL = EXPECTED_FB_BY_TIER[SCALE_TIER]
-# Function blocks per department at the small tier (micro→small split;
-# G4-verified distribution: 6+2+3+3+4 = 18 conserved)
+# Function blocks per department at the medium tier (small→medium split;
+# G4-verified distribution sums to 18 conserved across 9 departments)
 EXPECTED_DEPARTMENT_BLOCKS = {
-    "governance-and-operations.md": 6,
-    "quality-and-delivery.md": 2,
-    "technology-and-platform.md": 3,
-    "security-and-compliance.md": 3,
-    "people-and-growth.md": 4,
+    "customer-and-partnerships.md": 2,
+    "data-and-analytics.md": 2,
+    "governance-and-operations.md": 3,
+    "legal-and-risk.md": 2,
+    "people-and-growth.md": 2,
+    "product-and-strategy.md": 2,
+    "quality-and-delivery.md": 1,
+    "security-and-compliance.md": 2,
+    "technology-and-platform.md": 2,
 }
 
-# Error-code catalog distribution after the micro→small prefix revival
-# (CEO_/CTO_ codes redistributed to the revived CISO_/CHO_/CQO_ prefixes).
+# Error-code catalog distribution at the medium tier (small→medium re-prefixing
+# of 8 blocks to CLR_/CDO_/CPO_/CCO_; 34 codes across 10 prefixes).
 EXPECTED_CODES_BY_PREFIX = {
-    "CEO_": 9,    # governance-and-operations
-    "CTO_": 4,    # technology-and-platform
-    "CISO_": 4,   # security-and-compliance
-    "CHO_": 4,    # people-and-growth
-    "CQO_": 3,    # quality-and-delivery
+    "CEO_": 6,    # governance-and-operations
+    "CTO_": 3,    # technology-and-platform
+    "CISO_": 3,   # security-and-compliance
+    "CHO_": 2,    # people-and-growth
+    "CQO_": 2,    # quality-and-delivery
+    "CLR_": 2,    # legal-and-risk
+    "CDO_": 2,    # data-and-analytics
+    "CPO_": 2,    # product-and-strategy
+    "CCO_": 2,    # customer-and-partnerships
     "SCL_": 10,   # infrastructure (unchanged)
 }
 
@@ -1119,11 +1127,11 @@ class InitialReview20261014Tests(unittest.TestCase):
 
     # ── H-1 / H-3: the package file set must match the three-sibling structure tree path by path ──
     def test_package_file_set_matches_declared_count(self):
-        """★ H-1/H-3: the package file set = 30 (small tier) and the three README siblings' trees match it path by path."""
+        """★ H-1/H-3: the package file set = 37 (medium tier) and the three README siblings' trees match it path by path."""
         declared = set(package_relative_paths())
         self.assertEqual(
-            30, len(declared),
-            f"the package file set should be 30, found {len(declared)}: {sorted(declared)}",
+            37, len(declared),
+            f"the package file set should be 37, found {len(declared)}: {sorted(declared)}",
         )
         for doc in ("README.md", "README.en.md", "README.zh.md"):
             tree = set(readme_tree_paths(doc))
@@ -1244,8 +1252,8 @@ class InitialReview20261014Tests(unittest.TestCase):
         validation = state["validation"]
         self.assertEqual(6, validation.get("gates_passed"),
                          "validation.gates_passed must = 6")
-        self.assertEqual(30, validation.get("file_count"),
-                         "small-tier validation.file_count should be 30")
+        self.assertEqual(37, validation.get("file_count"),
+                         "medium-tier validation.file_count should be 37")
         self.assertIn("acceptance_passed", validation)
 
     # ── M-1: must read bytes; read_text() hides CRLF ─────────────────────────────────────────────
@@ -1312,14 +1320,14 @@ class InitialReview20261014Tests(unittest.TestCase):
         pkg = self._clean_copy(workspace / "ai-company")
         script = pkg / "scripts" / "self-scale.ps1"
         rec = self._run_self_scale(
-            script, "record-metrics", ["-AgentCount", "15", "-Source", "selftest"],
+            script, "record-metrics", ["-AgentCount", "75", "-Source", "selftest"],
         )
         rec_out = (rec.stdout or "") + (rec.stderr or "")
         self.assertEqual(0, rec.returncode, f"record-metrics failed:\n{rec_out[-2000:]}")
         ev = self._run_self_scale(script, "evaluate")
         combined = (ev.stdout or "") + "\n" + (ev.stderr or "")
         self.assertIn(
-            "T1 agent capacity: agent_count = 15, threshold >", combined,
+            "T1 agent capacity: agent_count = 75, threshold >", combined,
             f"a fresh host metric did not take part in T1 per the config:\n{combined[-2500:]}",
         )
         self.assertIn("TRIGGERED T1", combined,
@@ -1542,7 +1550,7 @@ class Recheck20261014Tests(unittest.TestCase):
 
 _FENCE = chr(96) * 3  # three backticks, built from a code point so this file stays readable
 _EC_ROW_RE = re.compile(
-    r"^\|\s*((?:CEO|CTO|CISO|CHO|CQO|SCL)_\d{3})\s*\|([^|]*)\|([^|]*)\|([^|]*)\|\s*$", re.M
+    r"^\|\s*((?:CEO|CTO|CISO|CHO|CQO|CLR|CDO|CPO|CCO|SCL)_\d{3})\s*\|([^|]*)\|([^|]*)\|([^|]*)\|\s*$", re.M
 )
 
 # README_FOR_AI.md section 10.3: the SCL_ messages are fixed across every tier.
@@ -1637,15 +1645,15 @@ class TerminalReview20261016Tests(unittest.TestCase):
         self.assertEqual(canonical, actual, "permissions block differs from README_FOR_AI.md section 9.1")
 
     def test_dependency_and_prefix_declarations(self):
-        """section 6.1: dependencies is empty; error_code_prefixes lists exactly the three prefixes."""
+        """section 6.1: dependencies is empty; error_code_prefixes lists exactly the ten prefixes."""
         fm = parse_frontmatter(SKILL_DIR / "SKILL.md")
         self.assertEqual("[]", str(fm.get("dependencies", "")).strip(), "dependencies must be an empty array")
         lines, end = self._frontmatter_lines()
         prefix_line = next((l for l in lines[1:end] if re.match(r"^error_code_prefixes\s*:", l)), None)
         self.assertIsNotNone(prefix_line, "error_code_prefixes missing from the frontmatter")
         prefixes = [p.strip() for p in re.search(r"\[(.*)\]", prefix_line).group(1).split(",")]
-        self.assertEqual(["CEO_", "CTO_", "CISO_", "CHO_", "CQO_", "SCL_"], prefixes,
-                         "error_code_prefixes must be exactly [CEO_, CTO_, CISO_, CHO_, CQO_, SCL_]")
+        self.assertEqual(["CEO_", "CTO_", "CISO_", "CHO_", "CQO_", "CLR_", "CDO_", "CPO_", "CCO_", "SCL_"], prefixes,
+                         "error_code_prefixes must be exactly [CEO_, CTO_, CISO_, CHO_, CQO_, CLR_, CDO_, CPO_, CCO_, SCL_]")
 
     def test_errors_empty_and_self_scaling_propose_only(self):
         """P17: frontmatter errors is empty. P36: upgrade_policy is propose-only."""
@@ -1700,7 +1708,7 @@ class TerminalReview20261016Tests(unittest.TestCase):
         self.assertIn("Version 3", license_text)
 
     def test_error_code_catalog_integrity(self):
-        """section 10.3 / section 15: 34 codes across 6 prefixes, continuous, D2 tables identical to the catalog."""
+        """section 10.3 / section 15: 34 codes across 10 prefixes, continuous, D2 tables identical to the catalog."""
         catalog = parse_error_code_rows(
             (SKILL_DIR / "references" / "error-codes.md").read_text(encoding="utf-8")
         )

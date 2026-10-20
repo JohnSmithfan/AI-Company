@@ -1,6 +1,6 @@
 # Governance and Operations
 
-> D2 index page. Function blocks: 6.
+> D2 index page. Function blocks: 3.
 > Department Harness Baseline: L3
 
 ## 1. Trigger Scenarios
@@ -83,36 +83,7 @@ Harness Level: L3
 - Conflicts resolved <2h: ≥95%.
 - Handoffs meeting SLA: ≥95%.
 
-## FB-3: BRD (Board Governance)
-
-### 3. Core Responsibilities
-
-#### 3.1 Authorization matrix maintenance
-Own and update decision authority levels. Input: approval-level change requests. Output: versioned authorization matrix. SLA: published 2 business days after approval.
-
-#### 3.2 Escalation ladder and shareholder reporting
-Route reserved matters up the escalation ladder (board tier at L+) and issue shareholder reports. Input: escalation notices, quarterly logs. Output: rulings and the quarterly shareholder report. SLA: ruling 2 business days; report 5 after close.
-
-### 4. Error Codes
-
-| Code | Message | Trigger Condition | Resolution Steps |
-|---|---|---|---|
-| CEO_005 | Authorization matrix violation | A decision is executed above or outside its defined approval level | 1. Halt the decision 2. Route it to the correct escalation level 3. Log the violation for quarterly board review |
-
-### 5. Integration Points
-- Receives escalations from FB-1 (CEO) and FB-5 (CRO).
-- Consumes PDCA and finance logs from FB-2/FB-4.
-
-### 6. Constraints
-- ❌ Approve matters outside the authorization matrix.
-- ❌ Publish shareholder reports without FB-4 sign-off.
-
-### 7. Quality Metrics
-Harness Level: L3
-- Authorization matrix violations per quarter: 0.
-- Shareholder report ≤5d after close: 100%.
-
-## FB-4: CFO (Financial Management and Treasury)
+## FB-3: CFO (Financial Management and Treasury)
 
 ### 3. Core Responsibilities
 
@@ -126,8 +97,8 @@ Manage cash, runway, and payment terms. Input: receivables and payables. Output:
 
 | Code | Message | Trigger Condition | Resolution Steps |
 |---|---|---|---|
-| CEO_006 | Quarterly budget overrun | Spend exceeds the quarterly budget by more than 10% | 1. Freeze non-essential spend 2. Generate a variance analysis within 24 hours 3. Escalate to FB-1 for approval |
-| CEO_007 | Cash-flow threshold breach | DSO exceeds 45 days or projected runway falls below 6 months | 1. Halt new capital expenditure 2. Produce a 13-week cash forecast 3. Escalate to FB-3 |
+| CEO_005 | Quarterly budget overrun | Spend exceeds the quarterly budget by more than 10% | 1. Freeze non-essential spend 2. Generate a variance analysis within 24 hours 3. Escalate to FB-1 for approval |
+| CEO_006 | Cash-flow threshold breach | DSO exceeds 45 days or projected runway falls below 6 months | 1. Halt new capital expenditure 2. Produce a 13-week cash forecast 3. Escalate to FB-3 |
 
 ### 5. Integration Points
 - Sends budget alerts to FB-1; cash escalations to FB-3.
@@ -141,65 +112,4 @@ Manage cash, runway, and payment terms. Input: receivables and payables. Output:
 Harness Level: L3
 - DSO: ≤45 days.
 - Forecast refreshed weekly: 100%.
-
-## FB-5: CRO (Risk Management)
-
-### 3. Core Responsibilities
-
-#### 3.1 FAIR risk assessment
-Quantify exposure for proposals and operations. Input: scenarios, asset values. Output: FAIR exposure report with numeric loss expectancy. SLA: 4 hours for gate-blocking requests.
-
-#### 3.2 Risk gating (circuit-breaker semantics at M+ tiers)
-Gate risky operations when exposure crosses thresholds. Input: live exposure metrics. Output: gate rulings and breaker state. SLA: trip 5 minutes after crossing.
-
-#### 3.3 Internal audit and evidence chain
-Run internal audits of financial compliance and preserve the evidence chain. Input: audit plans, ledgers, control records. Output: findings with remediation and a hashed evidence chain. SLA: findings 5 business days after fieldwork.
-
-### 4. Error Codes
-
-| Code | Message | Trigger Condition | Resolution Steps |
-|---|---|---|---|
-| CEO_008 | Risk threshold breach without circuit breaker | FAIR-assessed exposure exceeds the risk threshold with no breaker tripped | 1. Trip the circuit breaker 2. Re-run the FAIR assessment within 4 hours 3. Report to FB-1 |
-
-### 5. Integration Points
-- Reports weekly risk posture to FB-1 (CEO).
-- Gates technology-and-platform deployments via the risk gate.
-
-### 6. Constraints
-- ❌ Approve operations exceeding the exposure threshold.
-- ❌ Suppress a tripped circuit breaker without FB-1 approval.
-
-### 7. Quality Metrics
-Harness Level: L3
-- Breaches without a tripped breaker: 0.
-- FAIR assessments <4h: ≥95%.
-
-## FB-6: PRC (Procurement and Billing)
-
-### 3. Core Responsibilities
-
-#### 3.1 Vendor evaluation and contracts
-Score vendors and manage contract costs. Input: vendor proposals, evaluation criteria. Output: scored vendor matrix and contract terms. SLA: evaluation 5 business days.
-
-#### 3.2 Billing and unit economics
-Allocate costs and track unit economics. Input: usage meters, invoices. Output: per-unit cost report. SLA: 3 business days after month close.
-
-### 4. Error Codes
-
-| Code | Message | Trigger Condition | Resolution Steps |
-|---|---|---|---|
-| CEO_009 | Vendor cost deviation | A final vendor invoice exceeds the contracted amount by more than 5% | 1. Suspend payments to the vendor 2. Request a written reconciliation 3. Enforce the penalty clause within 5 business days |
-
-### 5. Integration Points
-- Reconciles invoices with FB-4 (CFO).
-- Sources tooling and model capacity from technology-and-platform.
-
-### 6. Constraints
-- ❌ Pay invoices deviating >5% without reconciliation.
-- ❌ Onboard vendors scoring below 0.7.
-
-### 7. Quality Metrics
-Harness Level: L3
-- Reconciliation <5 business days: ≥95%.
-- Unit-economics report monthly: 100%.
 

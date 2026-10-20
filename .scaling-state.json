@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "current_tier": "small",
+  "current_tier": "medium",
   "tier_history": [
     {
       "from": "micro",
@@ -11,6 +11,20 @@
       "package_path": "C:\\Users\\Admin\\.agents\\skills\\.skill-upgrade\\20261019-210513",
       "validation": {
         "file_count": 30,
+        "function_blocks": 18,
+        "gates_passed": 6,
+        "acceptance_passed": true
+      }
+    },
+    {
+      "from": "small",
+      "to": "medium",
+      "proposed_at": "2026-10-20T06:02:22Z",
+      "approved_by": "user",
+      "installed_at": "2026-10-20T06:30:00Z",
+      "package_path": "C://Users//Admin//.agents//skills//.skill-upgrade//20261020-140222",
+      "validation": {
+        "file_count": 37,
         "function_blocks": 18,
         "gates_passed": 6,
         "acceptance_passed": true
@@ -36,13 +50,32 @@
         "gates_passed": 6,
         "acceptance_passed": true
       }
+    },
+    {
+      "proposal_id": "20261020-140222",
+      "from_tier": "small",
+      "to_tier": "medium",
+      "proposed_at": "2026-10-20T06:02:22Z",
+      "trigger_reasons": [
+        "T2: max_blocks_per_department = 6 (threshold > 5.4)"
+      ],
+      "package_path": "C:\\Users\\Admin\\.agents\\skills\\.skill-upgrade\\20261020-140222",
+      "status": "installed",
+      "approved_by": "user",
+      "installed_at": "2026-10-20T06:30:00Z",
+      "validation": {
+        "file_count": 37,
+        "function_blocks": 18,
+        "gates_passed": 6,
+        "acceptance_passed": true
+      }
     }
   ],
-  "next_evaluation": "2026-11-18T13:16:24Z",
+  "next_evaluation": "2026-11-19T06:30:00Z",
   "last_metrics": {
     "agent_count": 0,
     "routing_accuracy": 1.0,
-    "max_blocks_per_department": 10,
+    "max_blocks_per_department": 6,
     "error_code_reuse_ratio": 0.0
   },
   "routing_miss_streak": 0,
@@ -54,7 +87,7 @@
   },
   "validation": {
     "gates_passed": 6,
-    "file_count": 30,
+    "file_count": 37,
     "acceptance_passed": true
   }
 }

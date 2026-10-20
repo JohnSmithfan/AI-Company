@@ -1,6 +1,6 @@
 # ai-company
 
-[![Version](https://img.shields.io/badge/version-2.0.0-blue)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-3.0.0-blue)](CHANGELOG.md)
 [![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-blue.svg)](LICENSE)
 [![Scale tier](https://img.shields.io/badge/scale_tier-small-teal)](references/scaling.md)
 [![CI](https://github.com/JohnSmithfan/AI-Company/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/JohnSmithfan/AI-Company/actions/workflows/ci.yml)
@@ -41,7 +41,7 @@
 | 项目 | 值 |
 |---|---|
 | 技能名 | `ai-company` |
-| 版本 | 2.0.0 |
+| 版本 | 3.0.0 |
 | 档位 | `small`（S，小型） |
 | 部门数 | 5（`governance-and-operations`、`quality-and-delivery`、`technology-and-platform`、`security-and-compliance`、`people-and-growth`） |
 | 职能块 | 18（6 + 2 + 3 + 3 + 4） |
@@ -76,21 +76,30 @@ ai-company/
 │   ├── method-patterns.md
 │   ├── error-codes.md
 │   ├── scaling.md
-│   └── departments/
-│       ├── governance-and-operations.md
-│       ├── quality-and-delivery.md
-│       ├── technology-and-platform.md
-│       ├── security-and-compliance.md
-│       └── people-and-growth.md
+│   ├── departments/
+│   │   ├── governance-and-operations.md
+│   │   ├── technology-and-platform.md
+│   │   ├── security-and-compliance.md
+│   │   ├── quality-and-delivery.md
+│   │   ├── people-and-growth.md
+│   │   ├── legal-and-risk.md
+│   │   ├── data-and-analytics.md
+│   │   ├── product-and-strategy.md
+│   │   └── customer-and-partnerships.md
+│   └── shared/
+│       ├── glossary.md
+│       ├── cross-department-handoff.md
+│       └── common-patterns.md
 ├── scripts/
 │   ├── self-scale.ps1
 │   └── scaling-config.json
 └── tests/
     └── test-method-patterns.py
-
 ```
 
-> 结构树已由升级生成器改写为 30 个文件的小型档骨架（small）——安装前需人工复核。
+> 结构树已由此升级生成器改写为 37 个文件的中型档骨架 - 安装前需人工复核。
+
+
 
 结构树列出的是**包文件集**：仓库工具目录（`.git/`、`.github/`、`.workbuddy/`、
 `.skill-upgrade/`）不属于包内容，不计入文件总数（`README_FOR_AI.md` §3）。

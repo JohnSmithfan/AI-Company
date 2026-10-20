@@ -8,6 +8,14 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [3.0.0] - 2026-10-20 - tier upgrade proposal (small -> medium)
+
+- Departments: 5 -> 9 (8 function blocks migrated from 5 existing departments to 4 new departments: legal-and-risk, data-and-analytics, product-and-strategy, customer-and-partnerships; 18 blocks conserved)
+- New error-code prefixes: CLR_, CDO_, CPO_, CCO_ (resolved alias table appended to references/error-codes.md)
+- New shared modules: references/shared/{glossary, cross-department-handoff, common-patterns}.md
+- Slug aliases appended to references/scaling.md (Alias Map)
+- PROPOSED ONLY - requires human approval and an external installer
+
 ## [2.0.0] - 2026-10-19 - tier upgrade proposal (micro -> small)
 
 - Departments: 2 -> 5 (merge-tree split, function blocks conserved at 18)

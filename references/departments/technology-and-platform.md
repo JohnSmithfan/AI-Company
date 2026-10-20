@@ -1,6 +1,6 @@
 # Technology and Platform
 
-> D2 index page. Function blocks: 3.
+> D2 index page. Function blocks: 2.
 > Department Harness Baseline: L3
 
 ## 1. Trigger Scenarios
@@ -76,33 +76,4 @@ Enforce L1–L6 harness levels per capability unit. Input: unit definitions. Out
 Harness Level: L3
 - Units ≥L3: 100%.
 - Pipeline triage <2h: ≥95%.
-
-## FB-3: MDL (Model and Data)
-
-### 3. Core Responsibilities
-
-#### 3.1 Model registry and invocation policy
-Maintain the model registry, adapters, invocation policies. Input: onboarding requests, telemetry. Output: registered models with policy bindings. SLA: 1 business day.
-
-#### 3.2 Data pipelines and schema contracts
-Operate pipelines with enforced schema contracts and multi-source data fusion. Input: source schemas, pipeline jobs. Output: fused datasets with drift reports. SLA: drift flagged 1 hour.
-
-### 4. Error Codes
-
-| Code | Message | Trigger Condition | Resolution Steps |
-|---|---|---|---|
-| CTO_004 | Model or data governance violation | An invoked model is absent from the registry, or a pipeline schema drifts by more than 2 fields | 1. Reject the invocation or run 2. Register the model or restore the schema contract 3. Backfill affected records within 24 hours |
-
-### 5. Integration Points
-- Supplies models via the policy layer.
-- Feeds datasets to FB-10 and governance-and-operations FB-8.
-
-### 6. Constraints
-- ❌ Invoke unregistered models.
-- ❌ Promote datasets from drifted schemas.
-
-### 7. Quality Metrics
-Harness Level: L3
-- Registry coverage: 100%.
-- Drift fixes <24h: ≥95%.
 

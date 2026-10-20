@@ -325,6 +325,14 @@ ignored):
 | engineering-and-safety | micro | technology-and-platform | v2.0.0 |
 | engineering-and-safety | micro | security-and-compliance | v2.0.0 |
 | engineering-and-safety | micro | people-and-growth | v2.0.0 |
+| governance-and-operations | small | legal-and-risk | v3.0.0 |
+| security-and-compliance | small | legal-and-risk | v3.0.0 |
+| technology-and-platform | small | data-and-analytics | v3.0.0 |
+| quality-and-delivery | small | data-and-analytics | v3.0.0 |
+| people-and-growth | small | product-and-strategy | v3.0.0 |
+| governance-and-operations | small | product-and-strategy | v3.0.0 |
+| governance-and-operations | small | customer-and-partnerships | v3.0.0 |
+| people-and-growth | small | customer-and-partnerships | v3.0.0 |
 
 Planned rows appended by the micro → small upgrade (illustrative, not active):
 
