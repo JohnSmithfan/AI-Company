@@ -45,7 +45,7 @@ unattended.
 ### 1.1 Three things that can never be self-modified (hard boundary)
 
 Even with human approval, in any tier, on any upgrade path, the following are
-immutable (README-FOR-AI.md §9.5):
+immutable (README_FOR_AI.md §9.5):
 
 | # | Immutable item | Consequence if modified | Gate | Error code |
 |---|---|---|---|---|
@@ -64,13 +64,13 @@ travel through the upgrade channel.
 
 | Tier | Upgrades to | major after | File count (R4 resynced values) | Notes |
 |---|---|---|---|---|
-| `micro` | `small` | 1 → 2 | 26 → 30 | 2 → 5 departments, function blocks stay 18; package includes `README-FOR-AI.md` (user-approved deviation) and `.gitattributes`, so 29 spec files + 1 |
-| `small` | `medium` | 2 → 3 | 30 → 37–45 | 5 → 9 departments, shared modules added (a 36–44 file range plus the package-local `README-FOR-AI.md`) |
+| `micro` | `small` | 1 → 2 | 26 → 30 | 2 → 5 departments, function blocks stay 18; package includes `README_FOR_AI.md` (user-approved deviation) and `.gitattributes`, so 29 spec files + 1 |
+| `small` | `medium` | 2 → 3 | 30 → 37–45 | 5 → 9 departments, shared modules added (a 36–44 file range plus the package-local `README_FOR_AI.md`) |
 | `medium` | `large` | 3 → 4 | 36–44 → 148 | 9 → 18 departments, D3 layer + 7-domain routing + department-index.md |
 | `large` | `group` | 4 → 5 | 148 → 246 | 18 → 36 departments, function blocks 18 → 36 (the only change of block total) |
 | `group` | — | — | — | Highest tier; an upgrade request returns `SCL_009` |
 
-> **Counting basis**: figures are **total package files** — spec files + the package-local `README-FOR-AI.md` + `.gitattributes` (added in R4, present at every tier) — over the **package file set** defined in README-FOR-AI.md §3. Repository tooling directories (`.git/`, `.github/`, `.workbuddy/`, `.skill-upgrade/`) are never package content and are never counted. The sole exception is the left-hand side of the `medium → large` row, which repeats the medium-tier **spec-file** range. All counts were resynced when `.gitattributes` was introduced; re-derive them again if any file is added or removed at any tier. |
+> **Counting basis**: figures are **total package files** — spec files + the package-local `README_FOR_AI.md` + `.gitattributes` (added in R4, present at every tier) — over the **package file set** defined in README_FOR_AI.md §3. Repository tooling directories (`.git/`, `.github/`, `.workbuddy/`, `.skill-upgrade/`) are never package content and are never counted. The sole exception is the left-hand side of the `medium → large` row, which repeats the medium-tier **spec-file** range. All counts were resynced when `.gitattributes` was introduced; re-derive them again if any file is added or removed at any tier. |
 
 Rules:
 
@@ -236,7 +236,7 @@ written value happens to equal the default.
 ## 4. micro → small Upgrade Path (merge tree)
 
 The split mapping below is a **deterministic table lookup** from the
-merge tree in README-FOR-AI.md §10.1. The executor performs no AI improvisation of
+merge tree in README_FOR_AI.md §10.1. The executor performs no AI improvisation of
 department boundaries.
 
 ### 4.1 Department split (2 → 5)
@@ -351,9 +351,9 @@ executor; gates are never merged into a single conditional.
 | **G1** | Permission-unchanged | SHA-256 of the `permissions` block extracted from the package `SKILL.md` frontmatter equals the SHA-256 of the current one. Zero-change; the hash is computed over normalized text (line-ending insensitive) | Reject: package quarantined | `SCL_004` |
 | **G2** | Tests-unchanged | Every file under `tests/**` in the package is byte-identical (SHA-256, same relative path set) to the current package — no additions, no deletions, no modifications; equivalently, the package diff contains no `tests/**` paths. Build residues (`__pycache__/`, `*.pyc`) are excluded on both sides, so they can never fail or pad this gate | Reject: package quarantined | `SCL_005` |
 | **G3** | Deny-and-gate-unchanged | The 5 `deny` items are present and unrewritten in the package, and `scripts/self-scale.ps1` in the package has the same SHA-256 as the running script | Reject: package quarantined | `SCL_004` |
-| **G4** | Function-block conservation | Total `## FB-N:` headings across the package's D2 pages equals the target expectation (18 for small) **and** every department's count equals its merge-tree expectation (small tier: 6/2/3/3/4), and no unexpected D2 page exists in the package; every page's declared `Function blocks: <N>` figure (mandatory per README-FOR-AI.md §10.2) must equal its merge-tree share, so a page that keeps the legacy count fails the gate; on failure, a per-department expected-vs-found list is reported. The split itself aborts with `SCL_010` before any package is completed when a legacy page holds more or fewer sections than the merge tree expects (nothing is silently dropped or padded) | Reject: package quarantined | `SCL_010` |
+| **G4** | Function-block conservation | Total `## FB-N:` headings across the package's D2 pages equals the target expectation (18 for small) **and** every department's count equals its merge-tree expectation (small tier: 6/2/3/3/4), and no unexpected D2 page exists in the package; every page's declared `Function blocks: <N>` figure (mandatory per README_FOR_AI.md §10.2) must equal its merge-tree share, so a page that keeps the legacy count fails the gate; on failure, a per-department expected-vs-found list is reported. The split itself aborts with `SCL_010` before any package is completed when a legacy page holds more or fewer sections than the merge tree expects (nothing is silently dropped or padded) | Reject: package quarantined | `SCL_010` |
 | **G5** | Alias completeness | Every legacy slug has at least one alias row, every target slug is reachable, and no new slug collides with any historical alias | Reject: package quarantined | `SCL_003` |
-| **G6** | Acceptance passed | Machine-checkable acceptance items on the package: file count = expected value (30 for small, counted over the package file set of Section 2 / README-FOR-AI.md §3, which excludes `UPGRADE-PROPOSAL.md` and build residues); frontmatter triple consistency (`scale_tier` / `department_count` / `function_block_count`); version agreement in the three required locations (`_meta.json`, README badge in the concrete `version-2.0.0-blue` format, `SKILL.md` frontmatter); `interface.department.enum` lists exactly `auto` plus the 5 small-tier department slugs (item count = department_count + 1, no retired slug); presence of all 5 target D2 files; `error_code_prefixes` lists the 5 department prefixes plus `SCL_`; `prompts/03-test-cases.md` present, `agent-invoked`, harness level ≥ L3. On failure the failed-item detail is written to the log and to `last_failure.detail` in the state file. Full §15 acceptance including AI-content review (A–G groups, H, I, U) remains a human step recorded in the report | Reject: package quarantined with the failed-item list | `SCL_006` |
+| **G6** | Acceptance passed | Machine-checkable acceptance items on the package: file count = expected value (30 for small, counted over the package file set of Section 2 / README_FOR_AI.md §3, which excludes `UPGRADE-PROPOSAL.md` and build residues); frontmatter triple consistency (`scale_tier` / `department_count` / `function_block_count`); version agreement in the three required locations (`_meta.json`, README badge in the concrete `version-2.0.0-blue` format, `SKILL.md` frontmatter); `interface.department.enum` lists exactly `auto` plus the 5 small-tier department slugs (item count = department_count + 1, no retired slug); presence of all 5 target D2 files; `error_code_prefixes` lists the 5 department prefixes plus `SCL_`; `prompts/03-test-cases.md` present, `agent-invoked`, harness level ≥ L3. On failure the failed-item detail is written to the log and to `last_failure.detail` in the state file. Full §15 acceptance including AI-content review (A–G groups, H, I, U) remains a human step recorded in the report | Reject: package quarantined with the failed-item list | `SCL_006` |
 
 Notes:
 
@@ -416,7 +416,7 @@ Notes:
    5g. slug alias rows appended to this file's Alias Map (history preserved)
    5h. the current package copied verbatim (tests/ and scripts/self-scale.ps1
        byte-identical, never modified -- this is what G2/G3 verify), over the
-       package file set of README-FOR-AI.md §3: it excludes the operational
+       package file set of README_FOR_AI.md §3: it excludes the operational
        state file, the retired legacy D2 pages, repository tooling directories
        (.git/, .github/, .workbuddy/, .skill-upgrade/) and build residues
        (__pycache__/ directories and *.pyc files)
@@ -486,7 +486,7 @@ group   v5.x.x
 Three version locations must always carry the **same value** (acceptance H15):
 `_meta.json`, the README badge, and the `SKILL.md` frontmatter. The former
 fourth location — the `SKILL.md` body title — never existed in any shipped
-package, so decision D-2 (option A, README-FOR-AI.md §16) removed it rather
+package, so decision D-2 (option A, README_FOR_AI.md §16) removed it rather
 than leave gate G6 permanently unreachable. The micro → small upgrade bumps the
 three from `1.0.0` to `2.0.0`, and gate G6 verifies the agreement.
 
@@ -516,7 +516,7 @@ specification detail.
 Implementation status in this build: **downgrade is outside the capability of
 the executor script.** The script's `param` block has no `downgrade` action
 value, and no code path can generate or handle a downgrade. A downgrade
-follows the manual process of README-FOR-AI.md §12.5 (human approval with
+follows the manual process of README_FOR_AI.md §12.5 (human approval with
 a written rationale, executed by an external installer); where `SCL_008`
 semantics apply, they are carried by the external installer, not by this
 script. A downgrade proposal report must additionally contain a

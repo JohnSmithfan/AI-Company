@@ -65,7 +65,7 @@ ai-company/
 ├── CODE_OF_CONDUCT.md
 ├── CONTRIBUTING.md
 ├── LICENSE
-├── README-FOR-AI.md
+├── README_FOR_AI.md
 ├── README.en.md
 ├── README.md
 ├── README.zh.md
@@ -98,7 +98,7 @@ ai-company/
 
 The tree lists the **package file set**: repository tooling directories
 (`.git/`, `.github/`, `.workbuddy/`, `.skill-upgrade/`) are not package content
-and are excluded from the count (`README-FOR-AI.md` §3).
+and are excluded from the count (`README_FOR_AI.md` §3).
 
 ## Documentation
 
@@ -108,7 +108,7 @@ and are excluded from the count (`README-FOR-AI.md` §3).
 - [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) — community standards
 - `AGENTS.md` — entry point for coding agents maintaining this repository
   (does not participate in skill routing)
-- `README-FOR-AI.md` — generation & maintenance spec for LLM Agents
+- `README_FOR_AI.md` — generation & maintenance spec for LLM Agents
   (self-contained and authoritative for this standalone project; no external
   spec is required)
 
@@ -126,7 +126,7 @@ content. The
 actual upgrade always requires human approval and is recorded in
 `.scaling-state.json`. Thresholds, paths, and aliases are specified in
 [references/scaling.md](references/scaling.md); the scale-tier ladder itself is
-defined locally in `README-FOR-AI.md` §1.
+defined locally in `README_FOR_AI.md` §1.
 
 ## License
 

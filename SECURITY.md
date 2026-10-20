@@ -54,7 +54,7 @@ This project follows coordinated disclosure with a **90-day** window:
   explicit human approval and is recorded in `.scaling-state.json`.
 - **Zero dynamic code execution.** No `eval` / `exec` on user input and no
   `Invoke-Expression` / `iex` / `DownloadString` in any script or prompt
-  (`README-FOR-AI.md` §9.4, P25).
+  (`README_FOR_AI.md` §9.4, P25).
 - **Zero hardcoded secrets.** Credentials are read exclusively from
   environment variables; configuration records the variable *name*, never
   the value — not even sample keys (`README-FOR-AI.md` §9.4, P20).

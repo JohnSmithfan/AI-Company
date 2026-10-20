@@ -29,7 +29,7 @@ and this project adheres to
   and browser details) were replaced by `.yml` form templates
   (`bug_report.yml`, `feature_request.yml`) plus `config.yml`
   (`blank_issues_enabled: false`). Every addition lives under `.github/`, which
-  `README-FOR-AI.md` §3 declares non-package content, so the package file set
+  `README_FOR_AI.md` §3 declares non-package content, so the package file set
   stays at 26 and no tier count changes.
 - `.gitignore` now ignores `.env` / `.env.*` (keeping `!.env.example`
   committable) — defensive hygiene for the environment-variable credential

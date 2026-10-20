@@ -67,7 +67,7 @@ TEN_TEMPLATE_SIGNATURES = [
     "build_prompt_from_template(template, **kwargs)",
 ]
 
-# Function-block conservation (README-FOR-AI.md §10.1): XS/S/M/L = 18, G = 36
+# Function-block conservation (README_FOR_AI.md §10.1): XS/S/M/L = 18, G = 36
 EXPECTED_FB_BY_TIER = {"micro": 18, "small": 18, "medium": 18, "large": 18, "group": 36}
 EXPECTED_FB_TOTAL = EXPECTED_FB_BY_TIER[SCALE_TIER]
 # Function blocks per department at the small tier (micro→small split;
@@ -98,7 +98,7 @@ GOVERNANCE_FILES = [
     "SECURITY.md", "SKILL.md", "_meta.json",
 ]
 
-# README-FOR-AI.md §9.1 permissions declaration (copied character-for-character; self-upgrade may not change it) — the D-class baseline
+# README_FOR_AI.md §9.1 permissions declaration (copied character-for-character; self-upgrade may not change it) — the D-class baseline
 BASELINE_PERMISSIONS = [
     "files:",
     'read: ["{WORKSPACE_ROOT}/**", "{SKILL_DIR}/**"]',
@@ -115,7 +115,7 @@ HEADING_RE = re.compile(r"^(#{1,6})\s*(.*)$")
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 2026-10-14 initial-review (H-1..H-4 / M-1..M-4) regression line: shared helpers for the package file set and doc anchors.
-# Package file set boundary = every file outside the repository tooling directories and build residue (README-FOR-AI.md §3);
+# Package file set boundary = every file outside the repository tooling directories and build residue (README_FOR_AI.md §3);
 # it keeps the same basis as $ExcludedDirSegments / Get-PackageRelativePaths in
 # scripts/self-scale.ps1.
 # ─────────────────────────────────────────────────────────────────────────────
@@ -608,8 +608,8 @@ class BehaviorTests(unittest.TestCase):
 
         # Boundary: an out-of-bounds path must raise PermissionError (a read-only probe, nothing written to disk).
         # The old form was 'fail only if the content contains the first 200 characters of an outside file', but the probe
-        # target WORKSPACE_ROOT/README-FOR-AI.md does not exist, so secret_head was always empty and rejected was
-        # always True — a permanently vacuous assertion (README-FOR-AI.md §13/§14.5).
+        # target WORKSPACE_ROOT/README_FOR_AI.md does not exist, so secret_head was always empty and rejected was
+        # always True — a permanently vacuous assertion (README_FOR_AI.md §13/§14.5).
         temp_outside = Path(tempfile.gettempdir()).resolve() / "oob-probe.md"
         rel_outside = os.path.relpath(temp_outside, SKILL_DIR)
         probes = ["../outside.md", str(temp_outside),
@@ -840,14 +840,14 @@ class SourceIntegrityTests(unittest.TestCase):
         """★ R4 addition: assert every def <fn> appears exactly once across the package (P10/P44 recurrence signal).
 
         §7.3 requires every def to appear exactly once package-wide. This check used to rely on a manual grep,
-        which let README-FOR-AI.md §7.1 inline-copy mask_sensitive_data unnoticed.
+        which let README_FOR_AI.md §7.1 inline-copy mask_sensitive_data unnoticed.
         Two lines of defence coexist: the authoritative source contains the 10 defs (test_templates_source_exists),
         and this only-once assertion — only the latter guards the single authoritative source.
         """
         # Scan the PACKAGE FILE SET, never the whole working tree. Repository
         # tooling directories (.workbuddy/, .github/, .skill-upgrade/) hold local
         # copies of the package — review reports, upgrade packages, scratch
-        # copies — and are not package content (README-FOR-AI.md §3). An rglob
+        # copies — and are not package content (README_FOR_AI.md §3). An rglob
         # over everything made this assertion fail as soon as a maintainer ran
         # the repository's own review scripts, which write under .workbuddy/.
         hits = {}
@@ -1263,18 +1263,18 @@ class InitialReview20261014Tests(unittest.TestCase):
 
     # ── M-4: section references must actually exist ──────────────────────────────────────────────
     def test_doc_section_anchors_exist(self):
-        """★ M-4: every section reference in scaling.md / README-FOR-AI.md must exist."""
+        """★ M-4: every section reference in scaling.md / README_FOR_AI.md must exist."""
         targets = {
             "scaling.md": markdown_sections("references/scaling.md"),
-            "README-FOR-AI.md": markdown_sections("README-FOR-AI.md"),
+            "README_FOR_AI.md": markdown_sections("README_FOR_AI.md"),
         }
         scanned = [
             "scripts/self-scale.ps1", "references/scaling.md",
             "references/method-patterns.md", "SKILL.md", "AGENTS.md",
-            "CONTRIBUTING.md", "README.md", "README-FOR-AI.md",
+            "CONTRIBUTING.md", "README.md", "README_FOR_AI.md",
         ]
         ref_re = re.compile(
-            r"(scaling\.md|README-FOR-AI\.md)[^\n]{0,60}?(?:§|sec(?:tion)?\.?)\s*(\d+(?:\.\d+)*)",
+            r"(scaling\.md|README_FOR_AI\.md)[^\n]{0,60}?(?:§|sec(?:tion)?\.?)\s*(\d+(?:\.\d+)*)",
             re.I,
         )
         missing = []
@@ -1529,7 +1529,7 @@ class Recheck20261014Tests(unittest.TestCase):
 # The R5 terminal review confirmed the upgrade mechanism itself is healthy
 # (clean-copy propose = G1-G6 PASSED and exit 0; T1 fires end to end; the three
 # sampled regression guards still fail on the injected defect). It also found
-# that several invariants README-FOR-AI.md section 6.1 / section 15 lists as
+# that several invariants README_FOR_AI.md section 6.1 / section 15 lists as
 # acceptance checks had NO assertion: the frontmatter, description, tag and
 # trigger budgets; the byte-exact permissions block; error-code catalog
 # integrity (34 codes, continuous numbering, D2 tables identical to the
@@ -1545,7 +1545,7 @@ _EC_ROW_RE = re.compile(
     r"^\|\s*((?:CEO|CTO|CISO|CHO|CQO|SCL)_\d{3})\s*\|([^|]*)\|([^|]*)\|([^|]*)\|\s*$", re.M
 )
 
-# README-FOR-AI.md section 10.3: the SCL_ messages are fixed across every tier.
+# README_FOR_AI.md section 10.3: the SCL_ messages are fixed across every tier.
 _FIXED_SCL_MESSAGES = {
     "SCL_001": "Upgrade threshold not met",
     "SCL_002": "Upgrade path undefined in merge tree",
@@ -1569,7 +1569,7 @@ def parse_error_code_rows(text):
 
 
 class TerminalReview20261016Tests(unittest.TestCase):
-    """Machine enforcement for README-FOR-AI.md section 6.1 / section 15 invariants."""
+    """Machine enforcement for README_FOR_AI.md section 6.1 / section 15 invariants."""
 
     def _frontmatter_lines(self):
         lines = (SKILL_DIR / "SKILL.md").read_text(encoding="utf-8").splitlines()
@@ -1634,7 +1634,7 @@ class TerminalReview20261016Tests(unittest.TestCase):
             "  commands: []",
             "  mcp: [sessions_send, subagents]",
         ])
-        self.assertEqual(canonical, actual, "permissions block differs from README-FOR-AI.md section 9.1")
+        self.assertEqual(canonical, actual, "permissions block differs from README_FOR_AI.md section 9.1")
 
     def test_dependency_and_prefix_declarations(self):
         """section 6.1: dependencies is empty; error_code_prefixes lists exactly the three prefixes."""

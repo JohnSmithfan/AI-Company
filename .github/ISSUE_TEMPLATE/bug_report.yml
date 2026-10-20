@@ -21,7 +21,7 @@ body:
         - references/ specifications
         - scripts/self-scale.ps1
         - tests/test-method-patterns.py
-        - Documentation (README trio, README-FOR-AI.md)
+        - Documentation (README trio, README_FOR_AI.md)
         - Other
     validations:
       required: true

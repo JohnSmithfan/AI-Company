@@ -28,7 +28,7 @@ __pycache__/
 # tracked in git. Do not add it to this file.
 
 # Local environment files - credentials are read from environment variables
-# only (README-FOR-AI.md §9.4); a .env carrying real values must never be
+# only (README_FOR_AI.md §9.4); a .env carrying real values must never be
 # committed. The negated pattern keeps a sanitized example committable.
 .env
 .env.*

@@ -8,17 +8,17 @@
  CAN do :
    - read {SKILL_DIR} (read-only)
    - read / update .scaling-state.json (operational records only - the single
-     permitted write inside {SKILL_DIR}, per README-FOR-AI.md sec 12.6)
+     permitted write inside {SKILL_DIR}, per README_FOR_AI.md sec 12.6)
    - accept host-supplied metrics via -Action record-metrics or the drop
      directory (references/scaling.md sec 3.1)
    - collect the four scaling metrics and evaluate thresholds T1-T4
      (T1/T3 are skipped, not guessed, when the host data is stale - sec 3.1)
    - generate an upgrade package under {WORKSPACE_ROOT}/.skill-upgrade/<timestamp>/
-   - run gates G1-G6 on the generated package (README-FOR-AI.md sec 12.3)
-   - write UPGRADE-PROPOSAL.md into the package directory (README-FOR-AI.md sec 12)
+   - run gates G1-G6 on the generated package (README_FOR_AI.md sec 12.3)
+   - write UPGRADE-PROPOSAL.md into the package directory (README_FOR_AI.md sec 12)
    - record the proposal in .scaling-state.json -> pending_proposals
 
- CANNOT do (hard boundary, README-FOR-AI.md sec 9.5) :
+ CANNOT do (hard boundary, README_FOR_AI.md sec 9.5) :
    - write any other file under {SKILL_DIR}
    - modify the permissions block, tests/**, or this script's own gate logic
    - install, apply, or commit anything (no such Action value exists - P36)
@@ -34,7 +34,7 @@
                  .gitattributes (* text=auto eol=lf) so a contributor's local
                  core.autocrlf cannot rewrite it; every .md and .json artifact
                  it writes is likewise LF - see Write-TextFileNoBom.
- Copy policy   : the package file set is defined once (README-FOR-AI.md sec 3)
+ Copy policy   : the package file set is defined once (README_FOR_AI.md sec 3)
                  and excludes repository tooling directories (.git/, .github/,
                  .workbuddy/, .skill-upgrade/) plus build residues (__pycache__/,
                  *.pyc), so the file count and the gate hashes never depend on
@@ -71,7 +71,7 @@ $SkillDir      = Split-Path -Parent $PSScriptRoot        # {SKILL_DIR} (parent o
 # so reading it here would silently redirect the upgrade package and the metric
 # drop directory into that host's directory. The derivation (and the nesting
 # caveat that {SKILL_DIR} then lives under {WORKSPACE_ROOT}) is documented in
-# references/scaling.md sec 3.1 and README-FOR-AI.md sec 9.1.
+# references/scaling.md sec 3.1 and README_FOR_AI.md sec 9.1.
 $WorkspaceRoot = Split-Path -Parent $SkillDir
 $StateFile     = Join-Path $SkillDir '.scaling-state.json'
 $ConfigFile    = Join-Path $PSScriptRoot 'scaling-config.json'
@@ -85,20 +85,20 @@ $TierAgentCaps = @{
 }
 $TierBlockMean = @{ 'micro' = 9.0; 'small' = 3.6; 'medium' = 2.0; 'large' = 1.0; 'group' = 1.0 }
 
-# Package file set (README-FOR-AI.md sec 3). A "package file" is a file of the
+# Package file set (README_FOR_AI.md sec 3). A "package file" is a file of the
 # skill itself; repository tooling directories are NEVER package content, so
 # they are excluded from the 5h copy, from every file count, and from the gate
 # hashes. Keeping this list in ONE place is what stops the counting basis and
 # the copy range from drifting apart again (the H-1 defect).
 $ExcludedDirSegments = @('.git', '.github', '.workbuddy', '.skill-upgrade')
 
-# Expected package-file-set size per tier (README-FOR-AI.md sec 3 / sec 15).
+# Expected package-file-set size per tier (README_FOR_AI.md sec 3 / sec 15).
 # small = 30: 26 micro package files - 1 operational state file - 2 retired
 # legacy D2 pages + 5 split D2 pages + 1 new prompt + 1 package state file.
 $TierFileCount = @{ 'micro' = 26; 'small' = 30 }
 $TargetFileCount = @{ 'small' = $TierFileCount['small'] }
 
-# The deterministic micro -> small split mapping (merge tree, README-FOR-AI.md sec 10.1).
+# The deterministic micro -> small split mapping (merge tree, README_FOR_AI.md sec 10.1).
 # Split order = page order of FB sections inside each legacy D2 file (scaling.md 4.3).
 $UpgradeEdge = @{
   From = 'micro'
@@ -293,7 +293,7 @@ function Set-StateProperty {
 }
 
 function Initialize-ValidationBlock {
-  # README-FOR-AI.md sec 12.6 requires a TOP-LEVEL 'validation' block on the state
+  # README_FOR_AI.md sec 12.6 requires a TOP-LEVEL 'validation' block on the state
   # file: gates_passed must be 6 and file_count must be the expected package
   # file count for the current tier (micro 26 / small 30). Before this fix the
   # block only ever existed inside pending_proposals[] entries, so any machine
@@ -446,7 +446,7 @@ function Get-FrontmatterSubBlock {
 
 function Get-DenyItems {
   # Extracts the items of the 'deny' list inside a permissions block. Supports
-  # both the inline flow form  deny: ["a", "b", ...]  (README-FOR-AI.md sec 9.1 shape) and the
+  # both the inline flow form  deny: ["a", "b", ...]  (README_FOR_AI.md sec 9.1 shape) and the
   # block list form  deny:\n  - a\n  - b .
   param([string]$PermissionsBlock)
   $items = @()
@@ -1020,7 +1020,7 @@ function New-UpgradePackage {
       $body = ''
       for ($i = $cursor; $i -lt ($cursor + $take); $i++) { $body += $sections[$i] }
       # Each split page must carry its OWN display name and its own
-      # 'Function blocks: N' figure: README-FOR-AI.md sec 10.2 makes both
+      # 'Function blocks: N' figure: README_FOR_AI.md sec 10.2 makes both
       # mandatory and the figure is the conservation basis. Replacing the source
       # slug was a no-op (the preamble carries the display title, never the
       # slug), so every split page inherited the legacy title and the legacy
@@ -1039,8 +1039,8 @@ function New-UpgradePackage {
 
   # 5a (S-tier third prompt) : generate prompts/03-test-cases.md, the small-tier
   # agent-invoked prompt (E1 : without it the clean-environment target file count
-  # is unreachable and propose fails G6/SCL_006). First screen follows README-FOR-AI.md sec 11.4
-  # (agent-invoked variant) and satisfies the A1-A5 constraints of README-FOR-AI.md sec 11.3 :
+  # is unreachable and propose fails G6/SCL_006). First screen follows README_FOR_AI.md sec 11.4
+  # (agent-invoked variant) and satisfies the A1-A5 constraints of README_FOR_AI.md sec 11.3 :
   # A1 paths as placeholders, A2 expected artifacts declared, A3 failure codes
   # declared, A4 harness level >= L3, A5 template anchors referenced, never
   # inlined (no code blocks at all).
@@ -1196,7 +1196,7 @@ and any dimension that cannot be tested, with the reason.
         $lines = $out.ToArray()
       }
       # E1 : list the new prompt in the SKILL.md Prompts index (zero-orphan,
-      # README-FOR-AI.md sec 11.1) - inserted right after the 02-robustness-checks row.
+      # README_FOR_AI.md sec 11.1) - inserted right after the 02-robustness-checks row.
       $promptRow = '| [03-test-cases.md](prompts/03-test-cases.md) | `agent-invoked` | Agent runtime generates a test-case suite for one method and writes it to {WORKSPACE_ROOT}/tests/ |'
       $promptRowAt = -1
       for ($i = 0; $i -lt $lines.Count; $i++) {
@@ -1247,7 +1247,7 @@ and any dimension that cannot be tested, with the reason.
 The micro -> small upgrade revives the `CISO_`, `CHO_`, and `CQO_` prefixes.
 The function-level merge lists are not machine-derivable in this build, so the
 legacy-to-new mapping below is a generated skeleton: every row requires human
-review before installation (README-FOR-AI.md sec 12.4, step 5e). `CEO_` and `CTO_`
+review before installation (README_FOR_AI.md sec 12.4, step 5e). `CEO_` and `CTO_`
 codes whose functions stay in the successor departments keep their codes.
 
 | Legacy code | Resolves to | Status |
@@ -1322,7 +1322,7 @@ codes whose functions stay in the successor departments keep their codes.
   # so this script stays pure ASCII: Windows PowerShell 5.1 reads BOM-less
   # UTF-8 scripts as ANSI, which would corrupt literal non-ASCII characters.
   # Decoded, $newTree is the 30-file small-tier layout: 16 root files
-  # (incl. README-FOR-AI.md), prompts/ (3), references/ (3),
+  # (incl. README_FOR_AI.md), prompts/ (3), references/ (3),
   # references/departments/ (5 new slugs), scripts/ (2), tests/ (1).
   $newTree = [System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('YWktY29tcGFueS8K4pSc4pSA4pSAIC5lZGl0b3Jjb25maWcK4pSc4pSA4pSAIC5naXRhdHRyaWJ1dGVzCuKUnOKUgOKUgCAuZ2l0aWdub3JlCuKUnOKUgOKUgCAuc2NhbGluZy1zdGF0ZS5qc29uCuKUnOKUgOKUgCBBR0VOVFMubWQK4pSc4pSA4pSAIENIQU5HRUxPRy5tZArilJzilIDilIAgQ09ERV9PRl9DT05EVUNULm1kCuKUnOKUgOKUgCBDT05UUklCVVRJTkcubWQK4pSc4pSA4pSAIExJQ0VOU0UK4pSc4pSA4pSAIFJFQURNRS1GT1ItQUkubWQK4pSc4pSA4pSAIFJFQURNRS5lbi5tZArilJzilIDilIAgUkVBRE1FLm1kCuKUnOKUgOKUgCBSRUFETUUuemgubWQK4pSc4pSA4pSAIFNFQ1VSSVRZLm1kCuKUnOKUgOKUgCBTS0lMTC5tZArilJzilIDilIAgX21ldGEuanNvbgrilJzilIDilIAgcHJvbXB0cy8K4pSCICAg4pSc4pSA4pSAIDAxLWltcGxlbWVudC1tZXRob2QubWQK4pSCICAg4pSc4pSA4pSAIDAyLXJvYnVzdG5lc3MtY2hlY2tzLm1kCuKUgiAgIOKUlOKUgOKUgCAwMy10ZXN0LWNhc2VzLm1kCuKUnOKUgOKUgCByZWZlcmVuY2VzLwrilIIgICDilJzilIDilIAgbWV0aG9kLXBhdHRlcm5zLm1kCuKUgiAgIOKUnOKUgOKUgCBlcnJvci1jb2Rlcy5tZArilIIgICDilJzilIDilIAgc2NhbGluZy5tZArilIIgICDilJTilIDilIAgZGVwYXJ0bWVudHMvCuKUgiAgICAgICDilJzilIDilIAgZ292ZXJuYW5jZS1hbmQtb3BlcmF0aW9ucy5tZArilIIgICAgICAg4pSc4pSA4pSAIHF1YWxpdHktYW5kLWRlbGl2ZXJ5Lm1kCuKUgiAgICAgICDilJzilIDilIAgdGVjaG5vbG9neS1hbmQtcGxhdGZvcm0ubWQK4pSCICAgICAgIOKUnOKUgOKUgCBzZWN1cml0eS1hbmQtY29tcGxpYW5jZS5tZArilIIgICAgICAg4pSU4pSA4pSAIHBlb3BsZS1hbmQtZ3Jvd3RoLm1kCuKUnOKUgOKUgCBzY3JpcHRzLwrilIIgICDilJzilIDilIAgc2VsZi1zY2FsZS5wczEK4pSCICAg4pSU4pSA4pSAIHNjYWxpbmctY29uZmlnLmpzb24K4pSU4pSA4pSAIHRlc3RzLwogICAg4pSU4pSA4pSAIHRlc3QtbWV0aG9kLXBhdHRlcm5zLnB5Cg=='))
   $newTree = $newTree + "`n"
@@ -1413,10 +1413,10 @@ codes whose functions stay in the successor departments keep their codes.
   Write-Log '5g alias rows appended to the package Alias Map (history preserved)'
 
   # Package state file : initial state for the target tier. E7 : tier_history
-  # is never reset to an empty array (README-FOR-AI.md sec 12.6 - append-only audit trail);
+  # is never reset to an empty array (README_FOR_AI.md sec 12.6 - append-only audit trail);
   # it carries a skeleton entry for THIS upgrade with approved_by / installed_at
   # empty (the external installer fills them in at install time) and
-  # acceptance_passed false until the human reviewer completes README-FOR-AI.md sec 15
+  # acceptance_passed false until the human reviewer completes README_FOR_AI.md sec 15
   # acceptance.
   $nowIso = Get-UtcNowIso
   $pkgState = [ordered]@{
@@ -1491,7 +1491,7 @@ function Get-TestsHashMap {
     foreach ($f in $files) {
       $rel = $f.FullName.Substring($testsDir.Length).TrimStart('\', '/').Replace('\', '/')
       # The package-file-set predicate is the ONE implementation of the
-      # boundary (README-FOR-AI.md sec 3), so build residues are excluded here
+      # boundary (README_FOR_AI.md sec 3), so build residues are excluded here
       # by the same call the copy and the counts use - never by a second inline
       # copy of the rule that could drift. A leftover __pycache__/ can
       # therefore never fail (or pad) this gate.
@@ -1571,7 +1571,7 @@ function Invoke-GateG4 {
       $text = [System.IO.File]::ReadAllText($f.FullName)
       $count = ([regex]::Matches($text, '(?m)^##\s+FB-\d+\s*:')).Count
       $actualPerDept[$f.BaseName] = $count
-      # README-FOR-AI.md sec 10.2 makes '> Function blocks: <N>' mandatory on
+      # README_FOR_AI.md sec 10.2 makes '> Function blocks: <N>' mandatory on
       # every D2 page and it is the declared conservation basis, so G4 must read
       # it, not just the headings: counting headings alone passed a split page
       # that kept the legacy count (8 or 10) while its real share was 6/2/3/3/4.
@@ -1745,7 +1745,7 @@ function Invoke-GateG6 {
   # The former fourth version location ("SKILL.md body title") is deliberately
   # NOT checked: no shipped package has ever carried a version string in the
   # body, so the check was an unconditional failure that blocked every proposal
-  # (H-4). Recorded as decision D-2 option A in README-FOR-AI.md sec 8 / sec 15
+  # (H-4). Recorded as decision D-2 option A in README_FOR_AI.md sec 8 / sec 15
   # and sec 16.
 
   # Target-tier department D2 files present.
@@ -1756,7 +1756,7 @@ function Invoke-GateG6 {
   }
 
   # E1 : the small-tier third prompt must exist, be agent-invoked, and declare
-  # a harness level >= L3 (README-FOR-AI.md sec 11.3 A4 / sec 11.1 S-tier prompt count).
+  # a harness level >= L3 (README_FOR_AI.md sec 11.3 A4 / sec 11.1 S-tier prompt count).
   $thirdPromptPath = Join-Path $PkgDir 'prompts\03-test-cases.md'
   if (-not (Test-Path -LiteralPath $thirdPromptPath)) {
     $fails += 'prompts/03-test-cases.md missing from the package (S tier requires 3 prompts)'
@@ -1782,7 +1782,7 @@ function Invoke-GateG6 {
 }
 
 # --------------------------------------------------------------------------------------
-# Proposal report (step 7, template README-FOR-AI.md sec 12)
+# Proposal report (step 7, template README_FOR_AI.md sec 12)
 # --------------------------------------------------------------------------------------
 
 function New-ProposalReport {
@@ -1862,7 +1862,7 @@ fabricate one.
 3. Department D2 pages produced by the deterministic split keep the legacy
    preamble wording; a human should confirm each page's non-FB narrative
    matches its new department scope.
-4. Full acceptance (README-FOR-AI.md sec 15; content groups A-G, H, I, U) on
+4. Full acceptance (README_FOR_AI.md sec 15; content groups A-G, H, I, U) on
    the package. The pending proposal records acceptance_passed = false until
    this is done.
 
@@ -2032,7 +2032,7 @@ function Invoke-Proposal {
   Write-Log ("5 generating upgrade package in {0}" -f $pkgDir)
   New-UpgradePackage -PkgDir $pkgDir
 
-  # --- Step 6 : the six gates, one independent branch each (README-FOR-AI.md sec 12.3) ---
+  # --- Step 6 : the six gates, one independent branch each (README_FOR_AI.md sec 12.3) ---
   Write-Log '6 running gates G1-G6 on the upgrade package...'
   $gateResults = @{}
   $failedGates = @()
@@ -2115,7 +2115,7 @@ function Invoke-Proposal {
       function_blocks = 18
       gates_passed = 6
       # E6 : honest pending record. The machine-checkable gates passed, but the
-      # full README-FOR-AI.md sec 15 acceptance (content groups A-G, H, I, U) has NOT been
+      # full README_FOR_AI.md sec 15 acceptance (content groups A-G, H, I, U) has NOT been
       # performed by a human yet. The external installer sets this to true only
       # after the human acceptance is completed at install time.
       acceptance_passed = $false

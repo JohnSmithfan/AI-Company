@@ -47,5 +47,5 @@ body:
       options:
         - label: I searched existing issues and the CHANGELOG for this request.
           required: true
-        - label: This request does not weaken any red line in README-FOR-AI.md (P1-P55).
+        - label: This request does not weaken any red line in README_FOR_AI.md (P1-P55).
           required: true

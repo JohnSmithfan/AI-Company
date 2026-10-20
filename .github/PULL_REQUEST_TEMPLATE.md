@@ -6,7 +6,7 @@
 
 - [ ] `python tests/test-method-patterns.py` passes (state the resulting test count in the PR body)
 - [ ] If `scripts/self-scale.ps1` changed: the file parses clean and `-Action evaluate` runs
-- [ ] If a package file was added, renamed, or removed: the README trio structure trees and every file-count claim are synced (`README-FOR-AI.md` acceptance checks)
+- [ ] If a package file was added, renamed, or removed: the README trio structure trees and every file-count claim are synced (`README_FOR_AI.md` acceptance checks)
 
 ## Impact scope
 

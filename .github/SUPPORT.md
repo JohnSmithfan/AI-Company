@@ -6,7 +6,7 @@ Most questions are answered by the package itself:
 
 1. Run the test suite - `python tests/test-method-patterns.py`. It validates the authoritative sources directly (templates, red lines, counts, encoding hygiene).
 2. Check tier readiness - `powershell -ExecutionPolicy Bypass -File scripts/self-scale.ps1 -Action status`.
-3. Read the spec - `README-FOR-AI.md` is the self-contained, authoritative specification for this standalone project; its section 14 lists the red lines and section 15 the acceptance checks.
+3. Read the spec - `README_FOR_AI.md` is the self-contained, authoritative specification for this standalone project; its section 14 lists the red lines and section 15 the acceptance checks.
 4. Search the [issue tracker](https://github.com/JohnSmithfan/AI-Company/issues) and the `CHANGELOG.md` - the answer may already exist.
 
 ## Where to take a question
