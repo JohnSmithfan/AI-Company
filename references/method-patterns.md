@@ -4,7 +4,7 @@
 > prompt frameworks in this skill package. Any other file that needs a template
 > must link to the anchors in this file — **inline code copies are forbidden**.
 >
-> Authority: this package's `README-FOR-AI.md` — §7 (templates & frameworks), §8 (Harness), §9.2–9.4 (compliance), §6.3 (source-language standard).
+> Authority: this package's `README_FOR_AI.md` — §7 (templates & frameworks), §8 (Harness), §9.2–9.4 (compliance), §6.3 (source-language standard).
 
 ---
 
@@ -26,7 +26,7 @@ into Section 3 only when you need the implementation.
 | 9 | `mask_sensitive_data(text)` | PII masking (EMAIL / IP / PHONE) | Raw data never logged or persisted | L5 | [3.9](#39-mask_sensitive_data) |
 | 10 | `build_prompt_from_template(template, **kwargs)` | Render prompt framework templates | All inputs sanitized before insertion | L3 | [3.10](#310-build_prompt_from_template) |
 
-Harness mapping (README-FOR-AI.md §8.1): every LLM call point must have validation in
+Harness mapping (README_FOR_AI.md §8.1): every LLM call point must have validation in
 front, sanitization behind, tracing throughout, and a fallback on failure.
 Signatures below are **frozen** — parameter names and defaults must not change;
 test assertions depend on them. A renamed function breaks every referencing
@@ -42,7 +42,7 @@ file and requires a package-wide grep.
 | 3WEH | 4 | Clear delegation: unambiguous role, task, purpose, format | [4.2](#42-3weh) |
 | Five-Element | 5 | Enterprise-compliant prompts with explicit context and constraints | [4.3](#43-five-element) |
 
-Rules (README-FOR-AI.md §7.2): the **full field-by-field expansion lives only in Section 4
+Rules (README_FOR_AI.md §7.2): the **full field-by-field expansion lives only in Section 4
 of this file**. `SKILL.md` may only name the framework and link here; it must
 never inline the field expansion. Use `build_prompt_from_template` (3.10) to
 render any of these frameworks.
@@ -52,7 +52,7 @@ render any of these frameworks.
 ## 3. Shared Code Templates
 
 The ten templates below are the physical implementation of the harness
-(README-FOR-AI.md §8.1). Order matches the index table and must not be rearranged.
+(README_FOR_AI.md §8.1). Order matches the index table and must not be rearranged.
 All templates share this module preamble:
 
 ```python
@@ -215,6 +215,9 @@ _KNOWN_SECRET_NAMES = frozenset({
     "ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "HF_TOKEN", "NPM_TOKEN",
     "AZURE_CLIENT_SECRET", "GOOGLE_API_KEY", "SLACK_BOT_TOKEN",
     "DATABASE_URL", "CONNECTION_STRING",
+    # R2 review: these two name credential FILES and carry no KEY/TOKEN/
+    # SECRET/SESSION fragment, so they must be listed explicitly.
+    "NETRC", "KUBECONFIG",
 })
 
 def _is_secret_env_name(name):
@@ -238,7 +241,7 @@ def _is_secret_env_name(name):
 def _scrubbed_environment():
     """Return an environment copy with secret-like variables removed.
 
-    Implements the zero-hardcoded-secrets baseline (README-FOR-AI.md §9.4): credentials
+    Implements the zero-hardcoded-secrets baseline (README_FOR_AI.md §9.4): credentials
     never travel into a subprocess environment implicitly. Matching is by name
     fragment plus a known-name list (see ``_is_secret_env_name``); prefix-only
     matching is a verified leak and must not be reintroduced.
@@ -257,7 +260,7 @@ def execute_safe_command(cmd, timeout=30):
       user-controlled text) and a restricted cwd: {WORKSPACE_ROOT} only.
     - Dangerous executables (deletion, shell hosts, downloaders, privilege
       escalation) are rejected before launch. **This is a best-effort first
-      line of defence, not a sandbox boundary** (README-FOR-AI.md §9.4): the
+      line of defence, not a sandbox boundary** (README_FOR_AI.md §9.4): the
       blocklist matches the invoked program name only, so a deletion can still
       be performed by any allowed interpreter (``python -c "os.remove(...)"``,
       ``git clean -fd``, ``find . -delete``). Treat the host permission set,
@@ -325,7 +328,7 @@ AIGC_DISCLOSURE = "AI-Generated Content"
 def format_output_json(content, provider):
     """Wrap content in the standard JSON envelope with AIGC labeling (Harness L5).
 
-    Implements the triple-labeling requirement (README-FOR-AI.md §9.2); omitting any
+    Implements the triple-labeling requirement (README_FOR_AI.md §9.2); omitting any
     layer makes the output non-compliant:
     - Layer 1, explicit label: a visible disclosure line is appended to the
       content body.
@@ -390,7 +393,7 @@ def retry_with_backoff(func, max_retries=3):
 
     Fault-tolerance contract: the final exception is re-raised unchanged —
     this wrapper never silently swallows errors. Callers whose operations are
-    non-idempotent must not retry (README-FOR-AI.md §8.3).
+    non-idempotent must not retry (README_FOR_AI.md §8.3).
 
     Returns whatever ``func`` returns on success.
     """
@@ -470,7 +473,7 @@ def generate_trace_id(prefix="trace"):
     Format: ``{prefix}-{unix_millis}-{uuid4_hex12}``. Pure computation:
     stateless, no I/O, no global mutable state — safe to call from any
     thread or process. The identifier is designed to be threaded through
-    every stage of a task (README-FOR-AI.md §8.1) so failures can be localized.
+    every stage of a task (README_FOR_AI.md §8.1) so failures can be localized.
 
     Raises ValueError for a prefix that is empty or outside
     [A-Za-z0-9_-]{1,32}.
@@ -494,14 +497,18 @@ def check_rate_limit(identifier, limit=10, window=60):
     """Sliding-window rate limiter, held in process memory only (Harness L4).
 
     Tracks the last ``limit`` request timestamps per ``identifier`` inside a
-    ``window``-second sliding window. In-memory by design (README-FOR-AI.md §8.3): a
+    ``window``-second sliding window. In-memory by design (README_FOR_AI.md §8.3): a
     persisted counter file would become a concurrency contention point and
     leave stale residue — nothing here is ever written to disk.
 
     Bounded memory: at most ``_MAX_RATE_IDENTIFIERS`` keys are retained. When
-    the bound is exceeded, expired buckets are dropped first and, if still
-    over, the least-recently-inserted identifiers are evicted. Eviction only
-    loses accounting for callers that are already idle for a full window.
+    the bound is exceeded, every bucket whose window has fully expired is
+    dropped first and, if still over, the least-recently-inserted identifiers
+    are evicted. Guarantee, stated plainly: an extreme identifier-churn spike
+    can evict a STILL-ACTIVE caller's accounting, so this is a best-effort
+    memory bound, not a per-caller fairness guarantee. (The previous wording
+    claimed eviction only ever touched callers idle for a full window, which
+    the oldest-inserted eviction order does not provide.)
 
     Thread-safe via a module-level lock. Returns True when the request is
     allowed (and records it), False when the limit is exhausted.
@@ -522,12 +529,22 @@ def check_rate_limit(identifier, limit=10, window=60):
             return False
         bucket.append(now)
         if len(_rate_buckets) > _MAX_RATE_IDENTIFIERS:
-            for stale in [k for k, v in _rate_buckets.items() if not v]:
-                del _rate_buckets[stale]
+            # Drop every bucket whose window has fully expired first: a bucket
+            # that was never touched again still holds expired timestamps, so
+            # testing only for "empty" left most expired keys in place.
+            for key in list(_rate_buckets):
+                bucket_k = _rate_buckets[key]
+                while bucket_k and bucket_k[0] <= now - window:
+                    bucket_k.popleft()
+                if not bucket_k:
+                    del _rate_buckets[key]
             overflow = len(_rate_buckets) - _MAX_RATE_IDENTIFIERS
             if overflow > 0:
-                for stale in list(_rate_buckets)[:overflow]:
-                    del _rate_buckets[stale]
+                # Still over the bound: evict the least-recently-inserted keys.
+                # Under extreme identifier churn that can drop an active
+                # caller's accounting (documented residual, see the docstring).
+                for key in list(_rate_buckets)[:overflow]:
+                    del _rate_buckets[key]
         return True
 ```
 
@@ -550,13 +567,11 @@ _IPV4_RE = re.compile(
     + _IPV4_OCTET + r"(?:\." + _IPV4_OCTET + r"){3}"
     + r"(?![0-9A-Za-z_.])"
 )
-# Residual of the octet fix: a 4-part version number is also a valid dotted
-# quad. Version-like tokens are located first and excluded from IP masking, so
-# "version 1.2.3.4" stays readable instead of becoming "version [IP]".
-_VERSION_TOKEN_RE = re.compile(
-    r"(?i)(?<![0-9A-Za-z_.])(?:v|ver|version|build|rev|revision|release)"
-    r"[\s:._-]{0,3}\d+(?:\.\d+){1,3}(?![0-9A-Za-z_.])"
-)
+# L-2a: there is deliberately NO version-keyword exemption. The previous guard
+# spared "release 192.168.1.100", "build 10.0.0.1" and "rev 8.8.4.4" - real
+# addresses in ordinary CI/log text - while README_FOR_AI.md §9.3 makes IP
+# masking mandatory. A valid octet-validated dotted quad is always masked; the
+# accepted cost is that a 4-part version number becomes "[IP]" too.
 # M-2: CN mobile numbers. Optional country code (+86 / 0086 / 86), then 11
 # digits written contiguously or in 3-4-4 groups joined by a space or a dash.
 # "Only 11 contiguous digits" leaks +8613800138000, 138-0013-8000 and
@@ -569,35 +584,26 @@ _PHONE_RE = re.compile(
 def mask_sensitive_data(text):
     """Mask sensitive information in output (emails, IPv4 addresses, phone numbers).
 
-    Contract (README-FOR-AI.md §9.3): all three classes are masked, and all three
+    Contract (README_FOR_AI.md §9.3): all three classes are masked, and all three
     placeholders — ``[EMAIL]`` / ``[IP]`` / ``[PHONE]`` — are contractual.
     Dropping any one branch is a defect (P32); an implementation that masked
-    only emails and IPs shipped once and passed review by eye (README-FOR-AI.md §7.1).
+    only emails and IPs shipped once and passed review by eye (README_FOR_AI.md §7.1).
 
     Substitution order is fixed and load-bearing: email first (its domain would
     otherwise be eaten by the IPv4 branch), then IPv4, then phone.
 
-    Known trade-off (documented, not hidden): a literal IPv4 printed
-    immediately after a version keyword ("release 192.168.1.100") is left
-    unmasked by the L-2 guard. That phrasing is rare; over-masking every
-    dotted quad is the defect this guard was added to remove. A corpus that
-    genuinely mixes addresses with those keywords must drop the guard.
+    Honest trade-off (documented, not hidden): every octet-valid dotted quad is
+    masked, so a four-part version number is masked as well ("version 1.2.3.4"
+    becomes "version [IP]"). The earlier version-keyword exemption avoided that
+    false positive but leaked genuine addresses written after "release",
+    "build", "rev" and friends - a compliance failure under README_FOR_AI.md
+    §9.3, where over-masking is acceptable and under-masking is not.
     """
     if not isinstance(text, str):
         raise TypeError("text must be a string")
 
     text = _EMAIL_RE.sub("[EMAIL]", text)
-
-    protected = [m.span() for m in _VERSION_TOKEN_RE.finditer(text)]
-
-    def mask_ip(match):
-        start, end = match.span()
-        for lo, hi in protected:
-            if lo <= start and end <= hi:
-                return match.group(0)
-        return "[IP]"
-
-    text = _IPV4_RE.sub(mask_ip, text)
+    text = _IPV4_RE.sub("[IP]", text)
     text = _PHONE_RE.sub("[PHONE]", text)
     return text
 ```
@@ -605,8 +611,8 @@ def mask_sensitive_data(text):
 The three placeholders `[EMAIL]` / `[IP]` / `[PHONE]` are contractual: all
 three masking branches must exist. An implementation that masks only emails
 and IPs will pass review by eye but fail the `test_phone_masking` assertion —
-this exact defect shipped once and was only caught by audit (README-FOR-AI.md §7.1 warning).
-Raw, unmasked PII must never be logged or persisted (README-FOR-AI.md §9.3).
+this exact defect shipped once and was only caught by audit (README_FOR_AI.md §7.1 warning).
+Raw, unmasked PII must never be logged or persisted (README_FOR_AI.md §9.3).
 
 Coverage requirements verified by probe (these are the regression cases — do
 not weaken them back to single-form matching):
@@ -619,7 +625,9 @@ not weaken them back to single-form matching):
 | `+86 138 0013 8000` | `[PHONE]` |
 | `0086 13800138000` | `[PHONE]` — no `0086` prefix may survive |
 | `a\|b@x.c\|m` | unchanged (L-1: a literal pipe is not an address) |
-| `version 1.2.3.4 released` | unchanged (L-2: version numbers must not be touched) |
+| `version 1.2.3.4 released` | `version [IP] released` (L-2a: over-masking is accepted — the old exemption leaked `release 192.168.1.100`, `build 10.0.0.1`, `rev 8.8.4.4`) |
+| `release 192.168.1.100` | `release [IP]` (L-2a regression: a keyword must never shield an address) |
+| `build 10.0.0.1` | `build [IP]` |
 
 ### 3.10 build_prompt_from_template
 
@@ -633,7 +641,7 @@ class _StrictDict(dict):
 def build_prompt_from_template(template, **kwargs):
     """Render a prompt template with sanitized values (Harness L3).
 
-    Contract (README-FOR-AI.md §7.1, template 10): **inputs are sanitized first**. Every
+    Contract (README_FOR_AI.md §7.1, template 10): **inputs are sanitized first**. Every
     substitution value passes through ``sanitize_user_query`` (3.2) and
     ``mask_sensitive_data`` (3.9) before insertion into the template, so
     prompt injection and PII can never ride in through a placeholder value.
@@ -670,7 +678,7 @@ def build_prompt_from_template(template, **kwargs):
 
 ## 4. Prompt Frameworks (Full)
 
-Field-by-field expansion. These expansions live **only** here (README-FOR-AI.md §7.2);
+Field-by-field expansion. These expansions live **only** here (README_FOR_AI.md §7.2);
 other files may name a framework and link to this section, never inline it.
 Render any skeleton with `build_prompt_from_template` (Section 3.10).
 
@@ -754,10 +762,10 @@ FIVE_ELEMENT_TEMPLATE = (
 ## 5. Compliance Verification
 
 Verification procedures for the three non-negotiable compliance areas
-(README-FOR-AI.md §9.2–9.4). A declared Harness level without verifiable evidence in
-this file violates P24 (documenting unimplemented behavior, README-FOR-AI.md §8.2).
+(README_FOR_AI.md §9.2–9.4). A declared Harness level without verifiable evidence in
+this file violates P24 (documenting unimplemented behavior, README_FOR_AI.md §8.2).
 
-### 5.1 AIGC Triple Labeling (README-FOR-AI.md §9.2)
+### 5.1 AIGC Triple Labeling (README_FOR_AI.md §9.2)
 
 All AI-generated content must carry **all three** layers; missing any one
 layer is non-compliant.
@@ -779,7 +787,7 @@ operation, leaving a body that looks human-authored. Do not describe layer 3
 as "cannot be removed" — that claim was measured and found false. Where a
 non-strippable mark is required, sign the payload outside this envelope.
 
-### 5.2 PII Masking (README-FOR-AI.md §9.3)
+### 5.2 PII Masking (README_FOR_AI.md §9.3)
 
 - `mask_sensitive_data` (3.9) is **mandatory in every output pipeline** —
   before any persistence, logging, or external sending.
@@ -793,7 +801,7 @@ non-strippable mark is required, sign the payload outside this envelope.
   contain `[EMAIL]`, `[IP]`, and `[PHONE]` respectively and none of the
   originals.
 
-### 5.3 Audit Trail (README-FOR-AI.md §8.1, §8.2)
+### 5.3 Audit Trail (README_FOR_AI.md §8.1, §8.2)
 
 - Every task carries a `generate_trace_id` (3.7) identifier from start to
   finish; without it, failures cannot be localized.
@@ -804,7 +812,7 @@ non-strippable mark is required, sign the payload outside this envelope.
 - Verification: a task's log entries all share one trace id; no log line
   matches the PII regexes of `mask_sensitive_data`.
 
-### 5.4 Safety Baseline (README-FOR-AI.md §9.4)
+### 5.4 Safety Baseline (README_FOR_AI.md §9.4)
 
 Non-negotiable, verified against this file's templates:
 
@@ -821,7 +829,7 @@ Non-negotiable, verified against this file's templates:
   boundary: any allowed interpreter can still delete files
   (`python -c "os.remove(...)"`, `git clean -fd`, `find . -delete`). The real
   boundary is the host permission set declared in `SKILL.md`'s `permissions`
-  block (specification: `README-FOR-AI.md` §9.1).
+  block (specification: `README_FOR_AI.md` §9.1).
 - **Zero sensitive-path access** — template 6 rejects any path resolving
   outside `{SKILL_DIR}`, and fails closed when `{SKILL_DIR}` is unconfigured
   rather than falling back to the process working directory.
@@ -829,7 +837,7 @@ Non-negotiable, verified against this file's templates:
   writable output goes only under `{WORKSPACE_ROOT}`.
 - **Idempotency** — operations are safe to retry; `retry_with_backoff`
   re-raises the final error and `check_rate_limit` keeps no persistent
-  state (README-FOR-AI.md §8.3).
+  state (README_FOR_AI.md §8.3).
 - **Rollback safety** — copy to a temp location, verify, atomically replace,
   and only then delete the old copy; never delete first and restore later
   (P23).
@@ -842,7 +850,7 @@ Forbidden in and around this file:
 
 - **No inline code copies.** Any file needing a template links to the
   Section 3 anchor. A second `def` of any function in this package is the
-  recurrence signal of defect P10 (README-FOR-AI.md §7.3, B4/B5).
+  recurrence signal of defect P10 (README_FOR_AI.md §7.3, B4/B5).
 - **No signature changes.** Parameter names and defaults of the ten
   templates are frozen; test assertions depend on them.
 - **No reordering.** Section 3.1–3.10 order matches the index table #1–#10.
@@ -853,10 +861,10 @@ Forbidden in and around this file:
 - **No hardcoded absolute paths.** Use `{SKILL_DIR}` / `{WORKSPACE_ROOT}`
   placeholders in prose and environment variables in code.
 - **No framework expansion outside Section 4.** `SKILL.md` names frameworks
-  and links here only (README-FOR-AI.md §6.2 blacklist, §7.2).
+  and links here only (README_FOR_AI.md §6.2 blacklist, §7.2).
 - **No skipped Harness prerequisites.** Levels are cumulative: an L5 claim
   without idempotency evidence is downgraded to L2 and recorded as a defect
-  (README-FOR-AI.md §8.1).
+  (README_FOR_AI.md §8.1).
 
 ---
 

@@ -1,0 +1,28 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  suite:
+    name: Authoritative-source test suite
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Run tests/test-method-patterns.py
+        run: python tests/test-method-patterns.py
+
+# Platform note: the suite smoke-runs scripts/self-scale.ps1 through
+# `shutil.which("powershell") or shutil.which("pwsh")`, and that script targets
+# Windows PowerShell 5.1. windows-latest is therefore the highest-fidelity
+# runner; .gitattributes pins eol=lf so the checkout is LF on every platform.

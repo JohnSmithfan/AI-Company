@@ -6,9 +6,9 @@
 
 ## What this repository is
 
-`ai-company` is a standalone, micro-tier LLM Agent governance skill
-package (version 1.0.0): 2 departments, 18 function blocks, 26 package files,
-including its own self-contained generation spec `README-FOR-AI.md`. For a
+`ai-company` is a standalone, small-tier LLM Agent governance skill
+package (version 2.0.0): 5 departments, 18 function blocks, 30 package files,
+including its own self-contained generation spec `README_FOR_AI.md`. For a
 human overview, read `README.md`. For skill runtime behavior, the *only* entry
 point is `SKILL.md` — never duplicate or paraphrase its content in any other
 file.
@@ -16,7 +16,7 @@ file.
 ## Before you change anything
 
 1. Read `CONTRIBUTING.md` for branch, commit, test, and PR rules.
-2. `README-FOR-AI.md` (at the package root) is the self-contained, sole
+2. `README_FOR_AI.md` (at the package root) is the self-contained, sole
    authoritative generation & maintenance spec of this standalone project —
    there is no upstream or external spec to consult. Its **§14** lists the red
    lines **P1–P55**; **§15** lists the acceptance checks. Check the relevant
@@ -24,7 +24,7 @@ file.
 3. The Project Structure tree in `README.md` must match the **package file
    set** exactly. Repository tooling directories (`.git/`, `.github/`,
    `.workbuddy/`, `.skill-upgrade/`) are not package content and are never
-   counted (`README-FOR-AI.md` §3). If you add, rename, or remove a package
+   counted (`README_FOR_AI.md` §3). If you add, rename, or remove a package
    file, update that tree (and the file-count claims) in `README.md`,
    `README.en.md`, and `README.zh.md` in the same change.
 
@@ -53,7 +53,7 @@ points to the single authoritative location.
 | Code templates and prompt frameworks | `references/method-patterns.md` (sole code authority; no file may inline-copy them — P10/P44) |
 | Error codes (four-element table) | `references/error-codes.md` |
 | Upgrade thresholds, gating, aliases | `references/scaling.md` |
-| Self-upgrade safety (no changes to `tests/` or the `permissions` block in proposals) | `tests/test-method-patterns.py`; `README-FOR-AI.md` §9.5 / §12.3 |
+| Self-upgrade safety (no changes to `tests/` or the `permissions` block in proposals) | `tests/test-method-patterns.py`; `README_FOR_AI.md` §9.5 / §12.3 |
 
 ## Hard rules for edits
 
@@ -69,8 +69,8 @@ points to the single authoritative location.
   (P50)
 - **Never translate identifiers** (slugs, error codes, field names, enum
   values, file paths, function names), including in `README.zh.md`. (P48)
-- Source files are English (except `README.zh.md` and `README-FOR-AI.md`, which
-  are explicitly exempted for natural-language prose — see `README-FOR-AI.md`
+- Source files are English (except `README.zh.md` and `README_FOR_AI.md`, which
+  are explicitly exempted for natural-language prose — see `README_FOR_AI.md`
   §16); output language follows the user. (P47)
 - UTF-8 without BOM, LF line endings including `.ps1` (pinned by
   `.gitattributes`), 2-space indent (4 for Python) — see `.editorconfig`.
@@ -81,8 +81,8 @@ points to the single authoritative location.
 
 ## When you are unsure
 
-- Red lines: `README-FOR-AI.md` §14 (P1–P55).
-- Acceptance: `README-FOR-AI.md` §15.
+- Red lines: `README_FOR_AI.md` §14 (P1–P55).
+- Acceptance: `README_FOR_AI.md` §15.
 - Process and PR rules: `CONTRIBUTING.md`.
 
 This file stays under 150 lines and never becomes a second skill entry point

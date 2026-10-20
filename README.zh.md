@@ -1,15 +1,25 @@
 # ai-company
 
-[![Version](https://img.shields.io/badge/version-1.0.0-blue)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-3.0.0-blue)](CHANGELOG.md)
 [![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-blue.svg)](LICENSE)
-[![Scale tier](https://img.shields.io/badge/scale_tier-micro-teal)](references/scaling.md)
+[![Scale tier](https://img.shields.io/badge/scale_tier-small-teal)](references/scaling.md)
+[![CI](https://github.com/JohnSmithfan/AI-Company/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/JohnSmithfan/AI-Company/actions/workflows/ci.yml)
 
-**LLM Agent 治理技能 —— 微型档（micro）：2 个部门、18 个职能块、一个可安装的技能包。**
+**LLM Agent 治理技能 —— 小型档（small）：5 个部门、18 个职能块、一个可安装的技能包。**
 
 [English](README.md) | 简体中文
 
 > `README.en.md` 是 `README.md` 的同内容英文副本，保留它是为了让 `.en` /
 > `.zh` 语言后缀保持对称，便于 i18n 工具识别。
+
+## 目录
+
+- [快速开始](#快速开始)
+- [包速览](#包速览)
+- [项目结构（Project Structure）](#项目结构project-structure)
+- [文档](#文档)
+- [档位升级](#档位升级)
+- [许可证](#许可证)
 
 ## 快速开始
 
@@ -31,11 +41,11 @@
 | 项目 | 值 |
 |---|---|
 | 技能名 | `ai-company` |
-| 版本 | 1.0.0 |
-| 档位 | `micro`（XS，微型） |
-| 部门数 | 2（`governance-and-delivery`、`engineering-and-safety`） |
-| 职能块 | 18（8 + 10） |
-| 文件总数 | 26 |
+| 版本 | 3.0.0 |
+| 档位 | `small`（S，小型） |
+| 部门数 | 5（`governance-and-operations`、`quality-and-delivery`、`technology-and-platform`、`security-and-compliance`、`people-and-growth`） |
+| 职能块 | 18（6 + 2 + 3 + 3 + 4） |
+| 文件总数 | 30 |
 | 许可证 | GPL-3.0 |
 
 ## 项目结构（Project Structure）
@@ -51,7 +61,7 @@ ai-company/
 ├── CODE_OF_CONDUCT.md
 ├── CONTRIBUTING.md
 ├── LICENSE
-├── README-FOR-AI.md
+├── README_FOR_AI.md
 ├── README.en.md
 ├── README.md
 ├── README.zh.md
@@ -60,14 +70,26 @@ ai-company/
 ├── _meta.json
 ├── prompts/
 │   ├── 01-implement-method.md
-│   └── 02-robustness-checks.md
+│   ├── 02-robustness-checks.md
+│   └── 03-test-cases.md
 ├── references/
 │   ├── method-patterns.md
 │   ├── error-codes.md
 │   ├── scaling.md
-│   └── departments/
-│       ├── governance-and-delivery.md
-│       └── engineering-and-safety.md
+│   ├── departments/
+│   │   ├── governance-and-operations.md
+│   │   ├── technology-and-platform.md
+│   │   ├── security-and-compliance.md
+│   │   ├── quality-and-delivery.md
+│   │   ├── people-and-growth.md
+│   │   ├── legal-and-risk.md
+│   │   ├── data-and-analytics.md
+│   │   ├── product-and-strategy.md
+│   │   └── customer-and-partnerships.md
+│   └── shared/
+│       ├── glossary.md
+│       ├── cross-department-handoff.md
+│       └── common-patterns.md
 ├── scripts/
 │   ├── self-scale.ps1
 │   └── scaling-config.json
@@ -75,8 +97,12 @@ ai-company/
     └── test-method-patterns.py
 ```
 
+> 结构树已由此升级生成器改写为 37 个文件的中型档骨架 - 安装前需人工复核。
+
+
+
 结构树列出的是**包文件集**：仓库工具目录（`.git/`、`.github/`、`.workbuddy/`、
-`.skill-upgrade/`）不属于包内容，不计入文件总数（`README-FOR-AI.md` §3）。
+`.skill-upgrade/`）不属于包内容，不计入文件总数（`README_FOR_AI.md` §3）。
 
 ## 文档
 
@@ -86,19 +112,21 @@ ai-company/
 - [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) —— 社区行为准则
 - `AGENTS.md` —— 面向维护本仓库的编码 Agent 的贡献入口（不参与技能
   路由与激活）
-- `README-FOR-AI.md` —— 面向 LLM Agent 的生成与维护规格（本独立项目自带、
+- `README_FOR_AI.md` —— 面向 LLM Agent 的生成与维护规格（本独立项目自带、
   完全自包含的唯一权威规格，读者无需任何外部或上层文档）
 
 ## 档位升级
 
 本技能包为成长而设计：`scripts/self-scale.ps1 -Action evaluate` 会依据
-`scripts/scaling-config.json` 做就绪度检查，并只把自身的记录字段
+`scripts/scaling-config.json` 做就绪度检查。未命中阈值时，只把自身的记录字段
 （`next_evaluation`、`last_metrics`、`metrics_provenance`、`routing_miss_streak`、
 `validation`）回写到
-`.scaling-state.json`，不改动任何技能内容；真正的档位变更始终需要
+`.scaling-state.json`；一旦有阈值命中，还会在
+`{WORKSPACE_ROOT}/.skill-upgrade/<时间戳>/` 生成待批准的升级包并记入
+`pending_proposals`——但仍不安装、不改动任何技能内容。真正的档位变更始终需要
 人工批准，并记录到 `.scaling-state.json`。阈值、路径与别名等升级规格见
 [references/scaling.md](references/scaling.md)；本包的档位阶梯在
-`README-FOR-AI.md` §1 本地定义。
+`README_FOR_AI.md` §1 本地定义。
 
 ## 许可证
 

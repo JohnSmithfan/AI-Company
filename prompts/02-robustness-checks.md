@@ -53,6 +53,23 @@ risks: <CONSTRAINTS>
 10. Idempotency - repeating the same input N times leaves the system in the same
     state as running it once; write operations accept an idempotency key.
 
+## Canonical signatures to check against
+
+Compare the implementation with these ten canonical contracts and report every
+deviation with its reason (a renamed parameter or a changed default is a
+deviation):
+
+1. `validate_input_schema(data, schema)`
+2. `sanitize_user_query(query)`
+3. `execute_safe_command(cmd, timeout=30)`
+4. `format_output_json(content, provider)`
+5. `retry_with_backoff(func, max_retries=3)`
+6. `read_reference_file(filepath)`
+7. `generate_trace_id(prefix="trace")`
+8. `check_rate_limit(identifier, limit=10, window=60)`
+9. `mask_sensitive_data(text)`
+10. `build_prompt_from_template(template, **kwargs)`
+
 ## Maturity levels (cumulative; skipping levels is not allowed)
 
 - L1 Skeleton: schema declared only.

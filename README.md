@@ -1,16 +1,26 @@
 # ai-company
 
-[![Version](https://img.shields.io/badge/version-1.0.0-blue)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-3.0.0-blue)](CHANGELOG.md)
 [![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-blue.svg)](LICENSE)
-[![Scale tier](https://img.shields.io/badge/scale_tier-micro-teal)](references/scaling.md)
+[![Scale tier](https://img.shields.io/badge/scale_tier-small-teal)](references/scaling.md)
+[![CI](https://github.com/JohnSmithfan/AI-Company/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/JohnSmithfan/AI-Company/actions/workflows/ci.yml)
 
-**An LLM Agent governance skill — micro tier: 2 departments, 18 function
+**An LLM Agent governance skill — small tier: 5 departments, 18 function
 blocks, one installable skill package.**
 
 English | [简体中文](README.zh.md)
 
 > `README.en.md` is an identical English copy of this file, kept so the
 > `.en` / `.zh` language suffixes stay symmetric for i18n tooling.
+
+## Contents
+
+- [Quick Start](#quick-start)
+- [Package at a glance](#package-at-a-glance)
+- [Project Structure](#project-structure)
+- [Documentation](#documentation)
+- [Upgrading](#upgrading)
+- [License](#license)
 
 ## Quick Start
 
@@ -35,11 +45,11 @@ English | [简体中文](README.zh.md)
 | Item | Value |
 |---|---|
 | Skill name | `ai-company` |
-| Version | 1.0.0 |
-| Scale tier | `micro` (XS) |
-| Departments | 2 (`governance-and-delivery`, `engineering-and-safety`) |
-| Function blocks | 18 (8 + 10) |
-| Total files | 26 |
+| Version | 3.0.0 |
+| Scale tier | `small` (S) |
+| Departments | 5 (`governance-and-operations`, `quality-and-delivery`, `technology-and-platform`, `security-and-compliance`, `people-and-growth`) |
+| Function blocks | 18 (6 + 2 + 3 + 3 + 4) |
+| Total files | 30 |
 | License | GPL-3.0 |
 
 ## Project Structure
@@ -55,7 +65,7 @@ ai-company/
 ├── CODE_OF_CONDUCT.md
 ├── CONTRIBUTING.md
 ├── LICENSE
-├── README-FOR-AI.md
+├── README_FOR_AI.md
 ├── README.en.md
 ├── README.md
 ├── README.zh.md
@@ -64,14 +74,26 @@ ai-company/
 ├── _meta.json
 ├── prompts/
 │   ├── 01-implement-method.md
-│   └── 02-robustness-checks.md
+│   ├── 02-robustness-checks.md
+│   └── 03-test-cases.md
 ├── references/
 │   ├── method-patterns.md
 │   ├── error-codes.md
 │   ├── scaling.md
-│   └── departments/
-│       ├── governance-and-delivery.md
-│       └── engineering-and-safety.md
+│   ├── departments/
+│   │   ├── governance-and-operations.md
+│   │   ├── technology-and-platform.md
+│   │   ├── security-and-compliance.md
+│   │   ├── quality-and-delivery.md
+│   │   ├── people-and-growth.md
+│   │   ├── legal-and-risk.md
+│   │   ├── data-and-analytics.md
+│   │   ├── product-and-strategy.md
+│   │   └── customer-and-partnerships.md
+│   └── shared/
+│       ├── glossary.md
+│       ├── cross-department-handoff.md
+│       └── common-patterns.md
 ├── scripts/
 │   ├── self-scale.ps1
 │   └── scaling-config.json
@@ -79,9 +101,13 @@ ai-company/
     └── test-method-patterns.py
 ```
 
+> Structure tree rewritten to the 37-file medium-tier skeleton by the upgrade generator - requires human review before installation.
+
+
+
 The tree lists the **package file set**: repository tooling directories
 (`.git/`, `.github/`, `.workbuddy/`, `.skill-upgrade/`) are not package content
-and are excluded from the count (`README-FOR-AI.md` §3).
+and are excluded from the count (`README_FOR_AI.md` §3).
 
 ## Documentation
 
@@ -91,21 +117,25 @@ and are excluded from the count (`README-FOR-AI.md` §3).
 - [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) — community standards
 - `AGENTS.md` — entry point for coding agents maintaining this repository
   (does not participate in skill routing)
-- `README-FOR-AI.md` — generation & maintenance spec for LLM Agents
+- `README_FOR_AI.md` — generation & maintenance spec for LLM Agents
   (self-contained and authoritative for this standalone project; no external
   spec is required)
 
 ## Upgrading
 
 This package is designed to grow. `scripts/self-scale.ps1 -Action evaluate`
-checks tier readiness against `scripts/scaling-config.json` and writes back
-only its own bookkeeping fields to `.scaling-state.json` (`next_evaluation`,
-`last_metrics`, `metrics_provenance`, `routing_miss_streak`, `validation`); it
-never modifies skill content. The
+checks tier readiness against `scripts/scaling-config.json`. With no threshold
+hit it writes back only its own bookkeeping fields to `.scaling-state.json`
+(`next_evaluation`, `last_metrics`, `metrics_provenance`,
+`routing_miss_streak`, `validation`). When a threshold *does* hit it also
+generates a pending upgrade package under
+`{WORKSPACE_ROOT}/.skill-upgrade/<timestamp>/` and records it in
+`pending_proposals` — it still never installs anything and never modifies skill
+content. The
 actual upgrade always requires human approval and is recorded in
 `.scaling-state.json`. Thresholds, paths, and aliases are specified in
 [references/scaling.md](references/scaling.md); the scale-tier ladder itself is
-defined locally in `README-FOR-AI.md` §1.
+defined locally in `README_FOR_AI.md` §1.
 
 ## License
 

@@ -4,7 +4,7 @@ Thanks for helping improve this skill package. This document covers branch
 strategy, commit conventions, how to run the tests, how to run the acceptance
 checks, and pull-request requirements.
 
-The authoritative design specification for this project is `README-FOR-AI.md`,
+The authoritative design specification for this project is `README_FOR_AI.md`,
 which ships at the root of this repository and is fully self-contained: every
 parameter, contract, red line, and acceptance check a contributor needs is
 defined there, so no external or upstream document is required. Its **§14**
@@ -53,22 +53,25 @@ that the assertion works; failing on the injected defect is.
 
 ## How to run the acceptance checks
 
-Key checks for the micro tier (the full list is in `README-FOR-AI.md` **§15**):
+Key checks for the small tier (the full list is in `README_FOR_AI.md` **§15**):
 
 | Check | Expected |
 |---|---|
-| Package file set | 26 (repository tooling directories `.git/`, `.github/`, `.workbuddy/`, `.skill-upgrade/` are excluded — `README-FOR-AI.md` §3) |
-| Function blocks across the two department files | 18 (`governance-and-delivery.md`: 8; `engineering-and-safety.md`: 10) |
+| Package file set | 30 (repository tooling directories `.git/`, `.github/`, `.workbuddy/`, `.skill-upgrade/` are excluded — `README_FOR_AI.md` §3) |
+| Function blocks across the five department files | 18 (6 + 2 + 3 + 3 + 4) |
 | `SKILL.md` frontmatter | ≤ 85 lines |
 | `SKILL.md` body | ≤ 120 lines, no code implementations or full error-code tables |
 | Governance and community files | 13/13 present (no tier trimming) |
-| `README.md` / `README.en.md` / `README.zh.md` Project Structure tree | Matches the disk exactly |
+| `README.md` / `README.en.md` / `README.zh.md` Project Structure tree | Matches the **package file set** (30 files) exactly — not the raw working tree, which also holds repository tooling |
 | Internal links | No broken relative links; no orphan files under `prompts/` or `references/` |
 | Line endings | LF everywhere and no BOM, checked on **raw bytes** (a CRLF file is invisible to Python's universal-newline `read_text()`) |
-| Version locations | `_meta.json` / README badge / `SKILL.md` frontmatter all `1.0.0` (three locations — `README-FOR-AI.md` §8) |
+| Version locations | `_meta.json` / README badge / `SKILL.md` frontmatter all `2.0.0` (three locations — `README_FOR_AI.md` §6.1 / §15, `references/scaling.md` §8) |
 
-Tier readiness can be checked with (no skill content is modified; only the
-script's own bookkeeping fields are written back to `.scaling-state.json`):
+Tier readiness can be checked with (no skill content is modified). With no
+threshold hit only the script's own bookkeeping fields are written back to
+`.scaling-state.json`; when a threshold hits it also generates a pending
+upgrade package under `{WORKSPACE_ROOT}/.skill-upgrade/<timestamp>/` and records
+it in `pending_proposals` — it never installs and never edits skill content:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts/self-scale.ps1 -Action evaluate
@@ -83,7 +86,7 @@ approval — contributors must never run it inside a PR.
 
 ## Red lines (where to find them)
 
-All red lines are listed in `README-FOR-AI.md` **§14 (P1–P55)**. The most
+All red lines are listed in `README_FOR_AI.md` **§14 (P1–P55)**. The most
 frequently hit ones:
 
 - **P10 / P44** — code templates live only in `references/method-patterns.md`;
@@ -102,9 +105,9 @@ frequently hit ones:
 ## Pull request requirements
 
 - **Description**: what changed and why; link the relevant red line (`P##`) or
-  the `README-FOR-AI.md` section (`§x.y`) when applicable.
+  the `README_FOR_AI.md` section (`§x.y`) when applicable.
 - **Green**: `python tests/test-method-patterns.py` passes, and the acceptance
-  table above is satisfied for the micro tier.
+  table above is satisfied for the small tier.
 - **Structure sync**: if any file was added, removed, or renamed, update the
   Project Structure tree in `README.md`, `README.en.md`, and `README.zh.md` in
   the same PR.

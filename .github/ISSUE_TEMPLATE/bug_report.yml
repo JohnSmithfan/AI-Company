@@ -1,0 +1,72 @@
+name: Bug report
+description: Report a defect in skill behavior, scripts, tests, or documentation
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for reporting. Please search existing issues and the CHANGELOG
+        first to avoid duplicates.
+
+        Security vulnerabilities must NOT be reported here - see SECURITY.md for
+        the private reporting channel.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Affected area
+      description: Which part of the package is affected?
+      options:
+        - SKILL.md runtime behavior
+        - references/ specifications
+        - scripts/self-scale.ps1
+        - tests/test-method-patterns.py
+        - Documentation (README trio, README_FOR_AI.md)
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Package version
+      description: The version field of _meta.json (or the SKILL.md frontmatter).
+      placeholder: 1.0.0
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Reproduction steps
+      description: The exact commands, prompt sequence, or agent interaction that triggers the defect.
+      placeholder: |
+        1. Copy the ai-company/ folder into the skills workspace
+        2. Run `python tests/test-method-patterns.py`
+        3. Observe the failure
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: Include the full error output or the wrong result you observed.
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, shell, Python version, PowerShell version.
+      placeholder: Windows 11 / bash / Python 3.13 / Windows PowerShell 5.1
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Logs, screenshots, or links that help explain the problem.

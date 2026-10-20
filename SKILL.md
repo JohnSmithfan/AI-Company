@@ -1,11 +1,11 @@
 ---
 name: "ai-company"
 slug: "ai-company"
-version: "1.0.0"
-description: "Micro-tier governance skill for small AI agent organizations (1-3 agents). Consolidates 18 enterprise function blocks into two departments, governance-and-delivery and engineering-and-safety, covering strategy, risk, compliance, architecture, safety, and delivery. Ships ten harness code templates, three prompt frameworks, a full error-code catalog, and a scaling specification. Provides two self-contained human-paste prompts (method implementation, robustness checks) usable in any AI chat window. Source files are authored in English; runtime output follows the user's language per the language policy, with English fallback. Includes propose-only self-scaling that evaluates scaling thresholds and proposes tier upgrades up to group. Use when a small team needs enterprise-grade governance, engineering harnesses, PII masking, AIGC disclosure, or tier-upgrade assessment for its agents."
+version: 3.0.0
+description: "Medium-tier governance skill for scaling AI agent organizations (10-50 agents). Distributes 18 enterprise function blocks across 9 departments — governance-and-operations, technology-and-platform, security-and-compliance, quality-and-delivery, people-and-growth, legal-and-risk, data-and-analytics, product-and-strategy, and customer-and-partnerships — spanning strategy, operations, finance, risk, legal, privacy, architecture, security, compliance, quality, delivery, data, analytics, product, intelligence, brand, and partnerships. Ships ten harness code templates, three prompt frameworks, a 34-code error catalog with ten prefixes, and propose-only self-scaling. Use when a scaling team needs enterprise-grade governance, legal and privacy review, data and analytics pipelines, product and partnership coordination, or tier-upgrade assessment."
 license: "GPL-3.0"
 author: "AI Company Team"
-tags: [governance, llm-agents, agent-organization, compliance, error-codes, harness-engineering, pii-masking, aigc-disclosure, self-scaling, micro-tier, method-templates, robustness-checks]
+tags: [governance, llm-agents, agent-organization, compliance, error-codes, harness-engineering, pii-masking, aigc-disclosure, self-scaling, medium-tier, method-templates, robustness-checks]
 dependencies: []
 triggers:
   - evaluate scaling threshold
@@ -34,7 +34,7 @@ interface:
           description: Task description
         department:
           type: string
-          enum: [auto, governance-and-delivery, engineering-and-safety]
+enum: [auto, governance-and-operations, technology-and-platform, security-and-compliance, quality-and-delivery, people-and-growth, legal-and-risk, data-and-analytics, product-and-strategy, customer-and-partnerships]
           description: Which department to invoke; omit or "auto" to auto-route
         output_language:
           type: string
@@ -47,7 +47,7 @@ interface:
     type: object
     schema: { type: object, properties: { result: { type: string, description: Operation result }, report: { type: object, description: Detailed report data } }, required: [result] }
 errors: []
-error_code_prefixes: [CEO_, CTO_, SCL_]
+error_code_prefixes: [CEO_, CTO_, CISO_, CHO_, CQO_, CLR_, CDO_, CPO_, CCO_, SCL_]
 language_policy:
   authoring: en
   encoding: utf-8
@@ -77,15 +77,16 @@ metadata:
   maturity: STABLE
   license: GPL-3.0
   standardized: true
-  scale_tier: micro
-  department_count: 2
+  scale_tier: medium
+  department_count: 9
   function_block_count: 18
   harness_baseline: L3
+department_aliases: references/scaling.md#alias-map
 ---
 
 # AI Company
 
-Micro-tier (XS) LLM agent governance skill for organizations of 1-3 agents: 18 enterprise function blocks consolidated into 2 departments, backed by shared harness templates, a full error-code catalog, and propose-only self-scaling.
+Small-tier (S) LLM agent governance skill for growing organizations of 3-10 agents: 18 enterprise function blocks distributed across 5 departments, backed by shared harness templates, a 34-code error catalog, and propose-only self-scaling.
 
 > Source files are authored in English; runtime output follows the user's language (see `language_policy` in the frontmatter). Slugs, error codes, field names, enum values, file paths, and function names are never translated.
 
@@ -93,8 +94,11 @@ Micro-tier (XS) LLM agent governance skill for organizations of 1-3 agents: 18 e
 
 | Slug | Prefix | Scope | Reference |
 |---|---|---|---|
-| `governance-and-delivery` | `CEO_` | Strategy, governance, delivery | [governance-and-delivery.md](references/departments/governance-and-delivery.md) |
-| `engineering-and-safety` | `CTO_` | Architecture, engineering, safety | [engineering-and-safety.md](references/departments/engineering-and-safety.md) |
+| `governance-and-operations` | `CEO_` | Strategy, governance, operations, finance, risk, procurement | [governance-and-operations.md](references/departments/governance-and-operations.md) |
+| `quality-and-delivery` | `CQO_` | Quality gates, documentation completeness, information fusion, scheduling | [quality-and-delivery.md](references/departments/quality-and-delivery.md) |
+| `technology-and-platform` | `CTO_` | Architecture, ADRs, deployment gate, framework, model registry, data pipelines | [technology-and-platform.md](references/departments/technology-and-platform.md) |
+| `security-and-compliance` | `CISO_` | Security ops, resilience, legal/AIGC compliance, privacy, incident response, IAM | [security-and-compliance.md](references/departments/security-and-compliance.md) |
+| `people-and-growth` | `CHO_` | Agent lifecycle, training, knowledge/ethics, brand, partnerships, intelligence | [people-and-growth.md](references/departments/people-and-growth.md) |
 
 ## Shared Resources
 
@@ -108,8 +112,11 @@ Micro-tier (XS) LLM agent governance skill for organizations of 1-3 agents: 18 e
 
 | Prefix | Meaning |
 |---|---|
-| `CEO_` | Governance-and-delivery department codes |
-| `CTO_` | Engineering-and-safety department codes |
+| `CEO_` | Governance-and-operations department codes |
+| `CTO_` | Technology-and-platform department codes |
+| `CISO_` | Security-and-compliance department codes |
+| `CHO_` | People-and-growth department codes |
+| `CQO_` | Quality-and-delivery department codes |
 | `SCL_` | Self-scaling infrastructure codes (fixed across tiers) |
 
 ## Prompts
@@ -118,6 +125,7 @@ Micro-tier (XS) LLM agent governance skill for organizations of 1-3 agents: 18 e
 |---|---|---|
 | [01-implement-method.md](prompts/01-implement-method.md) | `human-paste` | Paste into any AI chat window to have that AI implement one method to this standard |
 | [02-robustness-checks.md](prompts/02-robustness-checks.md) | `human-paste` | Paste into any AI chat window to have that AI run robustness checks on a method |
+| [03-test-cases.md](prompts/03-test-cases.md) | `agent-invoked` | Agent runtime generates a test-case suite for one method and writes it to {WORKSPACE_ROOT}/tests/ |
 
 ## Quick Start
 

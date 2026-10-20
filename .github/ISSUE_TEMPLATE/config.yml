@@ -1,0 +1,6 @@
+# Issue entry-point policy.
+#
+# Blank issues are disabled so every report arrives through a form with the
+# fields this package needs. Add contact_links here once GitHub Discussions is
+# enabled for the repository - do not link a channel that is not live yet.
+blank_issues_enabled: false
