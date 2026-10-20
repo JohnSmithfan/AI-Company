@@ -1,0 +1,103 @@
+{
+  "schema_version": 1,
+  "registry_description": "Model catalog for the large tier. Every config_path is relative to models/ and MUST resolve to a real file - an unresolvable path breaks the whole fallback chain (MDL_002).",
+  "default_model": "gpt-4o",
+  "fallback_chain": [
+    "gpt-4o",
+    "claude-3-5-sonnet",
+    "ollama-llama3.3",
+    "ollama-mistral",
+    "llama-3.3-70b"
+  ],
+  "models": [
+    {
+      "id": "gpt-4o",
+      "provider": "openai",
+      "type": "api",
+      "tier": "primary",
+      "enabled": true,
+      "config_path": "api/openai/gpt-4o.json",
+      "capabilities": ["text", "vision", "function-calling"],
+      "priority": 1
+    },
+    {
+      "id": "claude-3-5-sonnet",
+      "provider": "anthropic",
+      "type": "api",
+      "tier": "primary",
+      "enabled": true,
+      "config_path": "api/anthropic/claude-3-5-sonnet.json",
+      "capabilities": ["text", "vision"],
+      "priority": 2
+    },
+    {
+      "id": "ollama-llama3.3",
+      "provider": "ollama",
+      "type": "local",
+      "tier": "fallback",
+      "enabled": true,
+      "config_path": "api/ollama/llama3.3.json",
+      "capabilities": ["text"],
+      "priority": 3
+    },
+    {
+      "id": "ollama-mistral",
+      "provider": "ollama",
+      "type": "local",
+      "tier": "fallback",
+      "enabled": true,
+      "config_path": "api/ollama/mistral.json",
+      "capabilities": ["text"],
+      "priority": 4
+    },
+    {
+      "id": "ollama-codellama",
+      "provider": "ollama",
+      "type": "local",
+      "tier": "specialized",
+      "enabled": true,
+      "config_path": "api/ollama/codellama.json",
+      "capabilities": ["text", "code"],
+      "priority": 5
+    },
+    {
+      "id": "ollama-phi3",
+      "provider": "ollama",
+      "type": "local",
+      "tier": "lightweight",
+      "enabled": true,
+      "config_path": "api/ollama/phi3.json",
+      "capabilities": ["text"],
+      "priority": 6
+    },
+    {
+      "id": "llama-3.3-70b",
+      "provider": "local",
+      "type": "local",
+      "tier": "fallback",
+      "enabled": true,
+      "config_path": "local/llama-3.3-70b/config.json",
+      "capabilities": ["text"],
+      "priority": 7
+    }
+  ],
+  "validation": {
+    "require_config_path_exists": true,
+    "reject_path_traversal": true,
+    "require_env_var_name_not_value": true,
+    "error_codes": {
+      "not_found": "MDL_001",
+      "config_missing": "MDL_002",
+      "disabled": "MDL_003",
+      "key_missing": "MDL_004",
+      "rate_limited": "MDL_005",
+      "config_invalid": "MDL_006",
+      "invocation_failed": "MDL_E007"
+    }
+  },
+  "notes": {
+    "credentials": "No key value appears anywhere in this registry. Each config declares env_var_name - the NAME of the environment variable to read at runtime.",
+    "local_placeholder": "Ollama entries use the literal string 'ollama' as api_key because the Ollama local server requires a non-empty placeholder and performs no authentication. This is not a credential.",
+    "path_resolution": "MODELS_DIR = Path(__file__).parent.parent ; full path = MODELS_DIR / config_path"
+  }
+}

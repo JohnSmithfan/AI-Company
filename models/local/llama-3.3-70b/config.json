@@ -1,0 +1,21 @@
+{
+  "id": "llama-3.3-70b",
+  "provider": "local",
+  "type": "local",
+  "endpoint": "http://localhost:11434/v1/chat/completions",
+  "env_var_name": "",
+  "context_window": 128000,
+  "max_output_tokens": 4096,
+  "pii_filtering": true,
+  "rate_limits": {
+    "rpm": 10,
+    "tpm": 40000,
+    "daily": 1000
+  },
+  "runtime": {
+    "engine": "ollama",
+    "model_path": "llama3.3:70b",
+    "gpu_layers": -1,
+    "requires_auth": false
+  }
+}

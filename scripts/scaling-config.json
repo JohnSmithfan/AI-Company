@@ -2,10 +2,27 @@
   "schema_version": 1,
   "upgrade_policy": "propose-only",
   "evaluation_interval_days": 30,
+  "current_tier": "large",
+  "max_tier": "group",
+  "tier_order": ["micro", "small", "medium", "large", "group"],
+  "upgrade_path": {
+    "micro": "small",
+    "small": "medium",
+    "medium": "large",
+    "large": "group"
+  },
+  "selectable_targets": {
+    "micro": ["small", "medium", "large"],
+    "small": ["medium", "large"],
+    "medium": ["large"],
+    "large": ["group"]
+  },
   "thresholds": {
+    "agent_count_ceiling": 200,
     "agent_count_headroom": 1.0,
     "blocks_per_department_ratio": 1.5,
     "routing_accuracy_floor": 0.85,
+    "routing_accuracy_consecutive_failures": 3,
     "error_code_reuse_ceiling": 0.25
   },
   "host_metrics": {
@@ -14,5 +31,49 @@
     "drop_dir": "{WORKSPACE_ROOT}/.skill-metrics",
     "log_cap": 20
   },
-  "output_dir": "{WORKSPACE_ROOT}/.skill-upgrade"
+  "immutable_paths": [
+    "permissions",
+    "tests/",
+    "scripts/self-scale.ps1"
+  ],
+  "gates": {
+    "G1": "permissions-unchanged",
+    "G2": "tests-unchanged",
+    "G3": "deny-and-gate-logic-unchanged",
+    "G4": "function-block-conservation",
+    "G5": "alias-completeness",
+    "G6": "full-acceptance-pass"
+  },
+  "non_waivable_gates": ["G1", "G2", "G3"],
+  "function_block_expectation": {
+    "micro": 18,
+    "small": 18,
+    "medium": 18,
+    "large": 18,
+    "group": 36
+  },
+  "file_count_expectation": {
+    "large": 148,
+    "group": 246
+  },
+  "output_dir": "{WORKSPACE_ROOT}/.skill-upgrade",
+  "backup_dir": "{USER_HOME}/.agents/skills/backups",
+  "deny_list_baseline": [
+    "~/.ssh/**",
+    "~/.aws/**",
+    "~/.config/**",
+    "/etc/**",
+    "{WINDOWS_DIR}/**"
+  ],
+  "write_scope_baseline": ["{WORKSPACE_ROOT}/**"],
+  "notes": {
+    "no_install_action": "this config intentionally defines no install/apply/commit action - see spec P36",
+    "placeholders": "{WORKSPACE_ROOT} and {USER_HOME} are resolved at runtime; never hardcode absolute paths",
+    "t1_effective_threshold": "agent_count_ceiling x agent_count_headroom = 200 x 1.0 = 200; a host that changes the headroom changes the threshold",
+    "host_metrics": "T1 (agent_count) and T3 (routing_accuracy) are host-supplied: the host writes them via -Action record-metrics or the drop directory; stale or undersampled data makes T1/T3 skip, never guess (references/scaling.md section 3.1)",
+    "file_count_basis": "package file set = all package files minus repository tooling directories (.git/ .github/ .workbuddy/ .skill-upgrade/) and build residues (__pycache__/ *.pyc); references/scaling.md section 2",
+    "tier_order": "canonical tier vocabulary in ascending order; drives -TargetTier validation (ordinal comparison) and the vocabulary error message",
+    "upgrade_path": "the DEFAULT (linear) next tier per source tier, used when -TargetTier is omitted; each value must be the first entry of selectable_targets for that tier (drift fails with SCL_007)",
+    "selectable_targets": "every target tier selectable via -Action propose -TargetTier <tier>; the first entry is the default. large->group is a scaffold proposal (UPGRADE-WORK-ORDER.txt; content gates fail by design and nothing is recorded in the state file)"
+  }
 }

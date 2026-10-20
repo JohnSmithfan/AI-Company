@@ -17,19 +17,19 @@ __pycache__/
 .update-notification.md
 *.bak
 
-# Agent workspace data (this .workbuddy directory is tooling state, not
-# package content; it must never enter a release)
+# Agent workspace data (tooling state, not package content; it must never
+# enter a release)
 .workbuddy/
 
 # Installer-local metadata (machine-specific install state)
 .clawhub/
 
 # NOTE: .scaling-state.json is package metadata (tier history) and MUST be
-# tracked in git. Do not add it to this file.
+# tracked. Do not add it to this file.
 
 # Local environment files - credentials are read from environment variables
-# only (README_FOR_AI.md §9.4); a .env carrying real values must never be
-# committed. The negated pattern keeps a sanitized example committable.
+# only (README_FOR_AI.md section 9.4); a .env carrying real values must never
+# be committed. The negated pattern keeps a sanitized example committable.
 .env
 .env.*
 !.env.example

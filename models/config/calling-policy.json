@@ -1,0 +1,90 @@
+{
+  "schema_version": 1,
+  "policy_description": "Calling policy for the large tier: cost control, rate limits, permissions, security, fallback and audit. All numeric values are documented defaults - tune per deployment and record the basis for any change.",
+  "cost_control": {
+    "daily_limit_usd": 100.0,
+    "monthly_limit_usd": 2500.0,
+    "per_call_limit_usd": 2.0,
+    "action_on_daily_breach": "degrade-to-local",
+    "action_on_monthly_breach": "halt-and-notify",
+    "values_are_examples": true,
+    "basis_note": "Defaults for a 50-200 agent deployment. Derive real figures from observed unit economics via procurement-billing."
+  },
+  "rate_limits": {
+    "default": { "rpm": 60, "tpm": 90000, "daily": 5000 },
+    "per_model_overrides": {
+      "gpt-4o": { "rpm": 120, "tpm": 180000, "daily": 10000 },
+      "claude-3-5-sonnet": { "rpm": 90, "tpm": 150000, "daily": 8000 },
+      "ollama-llama3.3": { "rpm": 30, "tpm": 60000, "daily": 3000 },
+      "ollama-mistral": { "rpm": 30, "tpm": 60000, "daily": 3000 },
+      "ollama-codellama": { "rpm": 20, "tpm": 40000, "daily": 2000 },
+      "ollama-phi3": { "rpm": 40, "tpm": 50000, "daily": 4000 },
+      "llama-3.3-70b": { "rpm": 10, "tpm": 40000, "daily": 1000 }
+    },
+    "enforcement": "template 8 (check_rate_limit), keyed on caller identifier plus model id",
+    "on_breach": "return MDL_005 with a retry-after value; never queue silently"
+  },
+  "permissions": {
+    "model_access_matrix": {
+      "gpt-4o": ["executive-strategy", "operations-coordination", "finance-treasury", "engineering-tooling", "intelligence-sentiment"],
+      "claude-3-5-sonnet": ["executive-strategy", "legal-privacy", "knowledge-ethics", "quality-visualization"],
+      "ollama-llama3.3": ["*"],
+      "ollama-mistral": ["*"],
+      "ollama-codellama": ["engineering-tooling", "platform-mlops", "model-data"],
+      "ollama-phi3": ["*"],
+      "llama-3.3-70b": ["*"]
+    },
+    "wildcard_meaning": "'*' means any department may call this model",
+    "denial_code": "MDL_003 when the model is disabled; access outside the matrix is refused and logged",
+    "escalation": "a department needing access outside its matrix requests it through model-data, never by editing this file at runtime"
+  },
+  "security": {
+    "credentials": "environment variable names only; a value in any config file is a leaked secret",
+    "pii_filtering": true,
+    "pii_masking_template": 9,
+    "pii_classes": ["EMAIL", "IP", "PHONE"],
+    "prompt_sanitization_template": 2,
+    "input_validation_template": 1,
+    "forbidden": [
+      "hardcoded keys",
+      "logging raw prompts containing PII",
+      "sending data to an endpoint not declared in the model config",
+      "dynamic evaluation of model output"
+    ],
+    "output_handling": "model output is untrusted text - validate before use, never evaluate"
+  },
+  "fallback": {
+    "enabled": true,
+    "chain": ["gpt-4o", "claude-3-5-sonnet", "ollama-llama3.3", "ollama-mistral", "llama-3.3-70b"],
+    "trigger_conditions": ["rate_limited", "provider_error", "timeout", "cost_breach"],
+    "max_chain_depth": 5,
+    "on_chain_exhaustion": "MDL_E007",
+    "rule": "every config_path in the chain must resolve - one missing file breaks the whole chain"
+  },
+  "timeouts": {
+    "connect_seconds": 10,
+    "read_seconds": 30,
+    "total_seconds": 60,
+    "note": "matches template 3's default 30s execution timeout for local subprocess work"
+  },
+  "retry": {
+    "template": 5,
+    "max_retries": 3,
+    "backoff": "exponential, 0.5*2^attempt seconds with +/-25% jitter, no cap",
+    "retryable": ["timeout", "rate_limited", "5xx"],
+    "not_retryable": ["4xx_except_429", "auth_failure", "invalid_request"]
+  },
+  "audit": {
+    "trace_id_template": 7,
+    "log_fields": ["timestamp_utc", "trace_id", "model_id", "department", "token_in", "token_out", "cost_usd", "outcome"],
+    "log_excludes": ["prompt content", "completion content", "credentials"],
+    "retention_days": 365,
+    "note": "content is excluded from logs by default; retention of content requires an explicit, recorded decision"
+  },
+  "governance": {
+    "owning_department": "model-data",
+    "review_interval_days": 90,
+    "change_control": "any change to this file is a minor version bump and requires model-data approval",
+    "related_error_codes": ["MDL_001", "MDL_002", "MDL_003", "MDL_004", "MDL_005", "MDL_006", "MDL_E007"]
+  }
+}

@@ -1,8 +1,13 @@
 # Method Patterns — Shared Code Templates & Prompt Frameworks
 
-> This file is the **single source of truth** for all shared code templates and
-> prompt frameworks in this skill package. Any other file that needs a template
-> must link to the anchors in this file — **inline code copies are forbidden**.
+> This file is the **single authoritative source** for all 10 shared code templates
+> and the 3 prompt frameworks in this skill package. Every implementation lives
+> here — there is no second copy anywhere in the package. Any file that needs a
+> template **links to the anchors in this file**; inline code copies are forbidden
+> (P10 / P44).
+>
+> Department-level `references/method-patterns.md` files hold **department-specific**
+> patterns only and must never duplicate these ten shared templates.
 >
 > Authority: this package's `README_FOR_AI.md` — §7 (templates & frameworks), §8 (Harness), §9.2–9.4 (compliance), §6.3 (source-language standard).
 
@@ -10,8 +15,10 @@
 
 ## 1. Template Index
 
-Selection table only. Read the first two sections to choose a template; descend
-into Section 3 only when you need the implementation.
+Selection table only. Read this section to choose a template; descend into
+Section 3 only when you need the implementation. **This file is the single
+authoritative source of the 10 template implementations** — no other file in
+this package holds template code.
 
 | # | Function | Purpose | Safety Property | Harness | Anchor |
 |---|----------|---------|-----------------|---------|--------|
@@ -26,11 +33,28 @@ into Section 3 only when you need the implementation.
 | 9 | `mask_sensitive_data(text)` | PII masking (EMAIL / IP / PHONE) | Raw data never logged or persisted | L5 | [3.9](#39-mask_sensitive_data) |
 | 10 | `build_prompt_from_template(template, **kwargs)` | Render prompt framework templates | All inputs sanitized before insertion | L3 | [3.10](#310-build_prompt_from_template) |
 
-Harness mapping (README_FOR_AI.md §8.1): every LLM call point must have validation in
-front, sanitization behind, tracing throughout, and a fallback on failure.
-Signatures below are **frozen** — parameter names and defaults must not change;
-test assertions depend on them. A renamed function breaks every referencing
-file and requires a package-wide grep.
+**Signature contract** — parameter names and default values are fixed; the test
+suite asserts them. A renamed function breaks every referencing file and
+requires a package-wide grep.
+
+**Mandatory usage points**
+
+| Pipeline stage | Template | Required at |
+|---|---|---|
+| Every department entry | 1 `validate_input_schema` | D2 §3 responsibilities |
+| Before any interpolation | 2 via 10 | Prompt construction |
+| Any subprocess | 3 | `execute_safe_command` only — never a raw shell call |
+| Every emitted payload | 4 `format_output_json` | AIGC triple labeling |
+| Any retryable external call | 5 | Integrations, model invocation |
+| Any file read | 6 | Reference loading |
+| Every operation | 7 | Audit trail, prefix per department |
+| Every external call | 8 | Rate limiting per identifier |
+| **Every output** | 9 `mask_sensitive_data` | **Non-negotiable** |
+
+**Runtime requirement:** Python 3.9+, standard library only — no third-party
+dependency for the 10 core templates. Harness mapping (README_FOR_AI.md §8.1):
+every LLM call point must have validation in front, sanitization behind, tracing
+throughout, and a fallback on failure.
 
 ---
 
@@ -42,10 +66,18 @@ file and requires a package-wide grep.
 | 3WEH | 4 | Clear delegation: unambiguous role, task, purpose, format | [4.2](#42-3weh) |
 | Five-Element | 5 | Enterprise-compliant prompts with explicit context and constraints | [4.3](#43-five-element) |
 
-Rules (README_FOR_AI.md §7.2): the **full field-by-field expansion lives only in Section 4
-of this file**. `SKILL.md` may only name the framework and link here; it must
-never inline the field expansion. Use `build_prompt_from_template` (3.10) to
-render any of these frameworks.
+| Situation | Framework |
+|---|---|
+| Multi-step analysis, needs an example | CRISPE |
+| Hand-off to a known role, minimal context needed | 3WEH |
+| Output subject to compliance, audit or legal review | Five-Element |
+| Uncertain | Five-Element — its explicit `Constraint` slot degrades most safely |
+
+Rules (README_FOR_AI.md §7.2): the **full field-by-field expansion lives only in
+Section 4 of this file**. `SKILL.md` may only name a framework and link here; it
+must never inline the field expansion. All three skeletons are rendered with
+`build_prompt_from_template` (3.10), which sanitizes every interpolated value —
+never interpolate user text into a prompt by string concatenation.
 
 ---
 
@@ -761,51 +793,64 @@ FIVE_ELEMENT_TEMPLATE = (
 
 ## 5. Compliance Verification
 
-Verification procedures for the three non-negotiable compliance areas
-(README_FOR_AI.md §9.2–9.4). A declared Harness level without verifiable evidence in
-this file violates P24 (documenting unimplemented behavior, README_FOR_AI.md §8.2).
+Verification procedures for the non-negotiable compliance areas
+(README_FOR_AI.md §9.2–9.4) plus the package-wide safety posture. A declared
+Harness level without verifiable evidence in this file violates P24
+(README_FOR_AI.md §8.2).
 
-### 5.1 AIGC Triple Labeling (README_FOR_AI.md §9.2)
+### 5.1 AIGC Labeling Requirements (README_FOR_AI.md §9.2)
 
-All AI-generated content must carry **all three** layers; missing any one
-layer is non-compliant.
+Every generated artifact carries all three layers, produced by template 4
+(`format_output_json`, 3.4). Missing any layer is non-compliant and raises
+`CLO_003`:
 
-| # | Layer | Carrier | Implemented By | Verification |
-|---|-------|---------|----------------|--------------|
-| 1 | Explicit label | Visible content body | `format_output_json` disclosure line | Rendered output contains the disclosure sentence |
-| 2 | Implicit metadata | Structured output envelope | `format_output_json` payload fields | JSON has `ai_generated: true`, ISO-8601 `generated_at`, `model` (`<provider/model>`) |
-| 3 | Embedded watermark | Content body itself | `format_output_json` SHA-256 marker, bound to provider + timestamp + content digest | Marker string appears inside the `content` value; editing the body invalidates the digest it was derived from |
+| Layer | Carrier | Implemented by |
+|---|---|---|
+| Explicit label | Visible disclosure line appended to the content body | `format_output_json` (3.4) |
+| Implicit metadata | `ai_generated`, `generated_at` (ISO-8601 UTC) and `model` (`<provider/model>`) payload fields | `format_output_json` (3.4) |
+| Embedded watermark | SHA-256 marker inside the content body, bound to provider + timestamp + a digest of the content itself | `format_output_json` (3.4) |
 
 Verification procedure: parse the envelope with `json.loads`, assert the three
 metadata fields, and confirm the watermark marker string appears inside the
-`content` value. Layer 3 must survive copy-paste of the content body.
+`content` value. The marker must survive copy-paste of the content body.
 
 **Strength limit of layer 3 (do not overclaim, P24).** The marker is
-tamper-*evident*, not tamper-*proof*: it survives copy-paste and it detects
-editing, but the trailing disclosure line can still be deleted in one
-operation, leaving a body that looks human-authored. Do not describe layer 3
-as "cannot be removed" — that claim was measured and found false. Where a
-non-strippable mark is required, sign the payload outside this envelope.
+tamper-*evident*, not tamper-*proof*: editing the body invalidates the digest
+the marker was derived from, but the trailing disclosure line can still be
+deleted in one operation, leaving a body that looks human-authored. Do not
+describe layer 3 as "cannot be removed" — that claim was measured and found
+false. Where a non-strippable mark is required, sign the payload outside this
+envelope.
 
-### 5.2 PII Masking (README_FOR_AI.md §9.3)
+### 5.2 PII Masking Verification (README_FOR_AI.md §9.3)
 
-- `mask_sensitive_data` (3.9) is **mandatory in every output pipeline** —
-  before any persistence, logging, or external sending.
-- All three classes must be masked: **EMAIL / IP / PHONE**. A missing class
-  is a defect (P32); see the warning under 3.9.
-- Masking order is fixed: mask **first**, then persist/log/send. Raw data
-  must never appear in logs.
-- Verification: feed a fixture containing an email, an IPv4 address, and a
-  phone number in a common written form (country code and separators included)
-  through `mask_sensitive_data`; the result must
-  contain `[EMAIL]`, `[IP]`, and `[PHONE]` respectively and none of the
-  originals.
+Template 9 (`mask_sensitive_data`, 3.9) must be applied to **every** outbound
+payload — before any persistence, logging or external sending. The substitution
+literals are fixed and contractual:
+
+| Class | Placeholder | Coverage |
+|---|---|---|
+| Email | `[EMAIL]` | RFC-5322-style `local@domain`, TLD of at least two letters |
+| IPv4 | `[IP]` | Four dot-separated octets, each validated to 0–255 |
+| Phone | `[PHONE]` | CN mobile numbers: optional `+86` / `0086` / `86` country code; 11 digits contiguous or in 3-4-4 groups joined by a space or a dash |
+
+⚠️ All three branches are mandatory. A masking function that handles only email
+and IP while its contract promises three classes is a **contract/implementation
+divergence** — the exact defect class that stayed invisible in a predecessor
+package because its test suite carried an inlined copy rather than reading the
+authoritative source; see the note under [3.9](#39-mask_sensitive_data).
+
+Verification: feed a fixture containing an email, an IPv4 address and a phone
+number in a common written form (country code and separators included) through
+`mask_sensitive_data`; the result must contain `[EMAIL]`, `[IP]` and `[PHONE]`
+respectively and none of the originals. Masking happens **first** — raw values
+must never appear in logs.
 
 ### 5.3 Audit Trail (README_FOR_AI.md §8.1, §8.2)
 
 - Every task carries a `generate_trace_id` (3.7) identifier from start to
   finish; without it, failures cannot be localized.
-- Logs record the trace id, the operation name, timestamps, and outcome —
+- Logs record the trace id, the operation name, timestamps and outcome —
   never raw PII (5.2 applies to log lines too).
 - Trace ids are stateless and derived from wall-clock plus randomness; they
   are safe to generate concurrently and require no coordination.
@@ -816,9 +861,10 @@ non-strippable mark is required, sign the payload outside this envelope.
 
 Non-negotiable, verified against this file's templates:
 
-- **Zero dynamic code execution** — no `eval`/`exec` on user input, no
-  `Invoke-Expression`/`iex`/`DownloadString` anywhere. Template 2 sanitizes
-  by regex substitution only; template 3 runs `shell=False` subprocesses.
+- **Zero dynamic code execution** — no `eval`/`exec` on user input, and no
+  remote download-and-execute cmdlets (dynamic expression evaluation, string
+  download, web request) anywhere. Template 2 sanitizes by regex substitution
+  only; template 3 runs `shell=False` subprocesses.
 - **Zero hardcoded secrets** — credentials come from environment variables;
   configuration records variable *names*, never values. Template 3 actively
   scrubs secret-like variables from child environments by **name fragment**
@@ -833,14 +879,75 @@ Non-negotiable, verified against this file's templates:
 - **Zero sensitive-path access** — template 6 rejects any path resolving
   outside `{SKILL_DIR}`, and fails closed when `{SKILL_DIR}` is unconfigured
   rather than falling back to the process working directory.
-- **Zero self-rewrite** — the skill never writes into `{SKILL_DIR}`;
-  writable output goes only under `{WORKSPACE_ROOT}`.
+- **Zero self-rewrite** — the skill never writes into `{SKILL_DIR}`; writable
+  output goes only under `{WORKSPACE_ROOT}`.
 - **Idempotency** — operations are safe to retry; `retry_with_backoff`
-  re-raises the final error and `check_rate_limit` keeps no persistent
-  state (README_FOR_AI.md §8.3).
+  re-raises the final error and `check_rate_limit` keeps no persistent state
+  (README_FOR_AI.md §8.3).
 - **Rollback safety** — copy to a temp location, verify, atomically replace,
   and only then delete the old copy; never delete first and restore later
   (P23).
+
+### 5.5 Security Check Matrix
+
+| Control | Template | Verified by |
+|---|---|---|
+| No dynamic code execution | 2, 10 | `TestSanitizeUserQuery`, `TestBuildPromptFromTemplate` |
+| No shell string execution | 3 | `TestExecuteSafeCommand.test_string_command_rejected` |
+| No path traversal | 6 | `TestReadReferenceFile.test_traversal_outside_skill_dir_rejected` |
+| PII masking (3 classes) | 9 | `TestMaskSensitiveData` (all three asserted separately) |
+| AIGC triple labeling | 4 | `TestFormatOutputJson.test_aigc_triple_labeling` |
+| Bounded retries | 5 | `TestRetryWithBackoff.test_attempts_are_bounded` |
+| No secret persistence | 8 | `TestCheckRateLimit` (in-memory only by construction) |
+| Audit traceability | 7 | `TestGenerateTraceId.test_uniqueness` |
+
+### 5.6 Robustness Checklist
+
+Applied per capability, mapped to Harness levels (see 5.7):
+
+- [ ] Input validated (template 1) before use
+- [ ] User text sanitized (template 2) before interpolation or logging
+- [ ] External calls rate-limited (template 8) and retried with backoff (template 5)
+- [ ] Failure path returns a typed error code, never a bare exception
+- [ ] Operation is idempotent — safe to retry without duplicate side effects
+- [ ] Output masked (template 9) and labelled (template 4)
+- [ ] Trace ID (template 7) attached for audit
+
+### 5.7 Harness Maturity L1–L6
+
+| Level | Name | Constraints | Use case |
+|---|---|---|---|
+| L1 | Skeleton | Basic schema, frontmatter | Prototyping |
+| L2 | Functional | Input validation, output formatting | Internal tools |
+| L3 | Robust | Error handling, retry logic, idempotency | Department tools |
+| L4 | Resilient | Circuit breakers, rate limiting, monitoring | Production services |
+| L5 | Compliant | AIGC labels, PII masking, audit trails | Customer-facing |
+| L6 | Certified | STRIDE model, CVSS scoring, CISO sign-off | Critical infrastructure |
+
+**Every department in this package is specified at L3 or above.** Tier size
+governs how many departments exist, not how hard each one is built — a
+two-department micro package and this eighteen-department package hold the same
+per-capability bar.
+
+⚠️ Harness `L1–L6` is unrelated to disclosure layers `D1–D3` and to the tier
+letter `L` (large). Three separate numbering systems; see the terminology note
+in the root `SKILL.md`.
+
+### 5.8 Registry Safety Posture
+
+Patterns this package must never contain, and the tests that enforce it:
+
+| Forbidden pattern | Why | Enforced by |
+|---|---|---|
+| Remote download-and-execute cmdlets (dynamic expression evaluation, string download, web request) | Download-then-run is the primary malicious-skill signature | `test_no_remote_execution_patterns` |
+| Hardcoded absolute user paths | Machine-specific; fails everywhere else | `test_no_hardcoded_user_paths` |
+| Literal credentials or bearer tokens | Secret leakage | `test_no_embedded_secrets` |
+| Writes to `{SKILL_DIR}` | Self-modification / self-escalation | `test_script_never_writes_skill_dir`, `TestImmutableBoundary` |
+| Shipped `.pyc` / `__pycache__` | Version-bound bytecode, diff noise | `test_no_compiled_artifacts` |
+
+⚠️ The forbidden tokens are **deliberately not spelled out above**. Writing them
+literally in a markdown file would make this very page fail its own sweep — the
+test suite assembles those patterns at runtime for the same reason.
 
 ---
 
@@ -848,21 +955,25 @@ Non-negotiable, verified against this file's templates:
 
 Forbidden in and around this file:
 
-- **No inline code copies.** Any file needing a template links to the
-  Section 3 anchor. A second `def` of any function in this package is the
-  recurrence signal of defect P10 (README_FOR_AI.md §7.3, B4/B5).
-- **No signature changes.** Parameter names and defaults of the ten
-  templates are frozen; test assertions depend on them.
-- **No reordering.** Section 3.1–3.10 order matches the index table #1–#10.
-- **No department copies.** Department D3 `method-patterns.md` files may
-  contain only department-specific templates — never these ten shared ones.
-- **No bare code fences.** Every fenced block is ```` ```python ````;
+- ❌ Do not inline any template implementation outside this file — link to the
+  Section 3 anchor instead. A second `def` of any shared function anywhere in
+  the package is the recurrence signal of defect P10 / P44.
+- ❌ Do not alter template parameter names or default values — the test suite
+  asserts them.
+- ❌ Do not reorder Section 3.1–3.10 — the order matches the index table #1–#10.
+- ❌ Do not add third-party dependencies to templates 1–10 (standard library only).
+- ❌ Do not weaken the `[EMAIL]` / `[IP]` / `[PHONE]` placeholders.
+- ❌ Do not copy the ten shared templates into a department D3
+  `method-patterns.md` — those files hold department-specific patterns only.
+- ❌ Do not declare a Harness level a capability does not satisfy (`FW_006`).
+- ❌ Do not interpolate user text into prompts without template 10.
+- ❌ Do not use bare code fences — every fenced block is ```` ```python ````;
   untagged fences and `py` tags are rejected (R3-4).
-- **No hardcoded absolute paths.** Use `{SKILL_DIR}` / `{WORKSPACE_ROOT}`
+- ❌ Do not hardcode absolute paths — use `{SKILL_DIR}` / `{WORKSPACE_ROOT}`
   placeholders in prose and environment variables in code.
-- **No framework expansion outside Section 4.** `SKILL.md` names frameworks
-  and links here only (README_FOR_AI.md §6.2 blacklist, §7.2).
-- **No skipped Harness prerequisites.** Levels are cumulative: an L5 claim
+- ❌ Do not expand a prompt framework outside Section 4 — `SKILL.md` names
+  frameworks and links here only (README_FOR_AI.md §7.2).
+- ❌ Do not skip Harness prerequisites — levels are cumulative: an L5 claim
   without idempotency evidence is downgraded to L2 and recorded as a defect
   (README_FOR_AI.md §8.1).
 
@@ -870,6 +981,28 @@ Forbidden in and around this file:
 
 ## 7. Department-Specific Patterns
 
-L/G tiers only; not applicable at micro tier. Department-specific templates
-belong in each department's own D3 `references/method-patterns.md`, which
-must not duplicate any shared template from this file.
+Department-specific templates and patterns belong to each department's own D3
+`references/method-patterns.md`. Those files **link to this file** and never
+inline the ten shared templates — a second `def` of any shared function is the
+P10 / P44 recurrence signal (see Section 6).
+
+| Domain | Department | D3 method patterns |
+|---|---|---|
+| governance | Executive & Strategy (`executive-strategy`, `CEO_`) | [departments/executive-strategy/references/method-patterns.md](departments/executive-strategy/references/method-patterns.md) |
+| governance | Operations & Coordination (`operations-coordination`, `COO_`) | [departments/operations-coordination/references/method-patterns.md](departments/operations-coordination/references/method-patterns.md) |
+| governance | Board & Branch (`board-and-branch`, `BRD_`) | [departments/board-and-branch/references/method-patterns.md](departments/board-and-branch/references/method-patterns.md) |
+| finance | Finance & Treasury (`finance-treasury`, `CFO_`) | [departments/finance-treasury/references/method-patterns.md](departments/finance-treasury/references/method-patterns.md) |
+| finance | Risk & Audit (`risk-audit`, `CRO_`) | [departments/risk-audit/references/method-patterns.md](departments/risk-audit/references/method-patterns.md) |
+| finance | Procurement & Billing (`procurement-billing`, `PRC_`) | [departments/procurement-billing/references/method-patterns.md](departments/procurement-billing/references/method-patterns.md) |
+| technology | Engineering & Tooling (`engineering-tooling`, `CTO_`) | [departments/engineering-tooling/references/method-patterns.md](departments/engineering-tooling/references/method-patterns.md) |
+| technology | Platform & MLOps (`platform-mlops`, `FW_`) | [departments/platform-mlops/references/method-patterns.md](departments/platform-mlops/references/method-patterns.md) |
+| technology | Model & Data (`model-data`, `MDL_`) | [departments/model-data/references/method-patterns.md](departments/model-data/references/method-patterns.md) |
+| security | Security & Resilience (`security-resilience`, `CISO_`) | [departments/security-resilience/references/method-patterns.md](departments/security-resilience/references/method-patterns.md) |
+| security | Legal & Privacy (`legal-privacy`, `CLO_`) | [departments/legal-privacy/references/method-patterns.md](departments/legal-privacy/references/method-patterns.md) |
+| security | Incident & Identity (`incident-identity`, `IRP_`) | [departments/incident-identity/references/method-patterns.md](departments/incident-identity/references/method-patterns.md) |
+| people | Lifecycle & Training (`lifecycle-training`, `CHO_`) | [departments/lifecycle-training/references/method-patterns.md](departments/lifecycle-training/references/method-patterns.md) |
+| people | Knowledge & Ethics (`knowledge-ethics`, `KNM_`) | [departments/knowledge-ethics/references/method-patterns.md](departments/knowledge-ethics/references/method-patterns.md) |
+| growth | Marketing & Partnerships (`marketing-partnerships`, `CMO_`) | [departments/marketing-partnerships/references/method-patterns.md](departments/marketing-partnerships/references/method-patterns.md) |
+| growth | Intelligence & Sentiment (`intelligence-sentiment`, `INTEL_`) | [departments/intelligence-sentiment/references/method-patterns.md](departments/intelligence-sentiment/references/method-patterns.md) |
+| delivery | Quality & Visualization (`quality-visualization`, `CQO_`) | [departments/quality-visualization/references/method-patterns.md](departments/quality-visualization/references/method-patterns.md) |
+| delivery | Delivery & Scheduling (`delivery-scheduling`, `PMGR_`) | [departments/delivery-scheduling/references/method-patterns.md](departments/delivery-scheduling/references/method-patterns.md) |

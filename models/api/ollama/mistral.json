@@ -1,0 +1,16 @@
+{
+  "id": "ollama-mistral",
+  "provider": "ollama",
+  "type": "local",
+  "endpoint": "http://localhost:11434/v1/chat/completions",
+  "env_var_name": "",
+  "context_window": 32768,
+  "max_output_tokens": 4096,
+  "pii_filtering": true,
+  "rate_limits": {
+    "rpm": 30,
+    "tpm": 60000,
+    "daily": 3000
+  }
+}
+

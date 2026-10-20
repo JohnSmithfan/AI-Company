@@ -1,10 +1,10 @@
-# Self-Scaling Governance Reference (small tier)
+# Self-Scaling Governance Reference (large tier)
 
 | Field | Value |
 |---|---|
 | Applies to | `ai-company` skill package |
-| scale_tier | `small` |
-| Version | 2.0.0 (major = tier ordinal, see Section 8) |
+| scale_tier | `large` |
+| Version | 4.0.0 (major = tier ordinal, see Section 8) |
 | Upgrade policy | `propose-only` (never auto-install) |
 | State file | `.scaling-state.json` (schema_version 1) |
 | Config file | `scripts/scaling-config.json` (schema_version 1) |
@@ -62,27 +62,52 @@ travel through the upgrade channel.
 
 ## 2. Upgrade Capability Matrix
 
-| Tier | Upgrades to | major after | File count (R4 resynced values) | Notes |
-|---|---|---|---|---|
-| `micro` | `small` | 1 → 2 | 26 → 30 | 2 → 5 departments, function blocks stay 18; package includes `README_FOR_AI.md` (user-approved deviation) and `.gitattributes`, so 29 spec files + 1 |
-| `small` | `medium` | 2 → 3 | 30 → 37–45 | 5 → 9 departments, shared modules added (a 36–44 file range plus the package-local `README_FOR_AI.md`) |
-| `medium` | `large` | 3 → 4 | 36–44 → 148 | 9 → 18 departments, D3 layer + 7-domain routing + department-index.md |
-| `large` | `group` | 4 → 5 | 148 → 246 | 18 → 36 departments, function blocks 18 → 36 (the only change of block total) |
-| `group` | — | — | — | Highest tier; an upgrade request returns `SCL_009` |
+| Tier | Default upgrade | Selectable targets (`-TargetTier`) | major after | File count (R4 resynced values) | Notes |
+|---|---|---|---|---|---|
+| `micro` | `small` | `small` / `medium` / `large` | 1 → 2 | 26 → 30 | 2 → 5 departments, function blocks stay 18; package includes `README_FOR_AI.md` (user-approved deviation) and `.gitattributes`, so 29 spec files + 1 |
+| `small` | `medium` | `medium` / `large` | 2 → 3 | 30 → 37–45 | 5 → 9 departments, shared modules added (a 36–44 file range plus the package-local `README_FOR_AI.md`) |
+| `medium` | `large` | `large` | 3 → 4 | 36–44 → 148 | 9 → 18 departments, D3 layer + 7-domain routing + department-index.md |
+| `large` | `group` | `group` | 4 → 5 | 148 → 246 | 18 → 36 departments, function blocks 18 → 36 (the only change of block total); scaffold-only until group content is authored |
+| `group` | — | — | — | — | Highest tier; an upgrade request returns `SCL_009` |
 
 > **Counting basis**: figures are **total package files** — spec files + the package-local `README_FOR_AI.md` + `.gitattributes` (added in R4, present at every tier) — over the **package file set** defined in README_FOR_AI.md §3. Repository tooling directories (`.git/`, `.github/`, `.workbuddy/`, `.skill-upgrade/`) are never package content and are never counted. The sole exception is the left-hand side of the `medium → large` row, which repeats the medium-tier **spec-file** range. All counts were resynced when `.gitattributes` was introduced; re-derive them again if any file is added or removed at any tier. |
 
 Rules:
 
-- **One tier at a time.** Cross-tier jumps (`micro` → `large`) are illegal and
-  return `SCL_002`. Each split mapping is defined for adjacent tiers only; a
-  cross-tier move must be executed as two serial, individually approved
-  upgrades.
+- **Default target: the linear adjacent edge.** With no `-TargetTier`, the
+  executor upgrades exactly one tier along `upgrade_path`
+  (`micro` → `small` → `medium` → `large` → `group`).
+- **Any selectable target via `-TargetTier` (propose action only).** The
+  executor dispatches seven edges: `micro` → `small`, `small` → `medium`,
+  `medium` → `large`, `micro` → `medium`, `micro` → `large`,
+  `small` → `large`, `large` → `group`. The selectable set per source tier is
+  **data, not code**: `scripts/scaling-config.json` → `selectable_targets`
+  (micro: small / medium / large; small: medium / large; medium: large;
+  large: group). An out-of-set, same-tier, unknown-vocabulary, or downgrade
+  request returns `SCL_008`; an in-set pair with no builder returns `SCL_002`
+  (the message lists the selectable targets); at the max tier any upgrade
+  request returns `SCL_009`. Config and the script's dispatch table are
+  cross-checked at load; a mismatch returns `SCL_007`.
+- **Cross-tier jumps are compositions, not improvisations.** `micro` →
+  `medium` runs the two adjacent builders in place (stage 1 `micro` → `small`,
+  then stage 2 `small` → `medium` on the result) and the CHANGELOG records
+  both stages. `micro` / `small` → `large` builds from the same large
+  reference content as `medium` → `large`, with the source tier's slug set
+  driving the Alias Map rows.
+- **`large` → `group` is a scaffold, not a proposal.** The group tier's 36
+  department slugs are undefined, so the build copies the current package
+  forward verbatim (G1–G3 pass), writes a package state skeleton
+  (`gates_passed = 3`) plus `UPGRADE-WORK-ORDER.txt`, and leaves the package
+  in place with exit 0: no isolation, no live-state record, no proposal
+  report. G4/G5/G6 fail by design and their failure detail is the authoring
+  checklist. Any *other* gate failure on this edge follows the normal
+  quarantine path.
 - **Implementation scope of this build:** the executor script implements the
-  `micro` → `small` edge only. Because step 5h copies the script byte-for-byte
-  (and G3 enforces that), the `small`-tier package inherits this same script;
-  running it at `small` tier correctly reports `SCL_002` (no mapping defined)
-  until the package is regenerated at the higher tier per the specification.
+  seven edges above (the `large` target content is built from the
+  `ai-company-large` reference package). Because step 5h copies the script
+  byte-for-byte (and G3 enforces that), every package inherits this same
+  script; the `large` → `group` edge ships as a scaffold until the group-tier
+  content is authored per the specification.
 - **Governance file layer does not change shape across upgrades**: 13 files
   before and after. File-count deltas come entirely from the department layer.
 
@@ -233,11 +258,24 @@ written value happens to equal the default.
 
 ---
 
-## 4. micro → small Upgrade Path (merge tree)
+## 4. Upgrade Paths (dispatch table)
 
-The split mapping below is a **deterministic table lookup** from the
-merge tree in README_FOR_AI.md §10.1. The executor performs no AI improvisation of
-department boundaries.
+The executor resolves the target tier first (Section 2 rules), then dispatches
+one of seven edges. Every edge is a deterministic table lookup — the executor
+performs no AI improvisation of department boundaries.
+
+| # | Edge | Builder | Target content basis |
+|---|---|---|---|
+| 1 | `micro` → `small` | `New-UpgradePackage` | In-page split of the legacy D2 pages (merge tree, 4.1–4.4) |
+| 2 | `small` → `medium` | `New-SmallToMediumUpgradePackage` | Split of the 5 small D2 pages into 9 departments |
+| 3 | `medium` → `large` | `New-MediumToLargeUpgradePackage` | `ai-company-large` reference package content (source-tier agnostic) |
+| 4 | `micro` → `medium` | `New-MicroToMediumUpgradePackage` | Edges 1 + 2 composed in place (two stages, both recorded in the CHANGELOG) |
+| 5 | `micro` → `large` | `New-MediumToLargeUpgradePackage` | Same reference content as edge 3; Alias Map rows tagged `micro` |
+| 6 | `small` → `large` | `New-MediumToLargeUpgradePackage` | Same reference content as edge 3; Alias Map rows tagged `small` |
+| 7 | `large` → `group` | `New-LargeToGroupUpgradePackage` | Scaffold: verbatim carry-forward + `UPGRADE-WORK-ORDER.txt` (Section 2 rules) |
+
+The `micro` → `small` split mapping (4.1–4.4 below) is a **deterministic
+table lookup** from the merge tree in README_FOR_AI.md §10.1.
 
 ### 4.1 Department split (2 → 5)
 
@@ -333,6 +371,24 @@ ignored):
 | governance-and-operations | small | product-and-strategy | v3.0.0 |
 | governance-and-operations | small | customer-and-partnerships | v3.0.0 |
 | people-and-growth | small | customer-and-partnerships | v3.0.0 |
+| customer-and-partnerships | medium | board-and-branch | v4.0.0 |
+| data-and-analytics | medium | delivery-scheduling | v4.0.0 |
+| governance-and-operations | medium | engineering-tooling | v4.0.0 |
+| legal-and-risk | medium | executive-strategy | v4.0.0 |
+| people-and-growth | medium | finance-treasury | v4.0.0 |
+| product-and-strategy | medium | incident-identity | v4.0.0 |
+| quality-and-delivery | medium | intelligence-sentiment | v4.0.0 |
+| security-and-compliance | medium | knowledge-ethics | v4.0.0 |
+| technology-and-platform | medium | legal-privacy | v4.0.0 |
+| customer-and-partnerships | medium | lifecycle-training | v4.0.0 |
+| data-and-analytics | medium | marketing-partnerships | v4.0.0 |
+| governance-and-operations | medium | model-data | v4.0.0 |
+| legal-and-risk | medium | operations-coordination | v4.0.0 |
+| people-and-growth | medium | platform-mlops | v4.0.0 |
+| product-and-strategy | medium | procurement-billing | v4.0.0 |
+| quality-and-delivery | medium | quality-visualization | v4.0.0 |
+| security-and-compliance | medium | risk-audit | v4.0.0 |
+| technology-and-platform | medium | security-resilience | v4.0.0 |
 
 Planned rows appended by the micro → small upgrade (illustrative, not active):
 
@@ -396,9 +452,13 @@ Notes:
    metrics_provenance, routing_miss_streak and validation, exit 0.
    -> if invoked with -Force, log the SCL_001 warning and continue instead
 
-4. Triggered -> look up the split mapping from the merge tree (Section 4)
+4. Resolve the target tier, then dispatch the edge (Section 4)
+   -> default: the linear adjacent tier from upgrade_path; with -TargetTier
+      (propose action only): any tier in the source tier's selectable_targets
+   -> out-of-set / same-tier / downgrade / unknown vocabulary -> SCL_008;
+      current tier = group -> SCL_009; in-set pair with no builder ->
+      SCL_002 (the message lists the selectable targets)
    -> deterministic table lookup; no AI improvisation of department splits
-   -> current tier = group -> SCL_009; no mapping defined -> SCL_002
 
 5. Generate the upgrade package in {WORKSPACE_ROOT}/.skill-upgrade/<timestamp>/:
    5a. new department D2 files (from the split of the legacy D2 pages) and
@@ -512,7 +572,7 @@ specification detail.
 | Automatic downgrade | **Never allowed.** Downgrading is a lossy operation |
 | Human trigger | Explicit approval **plus a written rationale**, recorded in `tier_history` |
 | Error code | `SCL_008` (downgrade requires human approval) |
-| Tier span | Same as upgrade: one tier at a time |
+| Tier span | Downgrade is outside the executor's capability in this build; an upgrade, by contrast, may jump to any selectable target (Section 2 rules) |
 | Function blocks | Conservation inverted: group → large merges 36 → 18 (the only operation allowed to change the block total) |
 | Error codes | Never a plain merge: many-prefix → one-prefix requires remapping; legacy codes stay as deprecated aliases |
 | Slugs | All legacy slugs stay as aliases pointing at the merged departments (many-to-one, the reverse of upgrade) |
@@ -540,13 +600,13 @@ into. Deletion must go through the recycle bin or a backup, never
 | Code | Meaning |
 |---|---|
 | `SCL_001` | Forced proposal generated although no threshold was hit (warning) |
-| `SCL_002` | Illegal upgrade mapping: cross-tier jump requested, or no mapping defined for the current tier |
+| `SCL_002` | Requested target is in the source tier's selectable set but no builder is registered for the pair (the message lists the selectable targets) |
 | `SCL_003` | Slug/alias conflict: a new slug collides with a historical alias, or alias coverage is incomplete |
 | `SCL_004` | Permissions block or gate-logic file was modified (G1 / G3) |
 | `SCL_005` | tests/** was modified (G2) |
 | `SCL_006` | Upgrade package failed acceptance checks (G6) |
-| `SCL_007` | State file missing, invalid, or inconsistent with frontmatter |
-| `SCL_008` | Downgrade requested — requires human approval (not implemented; manual process) |
+| `SCL_007` | State file missing, invalid, or inconsistent with frontmatter; also raised when `scaling-config.json` and the script's dispatch table disagree |
+| `SCL_008` | Target resolution rejected: same-tier, downgrade, unknown vocabulary, or a tier outside `selectable_targets` (downgrade itself requires human approval and stays a manual process) |
 | `SCL_009` | Already at the highest tier (group); no upgrade path exists |
 | `SCL_010` | Function-block conservation failed (G4) |
 
@@ -561,6 +621,7 @@ pwsh -File "{SKILL_DIR}/scripts/self-scale.ps1" -Action evaluate
 pwsh -File "{SKILL_DIR}/scripts/self-scale.ps1" -Action evaluate -DryRun
 pwsh -File "{SKILL_DIR}/scripts/self-scale.ps1" -Action evaluate -Force
 pwsh -File "{SKILL_DIR}/scripts/self-scale.ps1" -Action propose
+pwsh -File "{SKILL_DIR}/scripts/self-scale.ps1" -Action propose -TargetTier large
 pwsh -File "{SKILL_DIR}/scripts/self-scale.ps1" -Action status
 pwsh -File "{SKILL_DIR}/scripts/self-scale.ps1" -Action report
 pwsh -File "{SKILL_DIR}/scripts/self-scale.ps1" -Action record-metrics -AgentCount 7
@@ -575,7 +636,7 @@ pwsh -File "{SKILL_DIR}/scripts/self-scale.ps1" -Action record-metrics -AgentCou
 | Action | Effect |
 |---|---|
 | `evaluate` | Full 8-step sequence: read state, collect metrics, evaluate T1–T4; generate a proposal only if triggered (or `-Force`) |
-| `propose` | Generate a proposal package directly (marks `SCL_001` in the report if no threshold was hit) |
+| `propose` | Generate a proposal package directly (marks `SCL_001` in the report if no threshold was hit). `-TargetTier` selects any tier in the source tier's `selectable_targets`; without it the linear adjacent tier is used (Section 2 rules) |
 | `report` | Print the upgrade report of the latest pending proposal |
 | `status` | Print tier, metrics, thresholds, and pending proposals |
 | `record-metrics` | Record a host-supplied metric (the T1/T3 data source; Section 3.1). Bookkeeping only — it never changes a tier |

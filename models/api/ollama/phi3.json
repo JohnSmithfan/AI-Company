@@ -1,0 +1,16 @@
+{
+  "id": "ollama-phi3",
+  "provider": "ollama",
+  "type": "local",
+  "endpoint": "http://localhost:11434/v1/chat/completions",
+  "env_var_name": "",
+  "context_window": 8192,
+  "max_output_tokens": 2048,
+  "pii_filtering": true,
+  "rate_limits": {
+    "rpm": 40,
+    "tpm": 50000,
+    "daily": 4000
+  }
+}
+

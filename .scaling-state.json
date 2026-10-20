@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "current_tier": "medium",
+  "current_tier": "large",
   "tier_history": [
     {
       "from": "micro",
@@ -8,7 +8,7 @@
       "proposed_at": "2026-10-19T13:05:14Z",
       "approved_by": "human",
       "installed_at": "2026-10-19T13:16:24Z",
-      "package_path": "C:\\Users\\Admin\\.agents\\skills\\.skill-upgrade\\20261019-210513",
+      "package_path": "{WORKSPACE_ROOT}/.skill-upgrade/20261019-210513",
       "validation": {
         "file_count": 30,
         "function_blocks": 18,
@@ -22,9 +22,23 @@
       "proposed_at": "2026-10-20T06:02:22Z",
       "approved_by": "user",
       "installed_at": "2026-10-20T06:30:00Z",
-      "package_path": "C://Users//Admin//.agents//skills//.skill-upgrade//20261020-140222",
+      "package_path": "{WORKSPACE_ROOT}/.skill-upgrade/20261020-140222",
       "validation": {
         "file_count": 37,
+        "function_blocks": 18,
+        "gates_passed": 6,
+        "acceptance_passed": true
+      }
+    },
+    {
+      "from": "medium",
+      "to": "large",
+      "proposed_at": "2026-10-20T14:08:26Z",
+      "approved_by": "user",
+      "installed_at": "2026-10-20T14:19:14Z",
+      "package_path": "{WORKSPACE_ROOT}/.skill-upgrade/20261020-220825",
+      "validation": {
+        "file_count": 148,
         "function_blocks": 18,
         "gates_passed": 6,
         "acceptance_passed": true
@@ -40,7 +54,7 @@
       "trigger_reasons": [
         "SCL_001: forced proposal, no threshold met"
       ],
-      "package_path": "C:\\Users\\Admin\\.agents\\skills\\.skill-upgrade\\20261019-210513",
+      "package_path": "{WORKSPACE_ROOT}/.skill-upgrade/20261019-210513",
       "status": "installed",
       "approved_by": "human",
       "installed_at": "2026-10-19T13:16:24Z",
@@ -59,7 +73,7 @@
       "trigger_reasons": [
         "T2: max_blocks_per_department = 6 (threshold > 5.4)"
       ],
-      "package_path": "C:\\Users\\Admin\\.agents\\skills\\.skill-upgrade\\20261020-140222",
+      "package_path": "{WORKSPACE_ROOT}/.skill-upgrade/20261020-140222",
       "status": "installed",
       "approved_by": "user",
       "installed_at": "2026-10-20T06:30:00Z",
@@ -69,13 +83,108 @@
         "gates_passed": 6,
         "acceptance_passed": true
       }
+    },
+    {
+      "proposal_id": "20261020-194444",
+      "from_tier": "medium",
+      "to_tier": "large",
+      "proposed_at": "2026-10-20T11:44:46Z",
+      "trigger_reasons": [
+        "SCL_001: forced proposal, no threshold met"
+      ],
+      "package_path": "{WORKSPACE_ROOT}/.skill-upgrade/20261020-194444",
+      "status": "superseded",
+      "approved_by": null,
+      "installed_at": null,
+      "validation": {
+        "file_count": 148,
+        "function_blocks": 18,
+        "gates_passed": 6,
+        "acceptance_passed": false
+      }
+    },
+    {
+      "proposal_id": "20261020-213341",
+      "from_tier": "medium",
+      "to_tier": "large",
+      "proposed_at": "2026-10-20T13:33:42Z",
+      "trigger_reasons": [
+        "SCL_001: forced proposal, no threshold met"
+      ],
+      "package_path": "{WORKSPACE_ROOT}/.skill-upgrade/20261020-213341",
+      "status": "superseded",
+      "approved_by": null,
+      "installed_at": null,
+      "validation": {
+        "file_count": 148,
+        "function_blocks": 18,
+        "gates_passed": 6,
+        "acceptance_passed": false
+      }
+    },
+    {
+      "proposal_id": "20261020-213719",
+      "from_tier": "medium",
+      "to_tier": "large",
+      "proposed_at": "2026-10-20T13:37:20Z",
+      "trigger_reasons": [
+        "SCL_001: forced proposal, no threshold met"
+      ],
+      "package_path": "{WORKSPACE_ROOT}/.skill-upgrade/20261020-213719",
+      "status": "superseded",
+      "approved_by": null,
+      "installed_at": null,
+      "validation": {
+        "file_count": 148,
+        "function_blocks": 18,
+        "gates_passed": 6,
+        "acceptance_passed": false
+      }
+    },
+    {
+      "proposal_id": "20261020-215905",
+      "from_tier": "medium",
+      "to_tier": "large",
+      "proposed_at": "2026-10-20T13:59:06Z",
+      "trigger_reasons": [
+        "SCL_001: forced proposal, no threshold met"
+      ],
+      "package_path": "{WORKSPACE_ROOT}/.skill-upgrade/20261020-215905",
+      "status": "superseded",
+      "approved_by": null,
+      "installed_at": null,
+      "validation": {
+        "file_count": 148,
+        "function_blocks": 18,
+        "gates_passed": 6,
+        "acceptance_passed": false
+      }
+    },
+    {
+      "proposal_id": "20261020-220825",
+      "from_tier": "medium",
+      "to_tier": "large",
+      "proposed_at": "2026-10-20T14:08:26Z",
+      "trigger_reasons": [
+        "SCL_001: forced proposal, no threshold met"
+      ],
+      "package_path": "{WORKSPACE_ROOT}/.skill-upgrade/20261020-220825",
+      "status": "installed",
+      "approved_by": "user",
+      "installed_at": "2026-10-20T14:19:14Z",
+      "validation": {
+        "file_count": 148,
+        "function_blocks": 18,
+        "gates_passed": 6,
+        "acceptance_passed": true
+      }
     }
   ],
-  "next_evaluation": "2026-11-19T06:30:00Z",
+  "next_evaluation": "2026-11-19T14:27:48Z",
   "last_metrics": {
     "agent_count": 0,
     "routing_accuracy": 1.0,
-    "max_blocks_per_department": 6,
+    "max_blocks_per_department": 1,
     "error_code_reuse_ratio": 0.0
   },
   "routing_miss_streak": 0,
@@ -87,7 +196,18 @@
   },
   "validation": {
     "gates_passed": 6,
-    "file_count": 37,
+    "file_count": 148,
     "acceptance_passed": true
+  },
+  "last_failure": {
+    "at": "2026-10-20T11:43:45Z",
+    "code": "SCL_005",
+    "gates_failed": [
+      "G2"
+    ],
+    "detail": [
+      "G2: hash differs: tests/test-method-patterns.py"
+    ],
+    "package_path": "{WORKSPACE_ROOT}/.skill-upgrade/_rejected/20261020-194344-SCL_005"
   }
 }

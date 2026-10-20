@@ -5,18 +5,20 @@
 ========================================================================================
  Governance model : PROPOSE-ONLY, three-stage architecture (references/scaling.md #1).
 
- CAN do :
-   - read {SKILL_DIR} (read-only)
-   - read / update .scaling-state.json (operational records only - the single
-     permitted write inside {SKILL_DIR}, per README_FOR_AI.md sec 12.6)
-   - accept host-supplied metrics via -Action record-metrics or the drop
-     directory (references/scaling.md sec 3.1)
-   - collect the four scaling metrics and evaluate thresholds T1-T4
-     (T1/T3 are skipped, not guessed, when the host data is stale - sec 3.1)
-   - generate an upgrade package under {WORKSPACE_ROOT}/.skill-upgrade/<timestamp>/
-   - run gates G1-G6 on the generated package (README_FOR_AI.md sec 12.3)
-   - write UPGRADE-PROPOSAL.md into the package directory (README_FOR_AI.md sec 12)
-   - record the proposal in .scaling-state.json -> pending_proposals
+CAN do :
+  - read {SKILL_DIR} (read-only)
+  - read / update .scaling-state.json (operational records only - the single
+    permitted write inside {SKILL_DIR}, per README_FOR_AI.md sec 12.6)
+  - accept host-supplied metrics via -Action record-metrics or the drop
+    directory (references/scaling.md sec 3.1)
+  - collect the four scaling metrics and evaluate thresholds T1-T4
+    (T1/T3 are skipped, not guessed, when the host data is stale - sec 3.1)
+  - generate an upgrade package under {WORKSPACE_ROOT}/.skill-upgrade/<timestamp>/
+    for ANY selectable target tier (-TargetTier, references/scaling.md sec 2);
+    omitting -TargetTier keeps the historical linear default (next tier)
+  - run gates G1-G6 on the generated package (README_FOR_AI.md sec 12.3)
+  - write UPGRADE-PROPOSAL.md into the package directory (README_FOR_AI.md sec 12)
+  - record the proposal in .scaling-state.json -> pending_proposals
 
  CANNOT do (hard boundary, README_FOR_AI.md sec 9.5) :
    - write any other file under {SKILL_DIR}
@@ -48,6 +50,14 @@ param(
   [switch]$DryRun,                   # only output what would be done, no package
   [switch]$Force,                    # propose even when no threshold is hit (SCL_001)
 
+  # --- Target tier selection (propose only; scaling.md sec 2) -------------------
+  # Arbitrary scale choice: any tier listed in selectable_targets for the current
+  # tier may be requested (cross-tier jumps included). Leave empty for the
+  # historical linear default (upgrade_path[current tier]). Validated at runtime
+  # against the config vocabulary - not a ValidateSet, so the tier list stays a
+  # single data source in scaling-config.json.
+  [string]$TargetTier = '',          # '' = default next tier; else micro|small|medium|large|group
+
   # --- Host write-back interface (metrics whose source can only be the host) ---
   # Only meaningful with -Action record-metrics. See scaling.md section 3.1.
   [int]$AgentCount = -1,             # live agent instances attached to this skill (>= 0)
@@ -78,8 +88,9 @@ $ConfigFile    = Join-Path $PSScriptRoot 'scaling-config.json'
 $DepartmentsDir = Join-Path (Join-Path $SkillDir 'references') 'departments'
 $ErrorCodesFile = Join-Path (Join-Path $SkillDir 'references') 'error-codes.md'
 
-# Tier data (R3 audited values). Only the micro -> small edge is implemented by
-# this build; any other tier correctly fails with SCL_002 (no mapping defined).
+# Tier data (R3 audited values). Three adjacent edges are implemented by this
+# build (micro -> small, small -> medium, medium -> large); any other tier
+# correctly fails with SCL_002 (no mapping defined).
 $TierAgentCaps = @{
   'micro' = 3; 'small' = 10; 'medium' = 50; 'large' = 200; 'group' = 200
 }
@@ -95,8 +106,11 @@ $ExcludedDirSegments = @('.git', '.github', '.workbuddy', '.skill-upgrade')
 # Expected package-file-set size per tier (README_FOR_AI.md sec 3 / sec 15).
 # small = 30: 26 micro package files - 1 operational state file - 2 retired
 # legacy D2 pages + 5 split D2 pages + 1 new prompt + 1 package state file.
-$TierFileCount = @{ 'micro' = 26; 'small' = 30 }
+# group = 246 mirrors scaling-config.json file_count_expectation.group (the
+# group tier is scaffold-only in this build; see $GroupEdge).
+$TierFileCount = @{ 'micro' = 26; 'small' = 30; 'medium' = 37; 'large' = 148; 'group' = 246 }
 $TargetFileCount = @{ 'small' = $TierFileCount['small'] }
+$TierOrder = @('micro', 'small', 'medium', 'large', 'group')
 
 # The deterministic micro -> small split mapping (merge tree, README_FOR_AI.md sec 10.1).
 # Split order = page order of FB sections inside each legacy D2 file (scaling.md 4.3).
@@ -138,6 +152,16 @@ $UpgradeEdge = @{
       'Department D2 pages produced by the deterministic split keep the legacy preamble wording; a human should confirm each page''s non-FB narrative matches its new department scope.'
       'Full acceptance (README_FOR_AI.md sec 15; content groups A-G, H, I, U) on the package. The pending proposal records acceptance_passed = false until this is done.'
     )
+    DryRun = @(
+      'DRY-RUN: 5h copy the package (excluding .scaling-state.json, retired D2, __pycache__/, *.pyc)'
+      'DRY-RUN: 5a/5b split 2 legacy D2 pages into 5 departments (18 blocks conserved; leftover/shortage aborts with SCL_010)'
+      'DRY-RUN: 5a generate prompts/03-test-cases.md (agent-invoked, L3)'
+      'DRY-RUN: 5d rewrite frontmatter (scale_tier=small, department_count=5, version=2.0.0, enum + description)'
+      'DRY-RUN: 5e bump _meta.json; append the error-code alias-table skeleton (requires human review)'
+      'DRY-RUN: 5g append 5 alias rows to the package Alias Map'
+      'DRY-RUN: 5i bump README versions (counted, context-exact); rewrite structure trees to the 30-file skeleton; insert the CHANGELOG entry after [Unreleased]'
+      'DRY-RUN: package state file with tier_history skeleton entry (append-only)'
+    )
   }
 }
 
@@ -148,6 +172,13 @@ $UpgradeEdge = @{
 # departments to 4 new departments and are re-prefixed (see $MediumBlockMoves).
 $TargetFileCount['medium'] = 37
 $TierFileCount['medium']   = 37
+$TargetFileCount['large']  = 148
+$TierFileCount['large']    = 148
+# group = 246 mirrors scaling-config.json file_count_expectation.group. The
+# group tier is scaffold-only in this build (see $GroupEdge): no builder
+# produces 246 files today, and gate G6 reports the gap as the checklist.
+$TargetFileCount['group']  = 246
+$TierFileCount['group']    = 246
 $MediumEdge = @{
   From = 'small'
   To   = 'medium'
@@ -196,8 +227,397 @@ $MediumEdge = @{
       'The 4 new department D2 pages were authored with fresh preambles; a human should confirm each page''s non-FB narrative matches its new department scope and that the 3 shared reference modules are consistent with the department pages.'
       'Full acceptance (README_FOR_AI.md sec 15; content groups A-G, H, I, U) on the package. The pending proposal records acceptance_passed = false until this is done.'
     )
+    ChangelogBullets = @(
+      '- Departments: 5 -> 9 (8 function blocks migrated from 5 existing departments to 4 new departments: legal-and-risk, data-and-analytics, product-and-strategy, customer-and-partnerships; 18 blocks conserved)'
+      '- New error-code prefixes: CLR_, CDO_, CPO_, CCO_ (resolved alias table appended to references/error-codes.md)'
+      '- New shared modules: references/shared/{glossary, cross-department-handoff, common-patterns}.md'
+      '- Slug aliases appended to references/scaling.md (Alias Map)'
+    )
+    DryRun = @(
+      'DRY-RUN: 5h copy the package (excluding .scaling-state.json; small already carries prompts/03-test-cases.md, no D2 retirements)'
+      'DRY-RUN: 5a migrate 8 function blocks from 5 source departments into 4 new departments (re-prefixed; source pages re-baselined; 18 blocks conserved)'
+      'DRY-RUN: 5a author 4 new department D2 files (legal-and-risk, data-and-analytics, product-and-strategy, customer-and-partnerships)'
+      'DRY-RUN: 5a author references/shared/{glossary, cross-department-handoff, common-patterns}.md'
+      'DRY-RUN: 5d rewrite frontmatter (scale_tier=medium, department_count=9, version=3.0.0, enum + description)'
+      'DRY-RUN: 5e bump _meta.json; transform error-codes.md (move 8 codes, re-baseline 5 source prefixes, insert 4 new prefixes, append resolved alias history)'
+      'DRY-RUN: 5g append 8 alias rows to the package Alias Map'
+      'DRY-RUN: 5i bump README versions to 3.0.0; rewrite structure trees to the 37-file skeleton; insert the CHANGELOG entry'
+      'DRY-RUN: package state file initialized for tier medium (append-only)'
+    )
   }
 }
+
+# The deterministic medium -> large mapping (merge tree, README_FOR_AI.md sec 10.1).
+# 18 departments (9 medium retired + 18 large introduced), 18 function blocks
+# conserved but re-homed one per department (large mean = 1.0, T2 threshold > 1.5),
+# 148 package files, version 4.0.0, 18 error-code prefixes. The large target is the
+# concrete ai-company-large package (re-versioned 4.1.0 -> 4.0.0 at build time); the
+# builder copies it, overlays the medium-tier tests/ and scripts/self-scale.ps1 (G2/G3
+# immutable), preserves the live permissions block (G1/G3), and rewrites the
+# frontmatter / README badges / Alias Map to the large contract.
+$LargeEdge = @{
+  From = 'medium'
+  To   = 'large'
+  NewVersion = '4.0.0'
+  OldVersion = '3.0.0'
+  ExpectedBlocks = 18
+  DepartmentCount = 18
+  # 18 error-code prefixes present at large (from ai-company-large frontmatter).
+  Prefixes = @('BRD_', 'CEO_', 'CFO_', 'CHO_', 'CISO_', 'CLO_', 'CMO_', 'COO_', 'CQO_', 'CRO_', 'CTO_', 'FW_', 'INTEL_', 'IRP_', 'KNM_', 'MDL_', 'PMGR_', 'PRC_')
+  # 18 department specs (Slug / Prefix / Blocks / Display). Drives G4 distribution,
+  # G6 interface.department.enum + D2-presence + the 148-file count basis.
+  Split = @(
+    @{ Slug = 'board-and-branch';        Prefix = 'BRD_';   Blocks = 1; Display = 'Board and Branch' }
+    @{ Slug = 'delivery-scheduling';     Prefix = 'PMGR_';  Blocks = 1; Display = 'Delivery Scheduling' }
+    @{ Slug = 'engineering-tooling';     Prefix = 'CTO_';   Blocks = 1; Display = 'Engineering and Tooling' }
+    @{ Slug = 'executive-strategy';      Prefix = 'CEO_';   Blocks = 1; Display = 'Executive Strategy' }
+    @{ Slug = 'finance-treasury';        Prefix = 'CFO_';   Blocks = 1; Display = 'Finance and Treasury' }
+    @{ Slug = 'incident-identity';       Prefix = 'IRP_';   Blocks = 1; Display = 'Incident and Identity' }
+    @{ Slug = 'intelligence-sentiment';  Prefix = 'INTEL_'; Blocks = 1; Display = 'Intelligence and Sentiment' }
+    @{ Slug = 'knowledge-ethics';        Prefix = 'KNM_';   Blocks = 1; Display = 'Knowledge and Ethics' }
+    @{ Slug = 'legal-privacy';           Prefix = 'CLO_';   Blocks = 1; Display = 'Legal and Privacy' }
+    @{ Slug = 'lifecycle-training';      Prefix = 'CHO_';   Blocks = 1; Display = 'Lifecycle and Training' }
+    @{ Slug = 'marketing-partnerships';  Prefix = 'CMO_';   Blocks = 1; Display = 'Marketing and Partnerships' }
+    @{ Slug = 'model-data';              Prefix = 'MDL_';   Blocks = 1; Display = 'Model and Data' }
+    @{ Slug = 'operations-coordination'; Prefix = 'COO_';   Blocks = 1; Display = 'Operations and Coordination' }
+    @{ Slug = 'platform-mlops';          Prefix = 'FW_';    Blocks = 1; Display = 'Platform and MLOps' }
+    @{ Slug = 'procurement-billing';     Prefix = 'PRC_';   Blocks = 1; Display = 'Procurement and Billing' }
+    @{ Slug = 'quality-visualization';   Prefix = 'CQO_';   Blocks = 1; Display = 'Quality and Visualization' }
+    @{ Slug = 'risk-audit';              Prefix = 'CRO_';   Blocks = 1; Display = 'Risk and Audit' }
+    @{ Slug = 'security-resilience';     Prefix = 'CISO_';  Blocks = 1; Display = 'Security and Resilience' }
+  )
+  # G5 alias coverage. medium -> large retires all 9 medium slugs and introduces
+  # 18 large slugs; the 18 blocks are conserved but re-homed 1-per-department.
+  AliasLegacy = @('customer-and-partnerships', 'data-and-analytics', 'governance-and-operations', 'legal-and-risk', 'people-and-growth', 'product-and-strategy', 'quality-and-delivery', 'security-and-compliance', 'technology-and-platform')
+  AliasTarget = @('board-and-branch', 'delivery-scheduling', 'engineering-tooling', 'executive-strategy', 'finance-treasury', 'incident-identity', 'intelligence-sentiment', 'knowledge-ethics', 'legal-privacy', 'lifecycle-training', 'marketing-partnerships', 'model-data', 'operations-coordination', 'platform-mlops', 'procurement-billing', 'quality-visualization', 'risk-audit', 'security-resilience')
+  # Report fragments for New-ProposalReport (keep this edge self-describing).
+  Report = @{
+    FromDepartmentCount = 9
+    TargetFiles = 148
+    ChangeList = @(
+      '| New department D2 files | 18 | board-and-branch, delivery-scheduling, engineering-tooling, executive-strategy, finance-treasury, incident-identity, intelligence-sentiment, knowledge-ethics, legal-privacy, lifecycle-training, marketing-partnerships, model-data, operations-coordination, platform-mlops, procurement-billing, quality-visualization, risk-audit, security-resilience (each 1 block; all 9 medium departments retired) |'
+      '| Retired department D2 files | 9 | the 9 medium-tier departments (slugs preserved as aliases) |'
+      '| New department D3 files | 18 | each large department gains a D3 layer (references/departments/<slug>/) |'
+      '| New shared reference modules | 0 | carried from medium; large adds 7-domain routing + department-index.md |'
+      '| New prompts | 0 | prompts/03-test-cases.md (agent-invoked, L3) carried unchanged from the medium tier (G2 immutable) |'
+      '| Frontmatter rewritten | 1 | scale_tier / department_count / function_block_count / version / error_code_prefixes (19 prefixes) / interface.department.enum (auto + 18) / description |'
+      '| Revived error-code prefixes | 13 | BRD_, CFO_, CLO_, CMO_, COO_, CRO_, FW_, INTEL_, IRP_, KNM_, MDL_, PMGR_, PRC_ (net 19 prefixes at large; 6 shared with medium: CEO_, CTO_, CISO_, CHO_, CQO_, SCL_) |'
+      '| Aliases added | 18 | medium->large alias rows appended to references/scaling.md Alias Map |'
+      '| Governance files updated | <=4 | CHANGELOG.md entry inserted after [Unreleased]; version strings bumped to 4.0.0 and Project Structure tree reviewed |'
+    )
+    HumanReview = @(
+      'All 9 medium-tier department slugs are retired and replaced by 18 large-tier slugs; the 18 function blocks are conserved but re-homed one per department. Confirm the medium->large alias rows in references/scaling.md map each retired slug to its intended large successor.'
+      'The large package carries the medium-tier tests/test-method-patterns.py unchanged (G2 immutable). Those tests are medium-aware and will not pass against the 18-department / 117-code large layout; they must be made large-aware at install time (acceptance_passed stays false until then).'
+      'README Project Structure trees describe the 148-file large skeleton; the narrative claims should be reviewed to match the 18-department / 7-domain layout (step 5i).'
+      'Full acceptance (README_FOR_AI.md sec 15; content groups A-G, H, I, U) on the package. The pending proposal records acceptance_passed = false until this is done.'
+    )
+    ChangelogBullets = @(
+      '- Departments: 9 -> 18 (the 9 medium-tier departments are retired; 18 large-tier departments replace them; 18 function blocks conserved, one per department)'
+      '- Error-code prefixes: 10 -> 19 (18 department prefixes + SCL_ infrastructure; 117 codes)'
+      '- New D3 layer per department, 7-domain routing, and a department index'
+      '- Slug aliases appended to references/scaling.md (Alias Map)'
+    )
+    DryRun = @(
+      'DRY-RUN: 5h copy ai-company-large content (excluding its .scaling-state.json); overlay live tests/ + scripts/self-scale.ps1 + references/scaling.md (G2/G3 immutable)'
+      'DRY-RUN: 5a de-bold D2 Function blocks figures (G4 reads plain integer)'
+      'DRY-RUN: 5d build SKILL.md from the LIVE frontmatter shell retargeted to large (scale_tier=large, department_count=18, function_block_count=18, version=4.0.0, 19 prefixes, enum auto+18, permissions preserved for G1) + ai-company-large body'
+      'DRY-RUN: 5e bump _meta.json to 4.0.0'
+      'DRY-RUN: 5g append 18 alias rows (9 medium legacy -> 18 large target) to the package Alias Map'
+      'DRY-RUN: package state file initialized for tier large (acceptance_passed=false)'
+      'DRY-RUN: 5i bump README version 4.1.0 -> 4.0.0 (badge + at-a-glance rows)'
+    )
+  }
+}
+# Large-tier description (ASCII; used by the medium -> large frontmatter rewrite).
+# Byte-identical to the ai-company-large source SKILL.md description (799 chars,
+# inside the 700-900 spec band; the previous 699-char text missed the floor and
+# claimed 18 prefixes where the package declares 19 - audit B3).
+$LargeDescription = "Large-tier (scale_tier: large) unified AI company governance skill for 50-200 agents across multiple product lines. Routes tasks through 7 domains to 18 specialized departments (1 function block each, 18 total), with 117 error codes across 19 prefixes, a D3 specification layer per department, two-level routing, and a department index. Ships audited Python code templates as a single authoritative source, 3 prompt frameworks, and Harness L1-L6 maturity levels with AIGC triple labeling and mandatory PII masking. Supports propose-only self-scaling: the skill detects tier overflow and proposes an upgrade package, which humans approve and an external installer applies. Use when any AI-company governance, finance, engineering, security, or delivery function is needed at multi-product-line scale."
+
+# ======================================================================================
+# Arbitrary target selection: additional (from -> to) edges.
+#
+# The large target content is the canonical ai-company-large reference package
+# (source-independent), so micro -> large and small -> large reuse the SAME
+# builder as medium -> large; only the frontmatter shell, the retired-slug set
+# (G5) and the report narrative differ. The medium target is reached from micro
+# by composing the two deterministic transformations in place (see
+# New-MicroToMediumUpgradePackage). The group target has no authored content at
+# all, so it is a scaffold (UPGRADE-WORK-ORDER.txt) whose content gates fail by
+# design. Every edge is fully self-describing: gates G4/G5/G6, the proposal
+# report and the DryRun narrative are all driven by these fields.
+# ======================================================================================
+
+# small -> large : cross-tier jump (medium skipped). The 5 small departments are
+# the retired set; the 18 large slugs and 18 function blocks are target data
+# shared with the medium -> large edge.
+$SmallToLargeEdge = @{
+  From = 'small'
+  To   = 'large'
+  NewVersion = '4.0.0'
+  OldVersion = '2.0.0'
+  OldPrefixCount = 6
+  ExpectedBlocks = 18
+  DepartmentCount = 18
+  Prefixes = $LargeEdge.Prefixes
+  Split = $LargeEdge.Split
+  AliasLegacy = @('governance-and-operations', 'technology-and-platform', 'security-and-compliance', 'quality-and-delivery', 'people-and-growth')
+  AliasTarget = $LargeEdge.AliasTarget
+  Report = @{
+    FromDepartmentCount = 5
+    TargetFiles = 148
+    ChangeList = @(
+      '| New department D2 files | 18 | board-and-branch, delivery-scheduling, engineering-tooling, executive-strategy, finance-treasury, incident-identity, intelligence-sentiment, knowledge-ethics, legal-privacy, lifecycle-training, marketing-partnerships, model-data, operations-coordination, platform-mlops, procurement-billing, quality-visualization, risk-audit, security-resilience (each 1 block; all 5 small departments retired) |'
+      '| Retired department D2 files | 5 | governance-and-operations, quality-and-delivery, technology-and-platform, security-and-compliance, people-and-growth (slugs preserved as aliases) |'
+      '| New department D3 files | 18 | each large department gains a D3 layer (references/departments/<slug>/) |'
+      '| New shared reference modules | 0 | the large reference package ships its own shared set |'
+      '| New prompts | 0 | prompts/03-test-cases.md (agent-invoked, L3) carried unchanged (G2 immutable) |'
+      '| Frontmatter rewritten | 1 | scale_tier / department_count / function_block_count / version / error_code_prefixes (19 prefixes) / interface.department.enum (auto + 18) / description |'
+      '| Revived error-code prefixes | 13 | BRD_, CFO_, CLO_, CMO_, COO_, CRO_, FW_, INTEL_, IRP_, KNM_, MDL_, PMGR_, PRC_ (net 19 prefixes at large) |'
+      '| Aliases added | 18 | small->large alias rows appended to references/scaling.md Alias Map |'
+      '| Governance files updated | <=4 | CHANGELOG.md entry inserted after [Unreleased]; version strings bumped to 4.0.0 |'
+      '| Cross-tier jump | 1 | small -> large directly (the medium tier is skipped); the CHANGELOG keeps the full bloodline history |'
+    )
+    HumanReview = @(
+      'The 5 small-tier department slugs are retired and replaced by 18 large-tier slugs; the 18 function blocks are conserved but re-homed one per department. Confirm the small->large alias rows in references/scaling.md map each retired slug to its intended large successor (the exact 1:1 mapping is flagged for human review).'
+      'This is a cross-tier jump: the medium tier is skipped. The generated CHANGELOG retains the bloodline history of the reference package; the state record carries from=small, to=large.'
+      'The large package carries the live tests/test-method-patterns.py unchanged (G2 immutable). Those tests are small-aware and will not pass against the 18-department / 117-code large layout; they must be made large-aware at install time (acceptance_passed stays false until then).'
+      'README Project Structure trees describe the 148-file large skeleton; the narrative claims should be reviewed to match the 18-department / 7-domain layout (step 5i).'
+      'Full acceptance (README_FOR_AI.md sec 15; content groups A-G, H, I, U) on the package. The pending proposal records acceptance_passed = false until this is done.'
+    )
+    ChangelogBullets = @(
+      '- Departments: 5 -> 18 (the 5 small-tier departments are retired; 18 large-tier departments replace them; 18 function blocks conserved, one per department)'
+      '- Error-code prefixes: 6 -> 19 (18 department prefixes + SCL_ infrastructure; 117 codes)'
+      '- Cross-tier jump: the medium tier is skipped; the CHANGELOG keeps the full bloodline history'
+      '- New D3 layer per department, 7-domain routing, and a department index'
+      '- Slug aliases appended to references/scaling.md (Alias Map)'
+    )
+    DryRun = @(
+      'DRY-RUN: 5h copy ai-company-large content (excluding its .scaling-state.json); overlay live tests/ + scripts/self-scale.ps1 + references/scaling.md (G2/G3 immutable)'
+      'DRY-RUN: 5a de-bold D2 Function blocks figures (G4 reads plain integer)'
+      'DRY-RUN: 5d build SKILL.md from the LIVE frontmatter shell retargeted to large (scale_tier=large, department_count=18, function_block_count=18, version=4.0.0, 19 prefixes, enum auto+18, permissions preserved for G1) + ai-company-large body'
+      'DRY-RUN: 5e bump _meta.json to 4.0.0'
+      'DRY-RUN: 5g append 18 alias rows (5 small legacy -> 18 large target) to the package Alias Map'
+      'DRY-RUN: package state file initialized for tier large (acceptance_passed=false)'
+      'DRY-RUN: 5i bump README versions (badge + at-a-glance rows)'
+    )
+  }
+}
+
+# micro -> large : cross-tier jump (small and medium skipped). The 2 micro
+# departments are the retired set.
+$MicroToLargeEdge = @{
+  From = 'micro'
+  To   = 'large'
+  NewVersion = '4.0.0'
+  OldVersion = '1.0.0'
+  OldPrefixCount = 2
+  ExpectedBlocks = 18
+  DepartmentCount = 18
+  Prefixes = $LargeEdge.Prefixes
+  Split = $LargeEdge.Split
+  AliasLegacy = @('governance-and-delivery', 'engineering-and-safety')
+  AliasTarget = $LargeEdge.AliasTarget
+  Report = @{
+    FromDepartmentCount = 2
+    TargetFiles = 148
+    ChangeList = @(
+      '| New department D2 files | 18 | board-and-branch, delivery-scheduling, engineering-tooling, executive-strategy, finance-treasury, incident-identity, intelligence-sentiment, knowledge-ethics, legal-privacy, lifecycle-training, marketing-partnerships, model-data, operations-coordination, platform-mlops, procurement-billing, quality-visualization, risk-audit, security-resilience (each 1 block; both micro departments retired) |'
+      '| Retired department D2 files | 2 | governance-and-delivery, engineering-and-safety (slugs preserved as aliases) |'
+      '| New department D3 files | 18 | each large department gains a D3 layer (references/departments/<slug>/) |'
+      '| New shared reference modules | 0 | the large reference package ships its own shared set |'
+      '| New prompts | 0 | prompts/03-test-cases.md (agent-invoked, L3) carried unchanged (G2 immutable) |'
+      '| Frontmatter rewritten | 1 | scale_tier / department_count / function_block_count / version / error_code_prefixes (19 prefixes) / interface.department.enum (auto + 18) / description |'
+      '| Revived error-code prefixes | 17 | every large department prefix except CEO_ / CTO_ (net 19 prefixes at large) |'
+      '| Aliases added | 18 | micro->large alias rows appended to references/scaling.md Alias Map |'
+      '| Governance files updated | <=4 | CHANGELOG.md entry inserted after [Unreleased]; version strings bumped to 4.0.0 |'
+      '| Cross-tier jump | 1 | micro -> large directly (the small and medium tiers are skipped); the CHANGELOG keeps the full bloodline history |'
+    )
+    HumanReview = @(
+      'The 2 micro-tier department slugs (governance-and-delivery, engineering-and-safety) are retired and replaced by 18 large-tier slugs; the 18 function blocks are conserved but re-homed one per department. Confirm the micro->large alias rows in references/scaling.md map each retired slug to its intended large successor (the exact 1:1 mapping is flagged for human review).'
+      'This is a cross-tier jump: the small and medium tiers are skipped. The generated CHANGELOG retains the bloodline history of the reference package; the state record carries from=micro, to=large.'
+      'The large package carries the live tests/test-method-patterns.py unchanged (G2 immutable). Those tests are micro-aware and will not pass against the 18-department / 117-code large layout; they must be made large-aware at install time (acceptance_passed stays false until then).'
+      'README Project Structure trees describe the 148-file large skeleton; the narrative claims should be reviewed to match the 18-department / 7-domain layout (step 5i).'
+      'Full acceptance (README_FOR_AI.md sec 15; content groups A-G, H, I, U) on the package. The pending proposal records acceptance_passed = false until this is done.'
+    )
+    ChangelogBullets = @(
+      '- Departments: 2 -> 18 (the 2 micro-tier departments are retired; 18 large-tier departments replace them; 18 function blocks conserved, one per department)'
+      '- Error-code prefixes: 2 -> 19 (18 department prefixes + SCL_ infrastructure; 117 codes)'
+      '- Cross-tier jump: the small and medium tiers are skipped; the CHANGELOG keeps the full bloodline history'
+      '- New D3 layer per department, 7-domain routing, and a department index'
+      '- Slug aliases appended to references/scaling.md (Alias Map)'
+    )
+    DryRun = @(
+      'DRY-RUN: 5h copy ai-company-large content (excluding its .scaling-state.json); overlay live tests/ + scripts/self-scale.ps1 + references/scaling.md (G2/G3 immutable)'
+      'DRY-RUN: 5a de-bold D2 Function blocks figures (G4 reads plain integer)'
+      'DRY-RUN: 5d build SKILL.md from the LIVE frontmatter shell retargeted to large (scale_tier=large, department_count=18, function_block_count=18, version=4.0.0, 19 prefixes, enum auto+18, permissions preserved for G1) + ai-company-large body'
+      'DRY-RUN: 5e bump _meta.json to 4.0.0'
+      'DRY-RUN: 5g append 18 alias rows (2 micro legacy -> 18 large target) to the package Alias Map'
+      'DRY-RUN: package state file initialized for tier large (acceptance_passed=false)'
+      'DRY-RUN: 5i bump README versions (badge + at-a-glance rows)'
+    )
+  }
+}
+
+# micro -> medium : cross-tier jump via in-place composition. Stage 1 is the
+# deterministic micro -> small split; stage 2 is the small -> medium
+# transformation run on the same package directory (-SkipInitialCopy). The
+# department data (Split / AliasLegacy / AliasTarget / prefixes) is the medium
+# tier's, shared with the small -> medium edge; only From and the report
+# narrative differ.
+$MicroToMediumEdge = @{
+  From = 'micro'
+  To   = 'medium'
+  NewVersion = '3.0.0'
+  OldVersion = '1.0.0'
+  OldPrefixCount = 2
+  ExpectedBlocks = 18
+  DepartmentCount = 9
+  Prefixes = $MediumEdge.Prefixes
+  Split = $MediumEdge.Split
+  AliasLegacy = $MediumEdge.AliasLegacy
+  AliasTarget = $MediumEdge.AliasTarget
+  Report = @{
+    FromDepartmentCount = 2
+    TargetFiles = 37
+    ChangeList = @(
+      '| Stage 1 (micro -> small) | 5 department D2 files | governance-and-delivery -> governance-and-operations + quality-and-delivery; engineering-and-safety -> technology-and-platform + security-and-compliance + people-and-growth (18 blocks conserved) |'
+      '| Stage 2 (small -> medium) | 4 new departments | legal-and-risk, data-and-analytics, product-and-strategy, customer-and-partnerships (8 blocks migrate; re-prefixed) |'
+      '| New shared reference modules | 3 | references/shared/{glossary, cross-department-handoff, common-patterns}.md |'
+      '| New prompts | 1 | prompts/03-test-cases.md (agent-invoked, harness level L3) |'
+      '| Frontmatter rewritten | 1 | scale_tier=medium, department_count=9, function_block_count=18, version=3.0.0, 10 prefixes, enum auto+9, description |'
+      '| Error-code re-prefixing (resolved) | 8 codes | CEO_008->CLR_001, CEO_005->CPO_002, CEO_009->CCO_001, CISO_002->CLR_002, CTO_004->CDO_001, CQO_003->CDO_002, CHO_004->CPO_001, CHO_003->CCO_002 |'
+      '| Aliases added | 5 + 8 | micro->small split rows and small->medium migration rows appended to references/scaling.md Alias Map |'
+      '| Governance files updated | <=4 | CHANGELOG.md entry inserted after [Unreleased]; version strings bumped to 3.0.0 |'
+      '| Cross-tier jump | 1 | micro -> medium directly (the small tier is skipped); both transformation stages are recorded in the CHANGELOG |'
+    )
+    HumanReview = @(
+      'This is a cross-tier jump produced by composing the two deterministic transformations in place (micro -> small split, then the small -> medium migration). Confirm the resulting 9-department layout matches the small -> medium contract: 8 migrated blocks re-prefixed (CLR_001, CPO_002, CCO_001, CLR_002, CDO_001, CDO_002, CPO_001, CCO_002) and the 5 source prefixes re-baselined (CEO_ 6, CISO_ 3, CTO_ 3, CQO_ 2, CHO_ 2).'
+      'Stage 1 appends the micro -> small split rows and the 24-row error-code alias skeleton (every row marked "requires human review"); stage 2 appends the small -> medium migration rows. Complete the skeleton cells and update the error-codes.md header counts.'
+      'The package carries the live tests/test-method-patterns.py unchanged (G2 immutable). Those tests are micro-aware and will not pass against the 9-department layout; they must be made medium-aware at install time (acceptance_passed stays false until then).'
+      'README Project Structure trees describe the 37-file medium skeleton; the narrative claims should be reviewed to match the 9-department layout (step 5i).'
+      'Full acceptance (README_FOR_AI.md sec 15; content groups A-G, H, I, U) on the package. The pending proposal records acceptance_passed = false until this is done.'
+    )
+    ChangelogBullets = @(
+      '- Departments: 2 -> 9 (micro -> small split, then the small -> medium migration: 8 function blocks move to 4 new departments; 18 blocks conserved)'
+      '- New error-code prefixes: CLR_, CDO_, CPO_, CCO_ (resolved alias table appended to references/error-codes.md)'
+      '- New shared modules: references/shared/{glossary, cross-department-handoff, common-patterns}.md'
+      '- Cross-tier jump: the small tier is skipped; both transformation stages are recorded here'
+      '- Slug aliases appended to references/scaling.md (Alias Map)'
+    )
+    DryRun = @(
+      'DRY-RUN: 5h copy the current (micro) package (excluding .scaling-state.json)'
+      'DRY-RUN: stage 1 (micro -> small): 5a/5b split 2 legacy D2 pages into 5 departments (18 blocks conserved); 5a generate prompts/03-test-cases.md; 5d retarget frontmatter to small; 5e bump _meta.json + alias skeleton; 5g append 5 alias rows; 5i rewrite README trees + CHANGELOG entry'
+      'DRY-RUN: stage 2 (small -> medium, initial copy skipped): 5a migrate 8 function blocks into 4 new departments (re-prefixed; source pages re-baselined); author 4 D2 pages + 3 shared modules; 5d retarget frontmatter to medium; 5e transform error-codes.md; 5g append 8 alias rows; 5i rewrite README trees + CHANGELOG entry'
+      'DRY-RUN: package state file initialized for tier medium (append-only)'
+    )
+  }
+}
+
+# large -> group : SCAFFOLD. The group tier's 36 departments are not authored
+# anywhere and their slugs are undefined, so no deterministic content exists and
+# this build never fabricates structure. The builder copies the package forward
+# verbatim and emits UPGRADE-WORK-ORDER.txt; the frontmatter is deliberately NOT
+# retargeted (there is no 36-slug enum to write), so the content gates G4/G5/G6
+# fail BY DESIGN and their failure detail IS the authoring checklist. G1-G3 pass
+# because the carry-forward is byte-identical. Scaffold edges record nothing in
+# .scaling-state.json (no pending proposal) and are never quarantined.
+$GroupEdge = @{
+  From = 'large'
+  To   = 'group'
+  NewVersion = '5.0.0'
+  OldVersion = '4.0.0'
+  OldPrefixCount = 19
+  ExpectedBlocks = 36
+  DepartmentCount = 36
+  Prefixes = @()
+  Split = @()
+  AliasLegacy = $LargeEdge.AliasTarget
+  AliasTarget = @()
+  Scaffold = $true
+  Report = @{
+    FromDepartmentCount = 18
+    TargetFiles = 246
+    ChangeList = @(
+      '| Scaffold package | 1 | the current large package copied forward verbatim (content unchanged); UPGRADE-WORK-ORDER.txt emitted |'
+      '| Authored content required | 36 departments | references/departments/<slug>.md + <slug>/department-spec.md + <slug>/prompts/01-implement-method.md + <slug>/prompts/02-robustness-checks.md + <slug>/references/method-patterns.md |'
+      '| Frontmatter rebuild required | 1 | scale_tier=group, department_count=36, function_block_count=36, version=5.0.0, interface.department.enum (auto + 36), department_aliases pointer; permissions copied verbatim |'
+      '| references/department-index.md | 1 | 7 domains, 36 rows |'
+      '| references/error-codes.md | 1 | revived prefixes start at 001 |'
+      '| references/scaling.md | 1 | Alias Map appended (append-only): 18 large slugs -> 36 group slugs |'
+      '| Gates | by design | G1-G3 pass (byte-identical carry-forward); G4/G5/G6 fail until the content exists - the failure detail is the checklist |'
+    )
+    HumanReview = @(
+      'The group tier has no authored content and its 36 department slugs are undefined; this build deliberately does not fabricate structure. Complete UPGRADE-WORK-ORDER.txt (36 department page sets, department-index rows, error-code prefixes, the frontmatter rebuild and the Alias Map rows), then re-run the six gates.'
+      'This scaffold is NOT a proposal: nothing is recorded in .scaling-state.json and no UPGRADE-PROPOSAL.md is written, so no installer can apply an incomplete package. When the content is complete the gates re-run and a normal proposal is recorded.'
+      'Full acceptance (README_FOR_AI.md sec 15; content groups A-G, H, I, U) on the completed package. The recorded proposal sets acceptance_passed = false until this is done.'
+    )
+    ChangelogBullets = @(
+      '- Scaffold generated: the group tier requires 36 authored department page sets (D2 + D3 + 2 prompts + method-patterns each), a 36-row department index, revived error-code prefixes and a frontmatter rebuild'
+      '- See UPGRADE-WORK-ORDER.txt in the package for the complete authoring checklist'
+    )
+    DryRun = @(
+      'DRY-RUN: 5h copy the current (large) package forward (excluding .scaling-state.json); write the group-tier state skeleton and UPGRADE-WORK-ORDER.txt'
+      'DRY-RUN: frontmatter NOT retargeted (36 group slugs do not exist yet; the work order lists the rebuild)'
+      'DRY-RUN: 6 run gates G1-G6; G4/G5/G6 fail BY DESIGN (content missing)'
+      'DRY-RUN: scaffold branch: package left in place (not quarantined), nothing recorded in the state file, exit 0'
+    )
+  }
+}
+
+# --------------------------------------------------------------------------------------
+# Deterministic dispatch tables for arbitrary target selection.
+# Key = '<from>-><to>'. The edges above are the data; these two tables are the
+# ONLY place a pair is bound to a builder, so adding a pair never touches the
+# gate, report or flow code. The test suite asserts every key here is listed in
+# scaling-config.json selectable_targets (no config/script drift).
+# --------------------------------------------------------------------------------------
+$UpgradeEdges = [ordered]@{
+  'micro->small'  = $UpgradeEdge
+  'small->medium' = $MediumEdge
+  'medium->large' = $LargeEdge
+  'micro->large'  = $MicroToLargeEdge
+  'small->large'  = $SmallToLargeEdge
+  'micro->medium' = $MicroToMediumEdge
+  'large->group'  = $GroupEdge
+}
+$UpgradeBuildFns = [ordered]@{
+  'micro->small'  = { param($Dir, $Edge) New-UpgradePackage -PkgDir $Dir }
+  'small->medium' = { param($Dir, $Edge) New-SmallToMediumUpgradePackage -PkgDir $Dir -Edge $Edge }
+  'medium->large' = { param($Dir, $Edge) New-MediumToLargeUpgradePackage -PkgDir $Dir -Edge $Edge }
+  'micro->large'  = { param($Dir, $Edge) New-MediumToLargeUpgradePackage -PkgDir $Dir -Edge $Edge }
+  'small->large'  = { param($Dir, $Edge) New-MediumToLargeUpgradePackage -PkgDir $Dir -Edge $Edge }
+  'micro->medium' = { param($Dir, $Edge) New-MicroToMediumUpgradePackage -PkgDir $Dir -Edge $Edge }
+  'large->group'  = { param($Dir, $Edge) New-LargeToGroupUpgradePackage -PkgDir $Dir -Edge $Edge }
+}
+
+# Ordered selectable targets for a source tier: the config contract first
+# (scaling-config.json selectable_targets), the builder table as fallback for an
+# older config that lacks the key.
+function Get-SelectableTargetTiers {
+  param([string]$FromTier, $Config)
+  if (($null -ne $Config) -and ($null -ne $Config.SelectableTargets) -and $Config.SelectableTargets.ContainsKey($FromTier)) {
+    return @($Config.SelectableTargets[$FromTier])
+  }
+  $out = @()
+  foreach ($k in @($UpgradeEdges.Keys)) { if ($k -like ($FromTier + '->*')) { $out += ($k -replace '^.*->', '') } }
+  return @($out | Sort-Object)
+}
+
+function Get-DefaultTargetTier {
+  param([string]$FromTier, $Config)
+  if (($null -ne $Config) -and ($null -ne $Config.SelectableTargets) -and $Config.SelectableTargets.ContainsKey($FromTier)) {
+    $list = @($Config.SelectableTargets[$FromTier])
+    if ($list.Count -gt 0) { return [string]$list[0] }
+  }
+  if (($null -ne $Config) -and ($null -ne $Config.UpgradePath) -and $Config.UpgradePath.ContainsKey($FromTier)) {
+    return [string]$Config.UpgradePath[$FromTier]
+  }
+  $list = @(Get-SelectableTargetTiers -FromTier $FromTier -Config $Config)
+  if ($list.Count -gt 0) { return [string]$list[0] }
+  return ''
+}
+
 # small -> medium block migrations: the 8 moved function blocks, re-prefixed.
 # SourceDept = origin D2 page; Label = FB section label inside it; From = exact
 # error code to re-prefix; ToDept = destination D2 page; ToCode = new code;
@@ -258,6 +678,22 @@ function Stop-WithCode {
 
 function Get-UtcNowIso {
   return (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
+}
+
+function Get-WorkspaceRelativePath {
+  # Render a path as a workspace-relative reference ({WORKSPACE_ROOT}/...).
+  # State files must never embed machine-specific absolute user paths: the
+  # large-tier suite's M-check test_no_hardcoded_user_paths sweeps
+  # .scaling-state.json (and every *.md/*.json/*.ps1/*.py) for drive-letter
+  # user-path patterns, and the post-apply live suite is large-aware.
+  # $WorkspaceRoot is script-scoped (defined near the top of this script).
+  param([Parameter(Mandatory)][string]$Path)
+  if ([string]::IsNullOrWhiteSpace($Path)) { return '' }
+  $root = $WorkspaceRoot.TrimEnd('\', '/')
+  if ($Path.StartsWith($root, [System.StringComparison]::OrdinalIgnoreCase) -and $Path.Length -gt $root.Length) {
+    return ('{WORKSPACE_ROOT}/' + $Path.Substring($root.Length + 1).Replace('\', '/'))
+  }
+  return $Path.Replace('\', '/')
 }
 
 # --------------------------------------------------------------------------------------
@@ -350,6 +786,12 @@ function Load-Config {
     MinRoutingSamples = 20
     MetricsDropDir = ''
     MetricsLogCap = 20
+    # Arbitrary target selection (references/scaling.md sec 2). Defaults mirror
+    # the historical linear chain so an older config still resolves a default.
+    TierOrder = @('micro', 'small', 'medium', 'large', 'group')
+    MaxTier = 'group'
+    UpgradePath = @{}
+    SelectableTargets = @{}
   }
   if ($null -ne $cfg) {
     if ($null -ne $cfg.PSObject.Properties['evaluation_interval_days']) { $result.IntervalDays = [int]$cfg.evaluation_interval_days }
@@ -368,6 +810,33 @@ function Load-Config {
       if ($null -ne $h.PSObject.Properties['log_cap'])              { $result.MetricsLogCap = [int]$h.log_cap }
     }
     if ($null -ne $cfg.PSObject.Properties['output_dir']) { $result.OutputDir = [string]$cfg.output_dir }
+    if ($null -ne $cfg.PSObject.Properties['tier_order']) {
+      $order = @($cfg.tier_order | ForEach-Object { [string]$_ } | Where-Object { $_ -ne '' })
+      if ($order.Count -gt 0) { $result.TierOrder = $order }
+    }
+    if ($null -ne $cfg.PSObject.Properties['max_tier']) { $result.MaxTier = [string]$cfg.max_tier }
+    if ($null -ne $cfg.PSObject.Properties['upgrade_path']) {
+      $up = @{}
+      foreach ($p in $cfg.upgrade_path.PSObject.Properties) { $up[[string]$p.Name] = [string]$p.Value }
+      $result.UpgradePath = $up
+    }
+    if ($null -ne $cfg.PSObject.Properties['selectable_targets']) {
+      $st = @{}
+      foreach ($p in $cfg.selectable_targets.PSObject.Properties) {
+        $st[[string]$p.Name] = @($p.Value | ForEach-Object { [string]$_ } | Where-Object { $_ -ne '' })
+      }
+      $result.SelectableTargets = $st
+    }
+    # Contract consistency: every default target must be the first selectable
+    # target for its tier (drift here would silently change the default path).
+    foreach ($tier in @($result.UpgradePath.Keys)) {
+      if ($result.SelectableTargets.ContainsKey($tier)) {
+        $first = @($result.SelectableTargets[$tier])
+        if (($first.Count -gt 0) -and ($first[0] -ne $result.UpgradePath[$tier])) {
+          Stop-WithCode 'SCL_007' ("scaling-config.json drift: upgrade_path.$tier = '$($result.UpgradePath[$tier])' but selectable_targets.$tier starts with '$($first[0])'")
+        }
+      }
+    }
   }
   if ([string]::IsNullOrWhiteSpace($result.OutputDir)) { $result.OutputDir = '{WORKSPACE_ROOT}/.skill-upgrade' }
   if ([string]::IsNullOrWhiteSpace($result.MetricsDropDir)) { $result.MetricsDropDir = '{WORKSPACE_ROOT}/.skill-metrics' }
@@ -1552,7 +2021,7 @@ codes whose functions stay in the successor departments keep their codes.
         proposed_at   = $nowIso
         approved_by   = $null
         installed_at  = $null
-        package_path  = $PkgDir
+        package_path  = (Get-WorkspaceRelativePath -Path $PkgDir)
         validation    = [ordered]@{
           file_count        = $TargetFileCount[$UpgradeEdge.To]
           function_blocks   = 18
@@ -1611,20 +2080,31 @@ function Move-ErrorCodeRows {
 # --------------------------------------------------------------------------------------
 
 function New-SmallToMediumUpgradePackage {
-  param([string]$PkgDir)
+  # -SkipInitialCopy : composition mode (micro -> medium). Stage 1 has already
+  #   placed the source-tier content in $PkgDir, so the 5h live copy is skipped
+  #   and every transformation below runs on the package as-is. No staging
+  #   directory is created (and none may be deleted: P23).
+  # -Edge : the active (from -> to) edge; defaults to the small -> medium edge.
+  #   All transformations, the state skeleton and the report data read $Edge, so
+  #   the same function serves the micro -> medium composition.
+  param([string]$PkgDir, [switch]$SkipInitialCopy, $Edge = $MediumEdge)
   # 5h (basis) : copy the current (small) package verbatim, excluding the
   # operational state file (regenerated below). Same single package file set as
   # the micro -> small path.
-  $allRels = @(Get-PackageRelativePaths -Root $SkillDir)
-  foreach ($rel in $allRels) {
-    if ($rel -eq '.scaling-state.json') { continue }
-    $src = Join-Path $SkillDir ($rel.Replace('/', '\'))
-    $dest = Join-Path $PkgDir $rel
-    $destDir = Split-Path -Parent $dest
-    if (-not (Test-Path -LiteralPath $destDir)) { New-Item -ItemType Directory -Path $destDir -Force | Out-Null }
-    Copy-Item -LiteralPath $src -Destination $dest -Force
+  if (-not $SkipInitialCopy) {
+    $allRels = @(Get-PackageRelativePaths -Root $SkillDir)
+    foreach ($rel in $allRels) {
+      if ($rel -eq '.scaling-state.json') { continue }
+      $src = Join-Path $SkillDir ($rel.Replace('/', '\'))
+      $dest = Join-Path $PkgDir $rel
+      $destDir = Split-Path -Parent $dest
+      if (-not (Test-Path -LiteralPath $destDir)) { New-Item -ItemType Directory -Path $destDir -Force | Out-Null }
+      Copy-Item -LiteralPath $src -Destination $dest -Force
+    }
+    Write-Log ("5h copied current ({0}) package files to {1}" -f $Edge.From, $PkgDir)
+  } else {
+    Write-Log ("5h skipped (composition mode): {0} already carries the {1}-tier content" -f $PkgDir, $Edge.From)
   }
-  Write-Log ("5h copied current (small) package files to {0}" -f $PkgDir)
 
   # --- 5a : move 8 FB sections into 4 new D2 pages (re-prefixed), rewrite the 5
   # source pages (remove moved sections, re-number remaining FB headings, re-base
@@ -1634,7 +2114,7 @@ function New-SmallToMediumUpgradePackage {
 
   # Buffer for the 4 new D2 pages: ToDept -> ordered list of moved section texts.
   $newDeptBuffers = @{}
-  foreach ($k in $MediumEdge.Split) {
+  foreach ($k in $Edge.Split) {
     if ($k.Prefix -in @('CLR_', 'CDO_', 'CPO_', 'CCO_')) { $newDeptBuffers[$k.Slug] = New-Object System.Collections.Generic.List[string] }
   }
 
@@ -1864,19 +2344,19 @@ The Customer and Partnerships department owns procurement, billing, brand and pa
         if ($line -match '^metadata\s*:\s*$') { $inMetadata = $true; continue }
         if ($line -match '^interface\s*:\s*$') { $inInterface = $true; continue }
         if ($line -match '^\S') { $inMetadata = $false; $inInterface = $false }
-        if ($line -match '^(\s*)version\s*:\s*.*$') { $lines[$i] = "{0}version: {1}" -f $Matches[1], $MediumEdge.NewVersion; $versionRewrites++; continue }
+        if ($line -match '^(\s*)version\s*:\s*.*$') { $lines[$i] = "{0}version: {1}" -f $Matches[1], $Edge.NewVersion; $versionRewrites++; continue }
         if ($line -match '^(\s*)error_code_prefixes\s*:\s*.*$') { $lines[$i] = "{0}error_code_prefixes: [CEO_, CTO_, CISO_, CHO_, CQO_, CLR_, CDO_, CPO_, CCO_, SCL_]" -f $Matches[1]; continue }
         if ($line -match '^description\s*:\s*".*"\s*$') { $lines[$i] = 'description: "' + $newDescription + '"'; $descriptionRewrites++; continue }
         # E18 : rewrite the structured tier tag token (e.g. small-tier -> medium-tier)
         # so the tag list agrees with the new scale_tier. Only the *-tier token is
         # touched; the other prose "small tier" mentions stay for human review.
-        if ($line -match '^tags\s*:') { $lines[$i] = $line -replace ([regex]::Escape(($MediumEdge.From + '-tier'))), ($MediumEdge.To + '-tier'); continue }
+        if ($line -match '^tags\s*:') { $lines[$i] = $line -replace ([regex]::Escape(($Edge.From + '-tier'))), ($Edge.To + '-tier'); continue }
         if (($line -match '^(\s*)enum\s*:\s*\[.*\]\s*$') -and ($line -match '\bauto\b')) { $lines[$i] = "{0}enum: {1}" -f $Matches[1], $newEnum; $enumRewrites++; continue }
         if ($line -match 'department_aliases') { $hasAliasPointer = $true }
         if ($inMetadata) {
-          if ($line -match '^(\s*)scale_tier\s*:') { $lines[$i] = "{0}scale_tier: {1}" -f $Matches[1], $MediumEdge.To; continue }
-          if ($line -match '^(\s*)department_count\s*:') { $lines[$i] = "{0}department_count: {1}" -f $Matches[1], $MediumEdge.DepartmentCount; continue }
-          if ($line -match '^(\s*)function_block_count\s*:') { $lines[$i] = "{0}function_block_count: {1}" -f $Matches[1], $MediumEdge.ExpectedBlocks; continue }
+          if ($line -match '^(\s*)scale_tier\s*:') { $lines[$i] = "{0}scale_tier: {1}" -f $Matches[1], $Edge.To; continue }
+          if ($line -match '^(\s*)department_count\s*:') { $lines[$i] = "{0}department_count: {1}" -f $Matches[1], $Edge.DepartmentCount; continue }
+          if ($line -match '^(\s*)function_block_count\s*:') { $lines[$i] = "{0}function_block_count: {1}" -f $Matches[1], $Edge.ExpectedBlocks; continue }
         }
       }
       if ($versionRewrites -lt 1) { Write-Log 'WARN 5d version line not found in the package frontmatter (G6 version check will fail)' }
@@ -1890,7 +2370,7 @@ The Customer and Partnerships department owns procurement, billing, brand and pa
         $lines = $out.ToArray()
       }
       Write-TextFileNoBom -Path $skPath -Text (($lines -join "`n") + "`n")
-      Write-Log ("5d package frontmatter rewritten (scale_tier={0}, department_count={1}, function_block_count={2}, version={3}, 10 prefixes, enum + description updated for 9 departments)" -f $MediumEdge.To, $MediumEdge.DepartmentCount, $MediumEdge.ExpectedBlocks, $MediumEdge.NewVersion)
+      Write-Log ("5d package frontmatter rewritten (scale_tier={0}, department_count={1}, function_block_count={2}, version={3}, {4} prefixes, enum + description updated for {1} departments)" -f $Edge.To, $Edge.DepartmentCount, $Edge.ExpectedBlocks, $Edge.NewVersion, (@($Edge.Prefixes).Count))
     } else { Write-Log 'WARN package SKILL.md has no parseable frontmatter; 5d skipped (G1/G6 will fail)' }
   } else { Write-Log 'WARN package SKILL.md not found; 5d skipped (G1/G3/G6 will fail)' }
 
@@ -1899,9 +2379,9 @@ The Customer and Partnerships department owns procurement, billing, brand and pa
   if (Test-Path -LiteralPath $metaPath) {
     try {
       $meta = ConvertFrom-Json ([System.IO.File]::ReadAllText($metaPath))
-      if ($null -ne $meta.PSObject.Properties['version']) { $meta.version = $MediumEdge.NewVersion }
+      if ($null -ne $meta.PSObject.Properties['version']) { $meta.version = $Edge.NewVersion }
       Write-TextFileNoBom -Path $metaPath -Text ((ConvertTo-StableJson -Value $meta) + "`n")
-      Write-Log "5e _meta.json version bumped to $($MediumEdge.NewVersion)"
+      Write-Log "5e _meta.json version bumped to $($Edge.NewVersion)"
     } catch { Write-Log 'WARN _meta.json could not be updated (G6 version check will fail)' }
   }
 
@@ -1992,7 +2472,7 @@ departments kept their codes. The resolved mapping is:
       if ($hits.Count -eq 0) { continue }
       foreach ($h in $hits) {
         $lineNo = 1 + ([regex]::Matches($t.Substring(0, $h.Index), "`n")).Count
-        Write-Log ("5i {0}: {1} rewritten at line {2} ('2.0.0' -> '3.0.0')" -f $name, $tgt.What, $lineNo)
+        Write-Log ("5i {0}: {1} rewritten at line {2} ('{3}' -> '{4}')" -f $name, $tgt.What, $lineNo, $Edge.OldVersion, $Edge.NewVersion)
       }
       $t = [regex]::Replace($t, $tgt.Pattern, $tgt.Replace)
       $replaceCounts[("{0}|{1}" -f $name, $tgt.What)] = $hits.Count
@@ -2039,13 +2519,12 @@ departments kept their codes. The resolved mapping is:
   }
 
   # 5i : CHANGELOG.md upgrade entry (inserted after [Unreleased], E17 order).
+  # The per-edge bullet lines live on the edge (Report.ChangelogBullets) so the
+  # micro -> medium composition narrates both stages.
   $changelogPath = Join-Path $PkgDir 'CHANGELOG.md'
   if (Test-Path -LiteralPath $changelogPath) {
-    $entry = ("## [{0}] - {1} - tier upgrade proposal (small -> medium)" -f $MediumEdge.NewVersion, ((Get-Date).ToUniversalTime().ToString('yyyy-MM-dd'))) + "`n`n" +
-      "- Departments: 5 -> 9 (8 function blocks migrated from 5 existing departments to 4 new departments: legal-and-risk, data-and-analytics, product-and-strategy, customer-and-partnerships; 18 blocks conserved)" + "`n" +
-      "- New error-code prefixes: CLR_, CDO_, CPO_, CCO_ (resolved alias table appended to references/error-codes.md)" + "`n" +
-      "- New shared modules: references/shared/{glossary, cross-department-handoff, common-patterns}.md" + "`n" +
-      "- Slug aliases appended to references/scaling.md (Alias Map)" + "`n" +
+    $entry = ("## [{0}] - {1} - tier upgrade proposal ({2} -> {3})" -f $Edge.NewVersion, ((Get-Date).ToUniversalTime().ToString('yyyy-MM-dd')), $Edge.From, $Edge.To) + "`n`n" +
+      (($Edge.Report.ChangelogBullets -join "`n")) + "`n" +
       "- PROPOSED ONLY - requires human approval and an external installer" + "`n"
     $old = Read-TextFile -Path $changelogPath
     if ($null -ne $old) {
@@ -2093,18 +2572,18 @@ departments kept their codes. The resolved mapping is:
   $nowIso = Get-UtcNowIso
   $pkgState = [ordered]@{
     schema_version      = 1
-    current_tier        = $MediumEdge.To
+    current_tier        = $Edge.To
     tier_history        = @(
       [ordered]@{
-        from          = $MediumEdge.From
-        to            = $MediumEdge.To
+        from          = $Edge.From
+        to            = $Edge.To
         proposed_at   = $nowIso
         approved_by   = $null
         installed_at  = $null
-        package_path  = $PkgDir
+        package_path  = (Get-WorkspaceRelativePath -Path $PkgDir)
         validation    = [ordered]@{
-          file_count        = $TargetFileCount[$MediumEdge.To]
-          function_blocks   = 18
+          file_count        = $TargetFileCount[$Edge.To]
+          function_blocks   = $Edge.ExpectedBlocks
           gates_passed      = 6
           acceptance_passed = $false
         }
@@ -2120,12 +2599,468 @@ departments kept their codes. The resolved mapping is:
     }
     validation          = [ordered]@{
       gates_passed      = 6
-      file_count        = $TargetFileCount[$MediumEdge.To]
+      file_count        = $TargetFileCount[$Edge.To]
       acceptance_passed = $false
     }
   }
   Write-TextFileNoBom -Path (Join-Path $PkgDir '.scaling-state.json') -Text ((ConvertTo-StableJson -Value $pkgState) + "`n")
-  Write-Log "package state file initialized for tier '$($MediumEdge.To)' (tier_history carries the upgrade skeleton entry, append-only)"
+  Write-Log "package state file initialized for tier '$($Edge.To)' (tier_history carries the upgrade skeleton entry, append-only)"
+}
+
+function New-MediumToLargeUpgradePackage {
+  # -Edge : the active (from -> to) edge; defaults to the medium -> large edge.
+  #   The large target content is the canonical ai-company-large reference
+  #   package (source-independent), so the same builder serves every
+  #   -> large pair (micro -> large, small -> large, medium -> large); the
+  #   source tier only decides the frontmatter shell, the retired-slug set
+  #   (G5) and the report narrative.
+  param([string]$PkgDir, $Edge = $LargeEdge)
+  # 5h (basis) : the large tier is a wholesale department replacement (the 9
+  # medium departments are retired; 18 large departments take over, 18 function
+  # blocks conserved, one per department). The CONTENT (D2/D3 pages, error
+  # codes, references, models) is taken from the ai-company-large reference
+  # package. The SKILL.md frontmatter shell (which carries the base-framework
+  # schema the gates require, plus the LIVE permissions block for G1) is taken
+  # from the LIVE medium skill and retargeted to large; the body is taken from
+  # ai-company-large so the narrative matches the 18 large departments.
+  $LargeSourceDir = Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'ai-company-large'
+  if (-not (Test-Path -LiteralPath $LargeSourceDir)) {
+    Stop-WithCode 'SCL_002' ("medium -> large target package not found at {0}; the large tier is built from the ai-company-large reference package" -f $LargeSourceDir)
+  }
+  $allRels = @(Get-PackageRelativePaths -Root $LargeSourceDir)
+  foreach ($rel in $allRels) {
+    if ($rel -eq '.scaling-state.json') { continue }
+    $src = Join-Path $LargeSourceDir ($rel.Replace('/', '\'))
+    $dest = Join-Path $PkgDir $rel
+    $destDir = Split-Path -Parent $dest
+    if (-not (Test-Path -LiteralPath $destDir)) { New-Item -ItemType Directory -Path $destDir -Force | Out-Null }
+    Copy-Item -LiteralPath $src -Destination $dest -Force
+  }
+  Write-Log ("5h copied large reference content to {0}" -f $PkgDir)
+
+  # B1 (defensive) : the package file set uses the underscore spelling
+  # README_FOR_AI.md (the base bloodline and the test suite hard-code it); a
+  # hyphenated leftover would break every self-reference. The large reference
+  # already ships the underscore name, so this normally does nothing.
+  $legacySpec = Join-Path $PkgDir 'README-FOR-AI.md'
+  $renamedSpec = Join-Path $PkgDir 'README_FOR_AI.md'
+  if ((Test-Path -LiteralPath $legacySpec) -and (-not (Test-Path -LiteralPath $renamedSpec))) {
+    Rename-Item -LiteralPath $legacySpec -NewName 'README_FOR_AI.md'
+    Write-Log '5h renamed README-FOR-AI.md -> README_FOR_AI.md (defensive, audit B1)'
+  }
+
+  # G2 / G3 immutability : the package must carry the LIVE tests/ and
+  # scripts/self-scale.ps1 byte-for-byte (the medium-aware tests and the
+  # generator itself). Overlay them on top of the large reference copy.
+  $liveTests = Join-Path $SkillDir 'tests'
+  if (Test-Path -LiteralPath $liveTests) {
+    Copy-Item -Path (Join-Path $liveTests '*') -Destination (Join-Path $PkgDir 'tests') -Recurse -Force
+    Write-Log '5h overlaid live tests/ (G2 immutable)'
+  }
+  $liveScript = Join-Path $SkillDir 'scripts\self-scale.ps1'
+  if (Test-Path -LiteralPath $liveScript) {
+    Copy-Item -LiteralPath $liveScript -Destination (Join-Path $PkgDir 'scripts\self-scale.ps1') -Force
+    Write-Log '5h overlaid live scripts/self-scale.ps1 (G3 immutable)'
+  }
+  # The base-framework scaling.md (with its Alias Map section) must be the
+  # package's scaling.md so G5 can append and verify the medium->large aliases.
+  $liveScaling = Join-Path $SkillDir 'references\scaling.md'
+  if (Test-Path -LiteralPath $liveScaling) {
+    Copy-Item -LiteralPath $liveScaling -Destination (Join-Path $PkgDir 'references\scaling.md') -Force
+    Write-Log '5h overlaid live references/scaling.md (Alias Map host for G5)'
+  }
+
+  # 5a-normalize : large D2 index pages declare '> Function blocks: **N**'
+  # (bold). G4 reads 'Function blocks: <N>' (sec 10.2), so de-bold to a plain
+  # integer on every department D2 page.
+  $pkgDeptDir = Join-Path $PkgDir 'references\departments'
+  if (Test-Path -LiteralPath $pkgDeptDir) {
+    foreach ($f in @(Get-ChildItem -LiteralPath $pkgDeptDir -Filter '*.md' -File -ErrorAction SilentlyContinue)) {
+      $t = [System.IO.File]::ReadAllText($f.FullName)
+      $t2 = [regex]::Replace($t, '(?m)^>\s*Function blocks:\s*\*\*(\d+)\*\*', '> Function blocks: ${1}')
+      if ($t2 -ne $t) { Write-TextFileNoBom -Path $f.FullName -Text $t2; Write-Log ("5a de-bolded Function blocks figure in {0}" -f $f.Name) }
+    }
+  }
+
+  # 5d : build SKILL.md = LIVE frontmatter shell (retargeted to large) + large body.
+  $liveSkPath = Join-Path $SkillDir 'SKILL.md'
+  $liveLines = [System.IO.File]::ReadAllLines($liveSkPath)
+  $liveFmEnd = -1
+  for ($i = 1; $i -lt $liveLines.Count; $i++) { if ($liveLines[$i].Trim() -eq '---') { $liveFmEnd = $i; break } }
+  $skLines = @()
+  for ($i = 0; $i -le $liveFmEnd; $i++) { $skLines += $liveLines[$i] }
+  $newEnum = '[' + ('auto, ' + (@($Edge.Split | ForEach-Object { [string]$_.Slug }) -join ', ')) + ']'
+  # Derived from the edge (target-tier data), so every -> large pair writes the
+  # same canonical prefix line: the 18 department prefixes plus SCL_.
+  $pfxList = @($Edge.Prefixes)
+  if ($pfxList -notcontains 'SCL_') { $pfxList += 'SCL_' }
+  $newPrefixes = '[' + ($pfxList -join ', ') + ']'
+  $inMetadata = $false; $hasAliasPointer = $false
+  $versionRewrites = 0; $enumRewrites = 0; $descriptionRewrites = 0
+  for ($i = 0; $i -lt $skLines.Count; $i++) {
+    $line = $skLines[$i]
+    if ($line -match '^metadata\s*:\s*$') { $inMetadata = $true; continue }
+    if ($line -match '^\S') { $inMetadata = $false }
+    if ($line -match '^(\s*)version\s*:\s*.*$') { $skLines[$i] = "{0}version: {1}" -f $Matches[1], $Edge.NewVersion; $versionRewrites++; continue }
+    if ($line -match '^(\s*)error_code_prefixes\s*:\s*.*$') { $skLines[$i] = "{0}error_code_prefixes: {1}" -f $Matches[1], $newPrefixes; continue }
+    if ($line -match '^description\s*:\s*".*"\s*$') { $skLines[$i] = 'description: "' + $LargeDescription + '"'; $descriptionRewrites++; continue }
+    if ($line -match '^tags\s*:') { $skLines[$i] = $line -replace ([regex]::Escape(($Edge.From + '-tier'))), ($Edge.To + '-tier'); continue }
+    if (($line -match '^(\s*)enum\s*:\s*\[.*\]\s*$') -and ($line -match '\bauto\b')) { $skLines[$i] = "{0}enum: {1}" -f $Matches[1], $newEnum; $enumRewrites++; continue }
+    if ($line -match 'department_aliases') { $hasAliasPointer = $true }
+    if ($inMetadata) {
+      if ($line -match '^(\s*)scale_tier\s*:') { $skLines[$i] = "{0}scale_tier: {1}" -f $Matches[1], $Edge.To; continue }
+      if ($line -match '^(\s*)department_count\s*:') { $skLines[$i] = "{0}department_count: {1}" -f $Matches[1], $Edge.DepartmentCount; continue }
+      if ($line -match '^(\s*)function_block_count\s*:') { $skLines[$i] = "{0}function_block_count: {1}" -f $Matches[1], $Edge.ExpectedBlocks; continue }
+    }
+  }
+  if ($versionRewrites -lt 1) { Write-Log 'WARN 5d version line not found (G6 version check will fail)' }
+  if ($enumRewrites -lt 1) { Write-Log 'WARN 5d interface.department.enum not found (G6 enum check will fail)' }
+  if ($descriptionRewrites -lt 1) { Write-Log 'WARN 5d description not found (stale medium-tier description left)' }
+  if (-not $hasAliasPointer) {
+    # Insert INSIDE the frontmatter (just before the closing '---'): $skLines
+    # was seeded with the live frontmatter including its closing delimiter, so a
+    # plain '+=' would land the pointer in the body and G6 would reject it
+    # (micro/large sources without an inherited pointer hit this branch).
+    $out = New-Object System.Collections.Generic.List[string]
+    for ($i = 0; $i -lt $skLines.Count - 1; $i++) { $out.Add($skLines[$i]) }
+    $out.Add('department_aliases: references/scaling.md#alias-map')
+    $out.Add($skLines[$skLines.Count - 1])
+    $skLines = $out.ToArray()
+  }
+  # Source SKILL.md frontmatter (read once; feeds the B4 trigger/tag takeover
+  # below and the body append after it).
+  $largeSkPath = Join-Path $LargeSourceDir 'SKILL.md'
+  $largeLines = [System.IO.File]::ReadAllLines($largeSkPath)
+  $largeFmEnd = -1
+  for ($i = 1; $i -lt $largeLines.Count; $i++) { if ($largeLines[$i].Trim() -eq '---') { $largeFmEnd = $i; break } }
+
+  # B4 : triggers and tags are taken from the ai-company-large source SKILL.md
+  # (66 domain-grouped triggers, 13 tags) - read from the file at build time,
+  # never embedded here: the trigger block carries non-ASCII box-drawing
+  # comments and this script must stay pure ASCII (PS 5.1 reads a BOM-less
+  # UTF-8 script as ANSI). The medium shell's 15 triggers cannot cover the
+  # 18-department intent surface.
+  $srcTagsLine = $null
+  $srcTriggerLines = @()
+  $inSrcTriggers = $false
+  for ($i = 1; $i -lt $largeFmEnd; $i++) {
+    $l = $largeLines[$i]
+    if ($l -match '^tags\s*:') { $srcTagsLine = $l; continue }
+    if ($l -match '^triggers\s*:') { $inSrcTriggers = $true; $srcTriggerLines += $l; continue }
+    if ($inSrcTriggers) {
+      if ($l -match '^\S') { $inSrcTriggers = $false } else { $srcTriggerLines += $l }
+    }
+  }
+  if ($null -ne $srcTagsLine) {
+    for ($i = 0; $i -lt $skLines.Count; $i++) {
+      if ($skLines[$i] -match '^tags\s*:') {
+        $skLines[$i] = $srcTagsLine
+        Write-Log '5d tags line taken from the large source SKILL.md'
+        break
+      }
+    }
+  } else {
+    Write-Log 'WARN 5d no tags line in the large source frontmatter; shell tags kept (medium-tier -> large-tier rewrite only)'
+  }
+  if ($srcTriggerLines.Count -gt 1) {
+    $trigStart = -1
+    for ($i = 0; $i -lt $skLines.Count; $i++) {
+      if ($skLines[$i] -match '^triggers\s*:') { $trigStart = $i; break }
+    }
+    if ($trigStart -ge 0) {
+      $trigEnd = $trigStart + 1
+      while (($trigEnd -lt $skLines.Count) -and ($skLines[$trigEnd] -match '^\s')) { $trigEnd++ }
+      $out3 = New-Object System.Collections.Generic.List[string]
+      for ($i = 0; $i -lt $trigStart; $i++) { $out3.Add($skLines[$i]) }
+      foreach ($t in $srcTriggerLines) { $out3.Add($t) }
+      for ($i = $trigEnd; $i -lt $skLines.Count; $i++) { $out3.Add($skLines[$i]) }
+      $skLines = $out3.ToArray()
+      Write-Log ("5d triggers block taken from the large source SKILL.md ({0} lines: 66 domain-grouped triggers)" -f $srcTriggerLines.Count)
+    } else {
+      Write-Log 'WARN 5d no triggers line in the shell frontmatter; source triggers not inserted'
+    }
+  } else {
+    Write-Log 'WARN 5d no triggers block in the large source frontmatter; shell triggers kept'
+  }
+
+  # Append the large body (after the closing frontmatter fence).
+  $largeBody = if ($largeFmEnd -gt 0) { $largeLines[($largeFmEnd + 1)..($largeLines.Count - 1)] -join "`n" } else { '' }
+  $skPath = Join-Path $PkgDir 'SKILL.md'
+  $out = New-Object System.Collections.Generic.List[string]
+  for ($i = 0; $i -lt $skLines.Count; $i++) { $out.Add($skLines[$i]) }
+  $out.Add('')
+  $out.Add($largeBody)
+  Write-TextFileNoBom -Path $skPath -Text (($out -join "`n").TrimEnd("`r`n") + "`n")
+  Write-Log ("5d SKILL.md built (live frontmatter retargeted to {0} + {0} body; scale_tier={0}, department_count={1}, function_block_count={2}, version={3}, {4} prefixes, enum auto+{1})" -f $Edge.To, $Edge.DepartmentCount, $Edge.ExpectedBlocks, $Edge.NewVersion, (@($pfxList).Count))
+
+  # 5e : bump _meta.json version and retarget the slug.
+  # B5 : the large reference _meta.json must not keep the predecessor identity
+  # 'ai-company-large'; the bloodline package slug is 'ai-company' (live medium
+  # carries the same slug, so the three version locations stay comparable).
+  $metaPath = Join-Path $PkgDir '_meta.json'
+  if (Test-Path -LiteralPath $metaPath) {
+    try {
+      $meta = ConvertFrom-Json ([System.IO.File]::ReadAllText($metaPath))
+      if ($null -ne $meta.PSObject.Properties['version']) { $meta.version = $Edge.NewVersion }
+      if ($null -ne $meta.PSObject.Properties['slug']) { $meta.slug = 'ai-company' }
+      Write-TextFileNoBom -Path $metaPath -Text ((ConvertTo-StableJson -Value $meta) + "`n")
+      Write-Log "5e _meta.json version bumped to $($Edge.NewVersion); slug retargeted to 'ai-company'"
+    } catch { Write-Log 'WARN _meta.json could not be updated (G6 version check will fail)' }
+  }
+
+  # 5g : append the (from -> to) alias rows to the package Alias Map. The source
+  # departments are retired; the large departments replace them. Each legacy slug
+  # gets a Legacy row and each target slug gets a Target row (G5 coverage); the
+  # expansion pairs every target with a (repeated) legacy slug - the exact 1:1
+  # mapping is flagged for human review. The tier label in column 2 is the
+  # SOURCE tier, so a cross-tier jump (micro/small -> large) records the tier the
+  # slug was actually retired from.
+  $pkgScalingMd = Join-Path (Join-Path $PkgDir 'references') 'scaling.md'
+  $aliasRows = @()
+  $legacySrc = @($Edge.AliasLegacy)
+  $targetSrc = @($Edge.AliasTarget)
+  for ($i = 0; $i -lt $targetSrc.Count; $i++) {
+    $lg = $legacySrc[$i % $legacySrc.Count]
+    $aliasRows += ('| {0} | {2} | {1} | v{3} |' -f $lg, $targetSrc[$i], $Edge.From, $Edge.NewVersion)
+  }
+  Add-AliasRows -ScalingMdPath $pkgScalingMd -NewRows $aliasRows
+  Write-Log ("5g alias rows appended to the package Alias Map ({0} -> {1} department replacement)" -f $Edge.From, $Edge.To)
+
+  # Package state file : initial state for the target tier (written before the
+  # README version bump so the package is internally complete).
+  $nowIso = Get-UtcNowIso
+  $pkgState = [ordered]@{
+    schema_version      = 1
+    current_tier        = $Edge.To
+    tier_history        = @(
+      [ordered]@{
+        from          = $Edge.From
+        to            = $Edge.To
+        proposed_at   = $nowIso
+        approved_by   = $null
+        installed_at  = $null
+        package_path  = (Get-WorkspaceRelativePath -Path $PkgDir)
+        validation    = [ordered]@{
+          file_count        = $TargetFileCount[$Edge.To]
+          function_blocks   = $Edge.ExpectedBlocks
+          gates_passed      = 6
+          acceptance_passed = $false
+        }
+      }
+    )
+    pending_proposals   = @()
+    next_evaluation     = (Get-Date).ToUniversalTime().AddDays(30).ToString('yyyy-MM-ddTHH:mm:ssZ')
+    last_metrics        = [ordered]@{
+      agent_count               = 0
+      routing_accuracy          = 1.0
+      max_blocks_per_department = 1
+      error_code_reuse_ratio    = 0.0
+    }
+    # B6 : the two host-metric bookkeeping fields the spec sec 12.6 / M-2
+    # requires (the medium suite's test_scaling_state_schema_complete asserts
+    # all nine top-level keys; the previous template wrote only seven).
+    routing_miss_streak = 0
+    metrics_provenance  = [ordered]@{
+      agent_count               = 'host-supplied'
+      routing_accuracy          = 'host-supplied'
+      max_blocks_per_department = 'measured'
+      error_code_reuse_ratio    = 'measured'
+    }
+    validation          = [ordered]@{
+      gates_passed      = 6
+      file_count        = $TargetFileCount[$Edge.To]
+      acceptance_passed = $false
+    }
+  }
+  Write-TextFileNoBom -Path (Join-Path $PkgDir '.scaling-state.json') -Text ((ConvertTo-StableJson -Value $pkgState) + "`n")
+  Write-Log "package state file initialized for tier '$($Edge.To)'"
+
+  # 5i : README version strings (badge + at-a-glance tables) - generic version
+  # numbers, driven by the edge. The large reference ships as v4.1.0 and the
+  # proposal targets 4.0.0 (major 4 = large tier ordinal). The ai-company-large
+  # README at-a-glance table already states 18 departments / 148 files /
+  # 117 codes / 19 prefixes, which is correct for the proposed package, so only
+  # the version is updated.
+  $zhVersionWord = [string][char]0x7248 + [string][char]0x672C
+  $readmeTargets = @(
+    @{ Pattern = 'version-\d+\.\d+\.\d+-blue';                                 Replace = ('version-' + $Edge.NewVersion + '-blue'); What = 'badge' },
+    @{ Pattern = ('(\| Version \| )\*\*(\d+\.\d+\.\d+)\*\*');                   Replace = ('${1}**' + $Edge.NewVersion + '**'); What = 'at-a-glance version row (English)' },
+    @{ Pattern = ('(\| ' + $zhVersionWord + ' \| )\*\*(\d+\.\d+\.\d+)\*\*');     Replace = ('${1}**' + $Edge.NewVersion + '**'); What = 'at-a-glance version row (Chinese)' }
+  )
+  foreach ($name in @('README.md', 'README.en.md', 'README.zh.md')) {
+    $p = Join-Path $PkgDir $name
+    if (-not (Test-Path -LiteralPath $p)) { continue }
+    $t = Read-TextFile -Path $p
+    if ($null -eq $t) { continue }
+    foreach ($tgt in $readmeTargets) {
+      $hits = [regex]::Matches($t, $tgt.Pattern)
+      if ($hits.Count -eq 0) { continue }
+      foreach ($h in $hits) {
+        Write-Log ("5i {0}: {1} rewritten (version -> {2})" -f $name, $tgt.What, $Edge.NewVersion)
+      }
+      $t = [regex]::Replace($t, $tgt.Pattern, $tgt.Replace)
+    }
+    Write-TextFileNoBom -Path $p -Text $t
+  }
+
+  # 5i : CHANGELOG.md upgrade entry. The per-edge bullet lines live on the edge
+  # (Report.ChangelogBullets) so a cross-tier jump narrates its own skipped
+  # tiers instead of inheriting the adjacent-edge wording.
+  $changelogPath = Join-Path $PkgDir 'CHANGELOG.md'
+  if (Test-Path -LiteralPath $changelogPath) {
+    $entry = ("## [{0}] - {1} - tier upgrade proposal ({2} -> {3})" -f $Edge.NewVersion, ((Get-Date).ToUniversalTime().ToString('yyyy-MM-dd')), $Edge.From, $Edge.To) + "`n`n" +
+      (($Edge.Report.ChangelogBullets -join "`n")) + "`n" +
+      "- PROPOSED ONLY - requires human approval and an external installer" + "`n"
+    $old = Read-TextFile -Path $changelogPath
+    if ($null -ne $old) {
+      $chLines = $old -split "`n"
+      $unreleasedIdx = -1
+      for ($i = 0; $i -lt $chLines.Count; $i++) { if ($chLines[$i] -match '^##\s*\[Unreleased\]') { $unreleasedIdx = $i; break } }
+      if ($unreleasedIdx -ge 0) {
+        $insertAt = $unreleasedIdx + 1
+        while (($insertAt -lt $chLines.Count) -and ([string]::IsNullOrWhiteSpace($chLines[$insertAt]))) { $insertAt++ }
+        $out2 = New-Object System.Collections.Generic.List[string]
+        for ($i = 0; $i -lt $insertAt; $i++) { $out2.Add($chLines[$i]) }
+        foreach ($l in ($entry -split "`n")) { $out2.Add($l) }
+        for ($i = $insertAt; $i -lt $chLines.Count; $i++) { $out2.Add($chLines[$i]) }
+        Write-TextFileNoBom -Path $changelogPath -Text ((($out2 -join "`n").TrimEnd("`r`n")) + "`n")
+        Write-Log '5i CHANGELOG.md entry inserted after [Unreleased]'
+      } else {
+        Write-Log 'WARN 5i CHANGELOG.md has no [Unreleased] heading; entry not inserted'
+      }
+    }
+  }
+}
+
+# --------------------------------------------------------------------------------------
+# micro -> medium : in-place two-stage composition (arbitrary target selection).
+#
+# Stage 1 runs the deterministic micro -> small split on $PkgDir. Stage 2 runs
+# the small -> medium transformation on the SAME directory with
+# -SkipInitialCopy, because stage 1 has already placed the small-tier content
+# there. No staging directory is created - and none may be deleted (P23: the
+# script contains no executable recursive force-delete path). The result is
+# byte-equivalent to applying the two adjacent upgrades in sequence, so every
+# gate sees exactly the content the manual chain would have produced.
+# --------------------------------------------------------------------------------------
+
+function New-MicroToMediumUpgradePackage {
+  param([string]$PkgDir, $Edge = $MicroToMediumEdge)
+  Write-Log ("5 stage 1/2: composing {0} -> {1} in place (micro -> small split, then the small -> medium migration)" -f $Edge.From, $Edge.To)
+  New-UpgradePackage -PkgDir $PkgDir
+  New-SmallToMediumUpgradePackage -PkgDir $PkgDir -SkipInitialCopy -Edge $Edge
+  Write-Log ("5 composition complete: {0} -> {1} (both stages recorded in the CHANGELOG)" -f $Edge.From, $Edge.To)
+}
+
+# --------------------------------------------------------------------------------------
+# large -> group : SCAFFOLD builder (arbitrary target selection).
+#
+# The group tier has no authored content and its 36 department slugs are
+# undefined, so there is nothing deterministic to transform. This builder copies
+# the current package forward verbatim (G1-G3 pass: byte-identical) and emits
+# UPGRADE-WORK-ORDER.txt. It deliberately does NOT retarget the frontmatter -
+# writing scale_tier=group with an 18-slug enum would fabricate structure - so
+# the content gates fail by design and their failure detail is the checklist.
+# Nothing is recorded in .scaling-state.json (see Invoke-Proposal scaffold branch).
+# --------------------------------------------------------------------------------------
+
+function New-LargeToGroupUpgradePackage {
+  param([string]$PkgDir, $Edge = $GroupEdge)
+  # 5h (basis) : copy the current package forward, excluding the operational
+  # state file (a group skeleton is written below).
+  $allRels = @(Get-PackageRelativePaths -Root $SkillDir)
+  foreach ($rel in $allRels) {
+    if ($rel -eq '.scaling-state.json') { continue }
+    $src = Join-Path $SkillDir ($rel.Replace('/', '\'))
+    $dest = Join-Path $PkgDir $rel
+    $destDir = Split-Path -Parent $dest
+    if (-not (Test-Path -LiteralPath $destDir)) { New-Item -ItemType Directory -Path $destDir -Force | Out-Null }
+    Copy-Item -LiteralPath $src -Destination $dest -Force
+  }
+  Write-Log ("5h copied current ({0}) package files to {1} (scaffold: content carried forward verbatim)" -f $Edge.From, $PkgDir)
+
+  # Package state skeleton for the target tier. gates_passed = 3 is honest: the
+  # byte-identical carry-forward passes G1-G3 and the content gates cannot pass
+  # until the work order is complete.
+  $nowIso = Get-UtcNowIso
+  $pkgState = [ordered]@{
+    schema_version      = 1
+    current_tier        = $Edge.To
+    tier_history        = @(
+      [ordered]@{
+        from          = $Edge.From
+        to            = $Edge.To
+        proposed_at   = $nowIso
+        approved_by   = $null
+        installed_at  = $null
+        package_path  = (Get-WorkspaceRelativePath -Path $PkgDir)
+        validation    = [ordered]@{
+          file_count        = $TargetFileCount[$Edge.To]
+          function_blocks   = $Edge.ExpectedBlocks
+          gates_passed      = 3
+          acceptance_passed = $false
+        }
+      }
+    )
+    pending_proposals   = @()
+    next_evaluation     = (Get-Date).ToUniversalTime().AddDays(30).ToString('yyyy-MM-ddTHH:mm:ssZ')
+    last_metrics        = [ordered]@{
+      agent_count               = 0
+      routing_accuracy          = 1.0
+      max_blocks_per_department = 1
+      error_code_reuse_ratio    = 0.0
+    }
+    routing_miss_streak = 0
+    metrics_provenance  = [ordered]@{
+      agent_count               = 'host-supplied'
+      routing_accuracy          = 'host-supplied'
+      max_blocks_per_department = 'measured'
+      error_code_reuse_ratio    = 'measured'
+    }
+    validation          = [ordered]@{
+      gates_passed      = 3
+      file_count        = $TargetFileCount[$Edge.To]
+      acceptance_passed = $false
+    }
+  }
+  Write-TextFileNoBom -Path (Join-Path $PkgDir '.scaling-state.json') -Text ((ConvertTo-StableJson -Value $pkgState) + "`n")
+  Write-Log ("package state skeleton written for tier '{0}' (gates_passed = 3: content gates pending authoring)" -f $Edge.To)
+
+  # 5a : the authoring work order. Every item is derived from the tier contract
+  # (references/scaling.md sec 3); the script never fabricates department content.
+  $order = @(
+    ("UPGRADE WORK ORDER - {0} to {1}" -f $Edge.From, $Edge.To),
+    '',
+    ("Generated: {0}" -f (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')),
+    '',
+    'This package is a SCAFFOLD, not a proposal. The group tier has no authored',
+    'content and its 36 department slugs are undefined; this build deliberately',
+    'does not fabricate structure. Complete the items below, then re-run the six',
+    'gates. Gates G1-G3 already pass (byte-identical carry-forward); G4/G5/G6',
+    'fail until the content exists - their failure detail is the checklist.',
+    '',
+    'Required per new department (36 total at group tier):',
+    '  references/departments/<slug>.md                     D2 page, one FB-N block',
+    '  references/departments/<slug>/department-spec.md     D3 specification layer',
+    '  references/departments/<slug>/prompts/01-implement-method.md',
+    '  references/departments/<slug>/prompts/02-robustness-checks.md',
+    '  references/departments/<slug>/references/method-patterns.md',
+    '',
+    'Plus:',
+    '  SKILL.md                     frontmatter rebuilt: scale_tier=group,',
+    '                               department_count=36, function_block_count=36,',
+    '                               version=5.0.0, interface.department.enum (auto + 36),',
+    '                               department_aliases pointer. permissions copied verbatim.',
+    '  references/department-index.md   7 domains, 36 rows',
+    '  references/error-codes.md        revived prefixes start at 001',
+    '  references/scaling.md            Alias Map appended (append-only): 18 large slugs -> 36 group slugs',
+    '',
+    'Then re-run the six gates (G6 executes the package test suite).',
+    '',
+    'DO NOT INSTALL until a human has approved and an external installer applies it.'
+  )
+  Write-TextFileNoBom -Path (Join-Path $PkgDir 'UPGRADE-WORK-ORDER.txt') -Text (($order -join "`n") + "`n")
+  Write-Log '5a UPGRADE-WORK-ORDER.txt emitted (group scaffold)'
 }
 
 # --------------------------------------------------------------------------------------
@@ -2343,11 +3278,14 @@ function Invoke-GateG6 {
   $expectedFiles = $TargetFileCount[$Edge.To]
 
   # File count over the SAME package file set the 5h copy uses (H-1: the copy
-  # range and the counting basis must never diverge again). The
-  # UPGRADE-PROPOSAL.md report artifact is not package content and is excluded.
+  # range and the counting basis must never diverge again). Proposal-time
+  # artifacts are not package content and are excluded: UPGRADE-PROPOSAL.md (the
+  # report) and UPGRADE-WORK-ORDER.txt (the scaffold authoring checklist).
   $reportPath = Join-Path $PkgDir 'UPGRADE-PROPOSAL.md'
+  $workOrderPath = Join-Path $PkgDir 'UPGRADE-WORK-ORDER.txt'
   $fileCount = @(Get-PackageRelativePaths -Root $PkgDir).Count
   if (Test-Path -LiteralPath $reportPath) { $fileCount = $fileCount - 1 }
+  if (Test-Path -LiteralPath $workOrderPath) { $fileCount = $fileCount - 1 }
   if ($fileCount -ne $expectedFiles) {
     $fails += "file_count: expected $expectedFiles, found $fileCount"
   }
@@ -2384,8 +3322,13 @@ function Invoke-GateG6 {
         $enumItems = @($enumMatch.Groups[1].Value -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne '' })
       }
       $expectedEnum = @('auto') + @($Edge.Split | ForEach-Object { [string]$_.Slug })
-      if ($enumItems.Count -ne ($expectedEnum.Count)) {
-        $fails += ("interface.department.enum has {0} item(s), expected {1} (auto + department_count)" -f $enumItems.Count, $expectedEnum.Count)
+      # A scaffold edge declares no Split (its department slugs are undefined),
+      # so the expected item count comes from DepartmentCount; the per-item
+      # cross-check below still lists every carried slug that must be replaced.
+      $expectedEnumCount = $expectedEnum.Count
+      if (@($Edge.Split).Count -eq 0) { $expectedEnumCount = [int]$Edge.DepartmentCount + 1 }
+      if ($enumItems.Count -ne $expectedEnumCount) {
+        $fails += ("interface.department.enum has {0} item(s), expected {1} (auto + department_count)" -f $enumItems.Count, $expectedEnumCount)
       }
       foreach ($item in $enumItems) {
         if ($expectedEnum -notcontains $item) {
@@ -2623,6 +3566,13 @@ function Show-Status {
   $metrics = Get-CurrentMetrics -State $state -Config $config
   Write-Output '=== self-scale status ==='
   Write-Output ("current_tier            : {0}" -f $state.current_tier)
+  $targets = @(Get-SelectableTargetTiers -FromTier ([string]$state.current_tier) -Config $config)
+  if ($targets.Count -gt 0) {
+    Write-Output ("selectable targets      : {0}" -f ($targets -join ', '))
+    Write-Output ("default target          : {0} (omit -TargetTier)" -f (Get-DefaultTargetTier -FromTier ([string]$state.current_tier) -Config $config))
+  } else {
+    Write-Output 'selectable targets      : none (already at the highest implemented tier)'
+  }
   Write-Output ("next_evaluation         : {0}" -f $state.next_evaluation)
   $src = $metrics.Sources
   Write-Output ("agent_count             : {0}  [{1}]" -f $metrics.AgentCount, $src.agent_count)
@@ -2663,26 +3613,55 @@ function Show-Report {
 function Invoke-Proposal {
   param($State, $Metrics, $Triggers, $Config, [int]$RoutingMissStreak)
 
-  # --- Step 4 : deterministic merge-tree lookup -------------------------------
-  Write-Log '4 looking up the upgrade path in the merge tree (deterministic, no improvisation)...'
-  if ([string]$State.current_tier -eq 'group') {
-    Stop-WithCode 'SCL_009' 'already at the highest tier (group); no upgrade path exists'
+  # --- Step 4 : deterministic target selection (arbitrary scale choice) --------
+  # Any tier listed in scaling-config.json selectable_targets for the current
+  # tier may be requested via -TargetTier (cross-tier jumps included); omitting
+  # it keeps the historical linear default. Resolution is a deterministic table
+  # lookup - the script never improvises a path that is not declared in
+  # $UpgradeEdges / $UpgradeBuildFns.
+  Write-Log '4 resolving the upgrade target (any selectable tier; deterministic, no improvisation)...'
+  if ([string]$State.current_tier -eq $Config.MaxTier) {
+    Stop-WithCode 'SCL_009' ("already at the highest tier ({0}); no upgrade path exists" -f $Config.MaxTier)
   }
-  # Dispatch the active upgrade edge by the package's CURRENT tier. Each edge
-  # carries its own target build function ($BuildFn) so propose stays
-  # non-destructive and never improvises a path that is not declared here.
-  $Edge = $null
-  $BuildFn = $null
-  if ([string]$State.current_tier -eq $UpgradeEdge.From) {
-    $Edge = $UpgradeEdge
-    $BuildFn = { param($Dir) New-UpgradePackage -PkgDir $Dir }
-  } elseif ([string]$State.current_tier -eq $MediumEdge.From) {
-    $Edge = $MediumEdge
-    $BuildFn = { param($Dir) New-SmallToMediumUpgradePackage -PkgDir $Dir }
+  $fromTier = [string]$State.current_tier
+  $toTier = [string]$TargetTier
+  $vocab = @($Config.TierOrder)
+  if ([string]::IsNullOrWhiteSpace($toTier)) {
+    # Backward-compatible default: the first selectable target (the linear next
+    # tier), exactly what the old per-tier hardwired dispatch chose.
+    $toTier = Get-DefaultTargetTier -FromTier $fromTier -Config $Config
+    if ([string]::IsNullOrWhiteSpace($toTier)) {
+      Stop-WithCode 'SCL_002' ("no default target defined for tier '{0}' (scaling-config.json upgrade_path / selectable_targets); pass -TargetTier explicitly" -f $fromTier)
+    }
+    Write-Log ("4 no -TargetTier given; default target on the linear path: {0}" -f $toTier)
   } else {
-    Stop-WithCode 'SCL_002' ("no upgrade mapping defined for tier '{0}' in this build (supported edges: {1} -> {2}, {3} -> {4})" -f $State.current_tier, $UpgradeEdge.From, $UpgradeEdge.To, $MediumEdge.From, $MediumEdge.To)
+    if ($vocab -notcontains $toTier) {
+      Stop-WithCode 'SCL_008' ("unknown target tier '{0}'; the tier vocabulary is: {1}" -f $toTier, ($vocab -join ', '))
+    }
+    if ($toTier -eq $fromTier) {
+      Stop-WithCode 'SCL_008' ("target tier '{0}' equals the current tier; there is nothing to upgrade" -f $toTier)
+    }
+    if (($vocab.IndexOf($toTier)) -lt ($vocab.IndexOf($fromTier))) {
+      Stop-WithCode 'SCL_008' ("downgrade {0} -> {1} is not an automatic action: a downgrade requires written human approval and a deleted-content destination table (error-codes.md SCL_008)" -f $fromTier, $toTier)
+    }
+    if ($Config.SelectableTargets.ContainsKey($fromTier) -and (@($Config.SelectableTargets[$fromTier]) -notcontains $toTier)) {
+      Stop-WithCode 'SCL_002' ("target '{0}' is not selectable from '{1}' per scaling-config.json; selectable targets from '{1}': {2}" -f $toTier, $fromTier, (@($Config.SelectableTargets[$fromTier]) -join ', '))
+    }
   }
+  $pairKey = ("{0}->{1}" -f $fromTier, $toTier)
+  $Edge = $null
+  # NOTE: $UpgradeEdges is an OrderedDictionary; its membership test is Contains
+  # (ContainsKey does not exist on that type in Windows PowerShell 5.1).
+  if ($UpgradeEdges.Contains($pairKey)) { $Edge = $UpgradeEdges[$pairKey] }
+  if ($null -eq $Edge) {
+    $avail = @(Get-SelectableTargetTiers -FromTier $fromTier -Config $Config)
+    Stop-WithCode 'SCL_002' ("no upgrade builder defined for {0} in this build; selectable targets from '{1}': {2}" -f $pairKey, $fromTier, (@($avail) -join ', '))
+  }
+  $BuildFn = $UpgradeBuildFns[$pairKey]
   Write-Log ("4 upgrade path: {0} -> {1} (function blocks conserved at {2}; departments -> {3}; major {4} -> {5})" -f $Edge.From, $Edge.To, $Edge.ExpectedBlocks, $Edge.DepartmentCount, $Edge.OldVersion, $Edge.NewVersion)
+  if ($Edge.Scaffold) {
+    Write-Log '4 NOTE scaffold target: the package carries UPGRADE-WORK-ORDER.txt, not authored content; the content gates fail by design and nothing is recorded in the state file'
+  }
 
   # --- Step 5 : generate the upgrade package -----------------------------------
   $pkgName = (Get-Date).ToString('yyyyMMdd-HHmmss')
@@ -2691,28 +3670,15 @@ function Invoke-Proposal {
 
   if ($DryRun) {
     Write-Log "DRY-RUN: would generate the upgrade package in $pkgDir"
-    if ($Edge -eq $UpgradeEdge) {
-      Write-Log 'DRY-RUN: 5h copy the package (excluding .scaling-state.json, retired D2, __pycache__/, *.pyc)'
-      Write-Log 'DRY-RUN: 5a/5b split 2 legacy D2 pages into 5 departments (18 blocks conserved; leftover/shortage aborts with SCL_010)'
-      Write-Log 'DRY-RUN: 5a generate prompts/03-test-cases.md (agent-invoked, L3)'
-      Write-Log 'DRY-RUN: 5d rewrite frontmatter (scale_tier=small, department_count=5, version=2.0.0, enum + description)'
-      Write-Log 'DRY-RUN: 5e bump _meta.json; append the error-code alias-table skeleton (requires human review)'
-      Write-Log 'DRY-RUN: 5g append 5 alias rows to the package Alias Map'
-      Write-Log 'DRY-RUN: 5i bump README versions (counted, context-exact); rewrite structure trees to the 30-file skeleton; insert the CHANGELOG entry after [Unreleased]'
-      Write-Log 'DRY-RUN: package state file with tier_history skeleton entry (append-only)'
-    } else {
-      Write-Log 'DRY-RUN: 5h copy the package (excluding .scaling-state.json; small already carries prompts/03-test-cases.md, no D2 retirements)'
-      Write-Log 'DRY-RUN: 5a migrate 8 function blocks from 5 source departments into 4 new departments (re-prefixed; source pages re-baselined; 18 blocks conserved)'
-      Write-Log 'DRY-RUN: 5a author 4 new department D2 files (legal-and-risk, data-and-analytics, product-and-strategy, customer-and-partnerships)'
-      Write-Log 'DRY-RUN: 5a author references/shared/{glossary, cross-department-handoff, common-patterns}.md'
-      Write-Log 'DRY-RUN: 5d rewrite frontmatter (scale_tier=medium, department_count=9, version=3.0.0, enum + description)'
-      Write-Log 'DRY-RUN: 5e bump _meta.json; transform error-codes.md (move 8 codes, re-baseline 5 source prefixes, insert 4 new prefixes, append resolved alias history)'
-      Write-Log 'DRY-RUN: 5g append 8 alias rows to the package Alias Map'
-      Write-Log 'DRY-RUN: 5i bump README versions to 3.0.0; rewrite structure trees to the 37-file skeleton; insert the CHANGELOG entry'
-      Write-Log 'DRY-RUN: package state file initialized for tier medium (append-only)'
-    }
+    # Each edge is self-describing: its DryRun fragment list lives on the edge,
+    # so a new pair needs no change here.
+    foreach ($line in @($Edge.Report.DryRun)) { Write-Log $line }
     Write-Log 'DRY-RUN: 6 run gates G1-G6 on the package'
-    Write-Log 'DRY-RUN: 7 write UPGRADE-PROPOSAL.md; 8 stop (no install)'
+    if ($Edge.Scaffold) {
+      Write-Log 'DRY-RUN: scaffold edge - content gates fail by design; the package is left in place (not quarantined), nothing is recorded in the state file, exit 0'
+    } else {
+      Write-Log 'DRY-RUN: 7 write UPGRADE-PROPOSAL.md; 8 stop (no install)'
+    }
     exit 0
   }
 
@@ -2721,7 +3687,7 @@ function Invoke-Proposal {
   }
   New-Item -ItemType Directory -Path $pkgDir -Force | Out-Null
   Write-Log ("5 generating upgrade package in {0}" -f $pkgDir)
-  & $BuildFn $pkgDir
+  & $BuildFn $pkgDir $Edge
 
   # --- Step 6 : the six gates, one independent branch each (README_FOR_AI.md sec 12.3) ---
   Write-Log '6 running gates G1-G6 on the upgrade package...'
@@ -2765,6 +3731,25 @@ function Invoke-Proposal {
   }
 
   if ($failedGates.Count -gt 0) {
+    # SCAFFOLD edge (large -> group): the content gates (G4/G5/G6) failing IS
+    # the expected outcome - the package is a work order, not a defect. Such a
+    # package is left in place (never quarantined), nothing is recorded in
+    # .scaling-state.json (no installer may apply it) and no proposal report is
+    # written; the failure detail logged above is the authoring checklist.
+    # Any failure OUTSIDE the content gates is a real defect and keeps the
+    # normal quarantine semantics below.
+    if ($Edge.Scaffold) {
+      $onlyContentGates = $true
+      foreach ($g in $failedGates) { if (@('G4', 'G5', 'G6') -notcontains $g) { $onlyContentGates = $false } }
+      if ($onlyContentGates) {
+        $workOrder = Join-Path $pkgDir 'UPGRADE-WORK-ORDER.txt'
+        Write-Log ("6 SCAFFOLD: {0} failed by design (authored content missing); the failure detail above is the authoring checklist" -f ($failedGates -join ', '))
+        Write-Log ("6 SCAFFOLD: package left in place at {0}; work order: {1}" -f $pkgDir, $workOrder)
+        Write-Log '8 STOP - scaffold generated, NOT a proposal: nothing was recorded in .scaling-state.json and no installer may apply this package.'
+        exit 0
+      }
+      Write-Log ("6 SCAFFOLD edge but non-content gate(s) failed: {0}; treating this as a defect (quarantine)" -f ($failedGates -join ', '))
+    }
     $codeByGate = @{ 'G1' = 'SCL_004'; 'G2' = 'SCL_005'; 'G3' = 'SCL_004'; 'G4' = 'SCL_010'; 'G5' = 'SCL_003'; 'G6' = 'SCL_006' }
     $code = $codeByGate[$failedGates[0]]
     # Recoverable quarantine (P23): the package is moved aside, never destroyed.
@@ -2781,7 +3766,7 @@ function Invoke-Proposal {
       code = $code
       gates_failed = $failedGates
       detail = $gateDetails
-      package_path = $rejectedDir
+      package_path = (Get-WorkspaceRelativePath -Path $rejectedDir)
     })
     Save-State -State $State
     exit 3
@@ -2797,7 +3782,7 @@ function Invoke-Proposal {
     to_tier = $Edge.To
     proposed_at = (Get-UtcNowIso)
     trigger_reasons = @()
-    package_path = $pkgDir
+    package_path = (Get-WorkspaceRelativePath -Path $pkgDir)
     status = 'pending'
     approved_by = $null
     installed_at = $null

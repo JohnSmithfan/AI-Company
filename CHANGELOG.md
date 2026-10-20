@@ -1,12 +1,83 @@
 # Changelog
 
-All notable changes to this project will be documented in this file.
+All notable changes to the AI Company skill package are documented in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
-and this project adheres to
-[Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+**Major version = tier ordinal.** `micro` = 1, `small` = 2, `medium` = 3, `large` = 4,
+`group` = 5. A tier change is a breaking change and always increments the major version.
+
+| Version rule | Increment |
+|---|---|
+| Tier upgrade or downgrade | major ±1, minor and patch reset to 0 |
+| Department content revision, no structural change | minor +1 |
+| Typo, threshold tweak, alias append | patch +1 |
+
+This package reached tier `large` through the `ai-company` bloodline
+(micro -> small -> medium -> large); the large-tier content was derived from
+the standalone `ai-company-large` reference project, whose own release
+history is preserved under "Predecessor project history" below.
+
+* * *
 
 ## [Unreleased]
+
+- README_FOR_AI.md fully translated to English (§1–§16 + P1–P55): body text is
+  English per §6.3, the pre-2026-10-21 Chinese original is preserved
+  per-section inside HTML comments for comparison only (hidden at render
+  time), and section numbering plus the six immutable identifier classes
+  (P48) are unchanged. During translation three stale statements were
+  corrected (§1's three-edge claim, §12.1's path derivation, §10.4's
+  SCL_002/SCL_008 messages synced with the seven-edge mechanism), and the
+  §16 "language exemption" row was replaced by a "language policy and
+  translation record" row (the exemption is revoked)
+- AGENTS.md: README_FOR_AI.md removed from the source-language exemption list
+  (only README.zh.md remains exempt); the upgrade-path statement resynced to
+  the seven-edge any-target mechanism
+- New test (TestGovernanceLayer): README_FOR_AI.md body contains no CJK after
+  stripping HTML comments (suite: 110 tests)
+- README (all three siblings): new Usage subsection "Regenerating this package
+  with an AI" — hands README_FOR_AI.md to any LLM agent as the self-contained
+  generation specification (large tier, 14-step workflow in §4, §15 acceptance
+  required). Scoped to maintainers/auditors; explicitly distinct from the
+  runtime propose-only self-scaling and tier-locked to `large`
+- Upgrade mechanism: `propose` now accepts any selectable target tier via
+  `-TargetTier` (default remains the linear adjacent tier from
+  `scripts/scaling-config.json` `upgrade_path`). Seven dispatch edges:
+  micro->small, small->medium, medium->large, micro->medium (in-place
+  two-stage composition), micro->large, small->large, large->group
+- large->group ships as a scaffold: verbatim carry-forward, package state
+  skeleton (gates_passed = 3), and UPGRADE-WORK-ORDER.txt; G4-G6 fail by
+  design and the failure detail is the authoring checklist; exit 0, no
+  live-state record, no proposal report
+- Target resolution errors re-mapped: SCL_008 (same-tier / downgrade /
+  unknown vocabulary / outside selectable_targets), SCL_002 (in-set pair
+  without a builder; message lists selectable targets), SCL_009 (already at
+  max tier), SCL_007 now also covers config-vs-script dispatch drift
+- Fixed a latent defect in the -> large builder: the department_aliases
+  frontmatter pointer was appended after the closing delimiter when the
+  source package had no inherited pointer (G6 rejection); now inserted
+  inside the frontmatter
+- New tests (TestScalingMechanism): -TargetTier parameter declared, edge
+  table and builder table pair every edge with a builder inside
+  selectable_targets, config tier_order matches the script, default target
+  is the first selectable, five-tier file counts match config, group
+  scaffold declared and state-free (suite: 110 tests)
+- references/scaling.md: header resynced to large/4.0.0; Section 2 rules
+  rewritten (default edge + any-target selection + scaffold contract);
+  Section 4 retitled to the seven-edge dispatch table; Section 7 step 4 and
+  Section 10 error-code semantics updated
+
+## [4.0.0] - 2026-10-20 - tier upgrade proposal (medium -> large)
+
+- Departments: 9 -> 18 (the 9 medium-tier departments are retired; 18 large-tier departments replace them; 18 function blocks conserved, one per department)
+- Error-code prefixes: 10 -> 19 (18 department prefixes + SCL_ infrastructure; 117 codes)
+- New D3 layer per department, 7-domain routing, and a department index
+- Slug aliases appended to references/scaling.md (Alias Map)
+- PROPOSED ONLY - requires human approval and an external installer
+
+* * *
 
 ## [3.0.0] - 2026-10-20 - tier upgrade proposal (small -> medium)
 
@@ -14,7 +85,12 @@ and this project adheres to
 - New error-code prefixes: CLR_, CDO_, CPO_, CCO_ (resolved alias table appended to references/error-codes.md)
 - New shared modules: references/shared/{glossary, cross-department-handoff, common-patterns}.md
 - Slug aliases appended to references/scaling.md (Alias Map)
-- PROPOSED ONLY - requires human approval and an external installer
+- Installed 2026-10-20 by an external trusted installer; human-accepted
+  2026-10-20 (acceptance_passed=true in .scaling-state.json; the test suite
+  re-based to medium: 56 tests OK, 1 skip - test_propose_smoke_on_clean_copy
+  skips on non-micro tiers).
+
+* * *
 
 ## [2.0.0] - 2026-10-19 - tier upgrade proposal (micro -> small)
 
@@ -466,13 +542,15 @@ immutable-boundary tests skip when no proposal package is present, and
   agents"; Departments table expanded 2 -> 5 rows; Error Code Prefixes table
   expanded 3 -> 6 prefixes (adds CISO_/CHO_/CQO_).
 - **Stale proposal package removed** from the correct path
-  `C:\Users\Admin\.agents\skills\.skill-upgrade` (the package lives in the
+  `{WORKSPACE_ROOT}/.skill-upgrade` (the package lives in the
   skill's *parent* directory, not inside the package — an earlier mis-deletion
   targeted the wrong location and left a stale package that broke the
   immutable-boundary byte-equality test).
 - **`.scaling-state.json` acceptance closed out**: `acceptance_passed` set to
   `true` in the top-level `validation`, `tier_history[0].validation` and
   `pending_proposals[0].validation` (written LF, no CRLF).
+
+* * *
 
 ## [1.0.0] - 2026-09-21
 
@@ -509,3 +587,258 @@ immutable-boundary tests skip when no proposal package is present, and
   (`.editorconfig` through `_meta.json`), including this changelog.
 - Bilingual documentation: `README.md` and `README.en.md` (English) plus
   `README.zh.md` (Chinese), with identifiers kept untranslated.
+
+* * *
+
+## Bloodline maintenance - 2026-10-20 (post-3.0.0)
+
+- The self-contained spec file was standardised from `README-FOR-AI.md` to
+  `README_FOR_AI.md`, and every reference across the package was corrected -
+  the test suite and the base-framework gates hard-code the underscore name.
+  Historical entries below that cite `README-FOR-AI.md` quote the name as it
+  was at the time.
+
+* * *
+
+## Predecessor project history (ai-company-large reference implementation)
+
+The large-tier content of this package - the 18 department D2/D3 pages, the
+117-code error catalog, the models layer, the prompts and the governance files
+- was derived from the standalone `ai-company-large` reference project. That
+project was generated directly at tier `large` and versioned independently;
+its own release history is preserved here for provenance and is **not** part of
+this package's version lineage. Its final state (v4.1.0, 2026-10-19) is the
+content basis of the [4.0.0] entry above.
+
+### Predecessor 4.1.0 - 2026-10-19
+
+This release contains the department-layer completion and the ledger
+corrections listed under the pre-4.1.0 ledger below, plus the migration to
+the current specification described here. No department, error code or
+function block changed — the migration surface is the code authority, the
+prompt layer, the governance layer, the host-metric channel, and the two
+gate defects the 2026-10-19 smoke test exposed.
+
+### Changed
+
+- **Code authority moved.** `references/templates.md` is deleted; the 10 shared
+  templates now live in `references/method-patterns.md` §3, adopted
+  byte-identical to the current specification — the 2026-09-28 review fixes
+  included (credential-name environment scrubbing in template 3, CN
+  phone-number variants in template 9, bounded rate-limit memory in template 8,
+  fail-closed reference reads in template 6). The file keeps its seven-section
+  shape and remains the only place template code exists (P44).
+- **Prompts reduced 5 → 4 with mode declarations.**
+  `prompts/05-workflow-execution.md` is removed (its function is covered by
+  `references/exec/`); 01/02 are `mode: human-paste` (self-contained, H1–H7),
+  03/04 are `mode: agent-invoked` (`{SKILL_DIR}` placeholders, declared
+  artifacts / error codes / harness, A1–A5).
+- **Governance layer completed to 13 files** (P50): added `README_FOR_AI.md`,
+  `README.en.md`, `README.zh.md`, `AGENTS.md`, `CODE_OF_CONDUCT.md`,
+  `SECURITY.md`, `.editorconfig` and `.gitattributes`. Package file count
+  **142 → 148**; every count claim in `README.md`, `SKILL.md`, `AGENTS.md` and
+  the test suite resynced.
+- **Version 4.0.0 → 4.1.0** (minor; major 4 still equals the `large` tier
+  ordinal). Version locations are the specification's three (D-2):
+  `_meta.json`, the README badge and the `SKILL.md` frontmatter — the
+  body-title location is removed.
+
+### Added
+
+- **Host-metric write-back channel** for the two host-supplied triggers:
+  `scripts/self-scale.ps1 -Action record-metrics` plus a drop directory
+  (`{WORKSPACE_ROOT}/.skill-metrics`, ingested at the next `evaluate` /
+  `propose`), with domain validation, UTC normalisation, freshness gating
+  (`host_metrics.max_age_days`) and routing-sample minimums
+  (`host_metrics.min_routing_samples`). Accepted values are mirrored into
+  `last_metrics` and audited in `metrics_log`; the state file records
+  `metrics_provenance`, `routing_miss_streak` and `host_metrics`. Until a host
+  writes them, T1/T3 cannot fire — a declared limitation, not a latent bug.
+- `references/scaling.md` §4.1 documents the channel contract; §4 records
+  metric provenance (host-supplied vs measured) and the T4 formula as
+  implemented by `Get-ErrorCodeReuseRatio`.
+
+### Fixed
+
+- **G1/G3 baseline-hash scoping defect** (smoke-test finding 1): the baseline
+  hashes were assigned inside `Initialize-Baseline`, so the script-scope
+  variables stayed `$null` and both gates compared every proposal against
+  `$null` — byte-identical packages were always reported as tampered. Both
+  gates now compare the live current-vs-package hashes at gate time.
+- **G2 self-contradiction** (smoke-test finding 2): G2 flagged *any* path under
+  `tests/` while spec step 5h copies `tests/` forward byte-identical and G6
+  requires the suite inside the package, so a script-generated proposal could
+  never pass. G2 is now a bidirectional `tests/**` hash-map comparison
+  (missing / differs / unexpected all flagged; build residues excluded).
+- **Proposal package assembly omitted existing root files.** `New-ProposalPackage`
+  carried forward only a subset of root files, dropping `SKILL.md`,
+  `README.en.md`, `README.zh.md`, `README_FOR_AI.md`, `AGENTS.md`,
+  `CODE_OF_CONDUCT.md`, `SECURITY.md`, `.gitattributes`, `.editorconfig` and
+  `.scaling-state.json`. A fresh `large → group` proposal therefore failed G1/G3
+  ("package has no SKILL.md") and G6's required-file checks before any authored
+  content was considered, and the work order's "permissions copied verbatim" had
+  no source file to copy from. All ten existing root files are now carried
+  forward; the only authored delta remains the `SKILL.md` frontmatter rebuild and
+  the installer's `pending_proposals` merge into `.scaling-state.json`.
+- **`propose` run aborted before writing its report.** G6 invoked the package
+  test suite with `& python …`; the suite writes progress to stderr (unittest
+  default), which under the script's `$ErrorActionPreference = 'Stop'` raised a
+  `NativeCommandError` and terminated the whole `propose` run before
+  `Write-ProposalReport` / `Write-StateDelta` executed — so `UPGRADE-PROPOSAL.md`
+  and `scaling-state-delta.json` were never produced. The invocation now
+  redirects stderr, lowers EAP for the call, and wraps it in try/catch, so the
+  run always completes and the test-failure detail is captured as a clean G6
+  problem instead of aborting. A fresh proposal now evaluates **4 of 6 gates**
+  (G1/G2/G3/G5 pass; G4 and G6 fail by design — the scaffold has no 18 new
+  departments and is still at tier `large` / v4.1.0).
+
+### Predecessor pre-4.1.0 ledger (the predecessor's [Unreleased])
+
+### Added
+
+- **Department layer completed (15 departments, 75 files).** The 2026-09-10 initial generation
+  stopped after 3 of 18 departments while its documentation claimed all 18. Built to the three
+  existing pages as reference samples: `operations-coordination`, `board-and-branch`,
+  `finance-treasury`, `risk-audit`, `procurement-billing`, `platform-mlops`, `model-data`,
+  `legal-privacy`, `incident-identity`, `lifecycle-training`, `knowledge-ethics`,
+  `marketing-partnerships`, `intelligence-sentiment`, `quality-visualization`,
+  `delivery-scheduling` — each with a D2 page (one `## FB-1:` block) and a 4-file D3 directory
+  (department-spec + 2 prompts + department method-patterns). Every D2 §4 message column is
+  byte-identical to `references/error-codes.md`; every department code appears in exactly one
+  department table. All 18 D2 preambles now carry `Department Harness Baseline: L3`.
+- Disk now matches every published claim: **18 departments / 18 function blocks / 142 files /
+  117 error codes**, test suite **88/88 exit 0**. The mid-generation status banner that this
+  changelog section replaced has been removed from README and SKILL.md.
+
+### Fixed
+
+- `tests/test-method-patterns.py::test_error_codes_match_prefix_declaration` parsed the
+  `error_code_prefixes:` declaration by splitting on a blank line. The declaration is a
+  wrapped YAML flow list, so the segment ran past the frontmatter into the permissions block,
+  where `{SKILL_DIR}` was read as a phantom `SKILL` prefix and the test failed against a
+  defect that did not exist. The test now extracts the frontmatter segment (between the first
+  two `---` fences) and parses the flow list up to its closing `]`. Reverse-verified: the old
+  parsing logic fails on the current package.
+- `.scaling-state.json`: `next_evaluation` was `2026-10-10` (overdue); rolled forward 30 days.
+  `routing_accuracy` was `null`; set to the initial default `1.0` — the same default the
+  specification states for host-supplied metrics before any host runtime has written one.
+  Both metrics remain **defaults, not measurements**: no host has recorded `agent_count` or
+  `routing_accuracy`, so T1 and T3 cannot fire (declared limitation, not a latent bug).
+
+### Known issues (found by the 2026-10-19 upgrade-path smoke test — pending human decision)
+
+The `large` → `group` proposal smoke test (run on a disposable copy, nothing installed)
+exposed two defects in the Sep-10 gate implementation. Both make gates **fail closed** —
+they over-reject, never under-reject — but a gate that cannot pass is a gate that cannot
+gate. Fixing either means editing `scripts/self-scale.ps1` gate logic, which requires human
+audit under §9.5; no fix was applied unilaterally.
+
+| # | Defect | Effect | Correct behaviour (already implemented in the current `ai-company` micro package) |
+|---|---|---|---|
+| 1 | `$BaselinePermissionsHash` / `$BaselineScriptHash` are assigned inside `Initialize-Baseline`, which creates function-local copies; the script-scope variables stay `$null` | G1 and G3 compare every proposal against `$null` and **always** report tampering, even for byte-identical files (verified: SHA-256 of the copied script matches the original exactly) | Compute both hashes at gate time from the live current-vs-package files (micro G3) |
+| 2 | G2 flags **any** path under `tests/` in a proposal, while spec step 5h copies `tests/` forward byte-identical and G6 requires `tests/test-method-patterns.py` inside the package to run acceptance | A script-generated proposal can never pass G2; the two spec artifacts contradict each other | Hash-map comparison of `tests/**` (micro G2): byte-identical required, missing or unexpected files flagged |
+
+Also observed in the smoke test and consistent with design: G4 correctly rejected the
+incomplete proposal (0 blocks vs the 36 required at `group`), G5 passed, G6 failed on the
+missing `SKILL.md`/state file, and the run ended with "the package is NOT installable in this
+state" — propose-only held, the skill directory was left untouched.
+
+**Resolved in 4.1.0.** The 2026-10-19 migration to the current specification
+fixed both defects; see the predecessor 4.1.0 entry above. G1/G3 now
+compare live
+current-vs-package hashes, and G2 is a byte-identical `tests/**` hash map.
+Two further `propose`-side defects found while re-running the smoke test are
+also resolved: `New-ProposalPackage` now carries the ten existing root files
+forward (so G1/G3/G6 can evaluate them instead of reporting "package has no
+SKILL.md"), and the `propose` run no longer aborts on the test suite's stderr
+before writing `UPGRADE-PROPOSAL.md` / `scaling-state-delta.json`. A fresh
+proposal now evaluates **4 of 6 gates** (G4/G6 still fail by design on the
+incomplete scaffold).
+
+### Predecessor 4.0.0 - 2026-09-10
+
+Initial generation at scale tier `large`.
+
+### Added
+
+**Structure**
+- Root `SKILL.md` with a 149-line frontmatter (budget ≤ 150): 66 triggers grouped by the 7
+  domains, `errors: []` with the full table externalised, 19 declared error-code prefixes,
+  a `self_scaling` block, and the `metadata` tier triple (`scale_tier` / `department_count` /
+  `function_block_count`)
+- Two-level routing: `domains` in the frontmatter plus an externalised
+  `references/department-index.md` holding the authoritative 18-department enum
+- 18 department D2 pages, one `## FB-1:` function block each — 18 function blocks total
+- 18 department D3 subdirectories (72 files): `department-spec.md` + 2 prompts +
+  department-specific `method-patterns.md`
+- Shared reference modules: `execution.md` → `exec/` (4), `memory.md` → `mem/` (2),
+  `visualization.md` → `viz/` (4), `data-integration.md` → `data/` (3), plus `integrations.md`
+- 5 copy-paste prompts in `prompts/`
+- Model management: registry with 7 models, calling policy, one adapter, 6 API configs,
+  1 local config, 2 field-contract templates
+- Test suite with four assertion classes (A behaviour · B source integrity · C structural
+  consistency · D immutable boundary)
+
+**Error codes**
+- 117 codes across 19 prefixes — 18 department prefixes (107 codes) plus the infrastructure
+  prefix `SCL_` (10 codes)
+- Every code carries Message, Trigger Condition and Resolution Steps
+- Numbering is continuous from `001` within each prefix, with no gaps
+
+**Self-scaling (propose-only)**
+- `references/scaling.md`: the three-stage model (propose → approve → install), the
+  `large` → `group` upgrade path derived from the merge tree, four quantitative triggers
+  (T1–T4), six gates (G1–G6), the slug alias mechanism, version strategy and downgrade policy
+- `.scaling-state.json`: tier history, metrics and pending proposals — package metadata,
+  deliberately tracked rather than ignored
+- `scripts/self-scale.ps1`: four actions (`evaluate` / `propose` / `report` / `status`),
+  six independently-logged gates, cross-platform backup directory resolution
+- `scripts/scaling-config.json`: thresholds, the immutable-path list and the non-waivable gate set
+- Workflow **WFT-010 Tier Upgrade Proposal**, execution mode fixed to `Approve`
+
+**Workflows**
+- Core set WFT-001~008 enabled at this tier; WFT-009 defined but reserved for `group`;
+  WFT-010 enabled
+- No extension workflows (`WFT-1xx`) defined — the nine enabled core workflows cover this tier's
+  operational surface
+
+### Design decisions
+
+| Decision | Rationale |
+|---|---|
+| Template implementations live only in `references/templates.md` | Two divergent copies with a vague index line make the authoritative source undeterminable |
+| `mask_sensitive_data` covers EMAIL, IP **and** PHONE | A predecessor's source lacked the PHONE branch while its contract and tests named it; the gap stayed invisible because its suite carried an inlined copy |
+| Department sub-manifests are `department-spec.md`, never `SKILL.md` | A recursive loader would register each as an independent skill, colliding with the parent's triggers |
+| The upgrade script has no `install` / `apply` / `commit` action | Self-installation would require write access to `{SKILL_DIR}`, which is the boundary gates G1–G3 exist to protect |
+| Gates G1–G3 are non-waivable even by human approval | An approval is a control for business scale change, not for security boundary change |
+| `errors: []` in the frontmatter | Inlining 117 codes would consume roughly 120 lines of the D1 layer on every invocation |
+| `department` enum externalised at this tier | Inlining 18 entries would push the frontmatter past its 150-line budget (superseded before the re-derivation: the base-framework gate G6 requires the department enum inlined at every tier - see `README_FOR_AI.md` sec 6.1; the 18 entries fit inside the 150-line budget) |
+
+### Known limitations
+
+| Limitation | Note |
+|---|---|
+| The adapter's transport is a stub | No network I/O is performed; a deployment injects a real transport. Resolution, validation, key handling and rate limiting are the parts under test |
+| Calling-policy numbers are documented defaults | `calling-policy.json` carries `values_are_examples: true`; derive real ceilings from observed unit economics |
+| `agent_count` starts at 0 | Trigger T1 cannot fire until real metrics are recorded in `.scaling-state.json` |
+| Tier upgrade requires human approval and an external installer | By design — see `references/scaling.md` §1 |
+
+* * *
+
+## Version history
+
+| Version | Date | Tier | Departments | Note |
+|---|---|---|---|---|
+| 1.0.0 | 2026-09-21 | `micro` | 2 | bloodline initial release |
+| 2.0.0 | 2026-10-19 | `small` | 5 | bloodline micro -> small (installed) |
+| 3.0.0 | 2026-10-20 | `medium` | 9 | bloodline small -> medium (installed) |
+| 4.0.0 | 2026-10-20 | `large` | 18 | bloodline medium -> large (this package; entry inserted by the upgrade generator at propose time) |
+
+The predecessor project's own releases (4.0.0 on 2026-09-10 and 4.1.0 on
+2026-10-19, both at tier `large`) are recorded under "Predecessor project
+history" above; they are not part of this package's version lineage.
+
+This package reached tier `large` through the bloodline, so `tier_history` in
+`.scaling-state.json` records the micro -> small -> medium -> large upgrades,
+and the Alias Map in `references/scaling.md` carries the corresponding
+medium -> large rows.

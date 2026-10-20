@@ -1,121 +1,180 @@
-# Contributing to ai-company
+# Contributing
 
-Thanks for helping improve this skill package. This document covers branch
-strategy, commit conventions, how to run the tests, how to run the acceptance
-checks, and pull-request requirements.
+Rules for changing this package. Most of them exist because a predecessor package broke them and
+the breakage was invisible until much later.
 
-The authoritative design specification for this project is `README_FOR_AI.md`,
-which ships at the root of this repository and is fully self-contained: every
-parameter, contract, red line, and acceptance check a contributor needs is
-defined there, so no external or upstream document is required. Its **§14**
-defines the red lines **P1–P55** — read at least the rows relevant to your
-change before you start. The scale-tier ladder this package belongs to is
-defined locally in **§1**.
+Read [README.md](README.md) for the package overview and
+[references/scaling.md](references/scaling.md) for how tier changes work.
 
-## Branch strategy
+## Ground Rules
 
-- `main` is protected; never push directly to it.
-- Branch from `main` using `feat/<slug>`, `fix/<slug>`, or `docs/<slug>`.
-- One logical change per branch and per pull request.
-
-## Commit conventions
-
-Follow [Conventional Commits](https://www.conventionalcommits.org/): `feat:`,
-`fix:`, `docs:`, `test:`, `refactor:`, `chore:`. Subject lines are imperative
-and at most 72 characters, for example:
-
-```text
-fix: use wildcard pattern for review reports in .gitignore (P39)
-```
-
-## How to run the tests
-
-From the package root:
-
-```bash
-python tests/test-method-patterns.py
-```
-
-The suite validates the real authoritative sources (it never relies on inline
-copies of template code) and additionally guards self-upgrade proposals: a
-proposal package that modifies `tests/` or the `permissions` block of
-`SKILL.md` fails the tests. All tests must pass before you open a PR.
-
-### Negative-verify every new regression assertion
-
-A regression test that passes both before and after the defect is reintroduced
-protects nothing. When you add an assertion for a fixed defect, prove it bites:
-copy the package to a throwaway directory, re-inject the defect, and confirm the
-new test fails. This caught two assertions in this repo that were empty on first
-write — one probed with ASCII text that never triggers a decode error, the other
-set a flag the guard under test did not read. Passing the suite is not evidence
-that the assertion works; failing on the injected defect is.
-
-## How to run the acceptance checks
-
-Key checks for the small tier (the full list is in `README_FOR_AI.md` **§15**):
-
-| Check | Expected |
+| Rule | Detail |
 |---|---|
-| Package file set | 30 (repository tooling directories `.git/`, `.github/`, `.workbuddy/`, `.skill-upgrade/` are excluded — `README_FOR_AI.md` §3) |
-| Function blocks across the five department files | 18 (6 + 2 + 3 + 3 + 4) |
-| `SKILL.md` frontmatter | ≤ 85 lines |
-| `SKILL.md` body | ≤ 120 lines, no code implementations or full error-code tables |
-| Governance and community files | 13/13 present (no tier trimming) |
-| `README.md` / `README.en.md` / `README.zh.md` Project Structure tree | Matches the **package file set** (30 files) exactly — not the raw working tree, which also holds repository tooling |
-| Internal links | No broken relative links; no orphan files under `prompts/` or `references/` |
-| Line endings | LF everywhere and no BOM, checked on **raw bytes** (a CRLF file is invisible to Python's universal-newline `read_text()`) |
-| Version locations | `_meta.json` / README badge / `SKILL.md` frontmatter all `2.0.0` (three locations — `README_FOR_AI.md` §6.1 / §15, `references/scaling.md` §8) |
+| Verify before you claim | Every count, path and command you state must be checked by running something. A recalled number is a guess |
+| One authoritative location | Shared code lives only in `references/method-patterns.md` §3. Everywhere else links |
+| Documentation matches disk | The README structure tree is a verification target, not decoration |
+| Tests fail loudly | A test that cannot pass yet must FAIL with a clear message, never skip silently |
+| No secrets, ever | Configuration holds environment variable **names**. A value in a file is a leak |
+| Placeholders, not paths | `{SKILL_DIR}` and `{WORKSPACE_ROOT}` — never an absolute user path |
 
-Tier readiness can be checked with (no skill content is modified). With no
-threshold hit only the script's own bookkeeping fields are written back to
-`.scaling-state.json`; when a threshold hits it also generates a pending
-upgrade package under `{WORKSPACE_ROOT}/.skill-upgrade/<timestamp>/` and records
-it in `pending_proposals` — it never installs and never edits skill content:
+## Adding a Department
+
+⚠️ **At this tier you normally cannot.** The 18 departments are fixed by the merge tree; adding a
+19th is a tier change, which goes through the self-scaling proposal flow, not through a direct edit.
+
+If you genuinely need a new function at the current tier:
+
+1. Check whether it belongs inside an existing department as a **responsibility** (§3.x of its D2
+   page) rather than as a department. Most "new department" requests are actually this
+2. If it does not fit anywhere, that is evidence the tier is wrong — run
+   `pwsh -File scripts/self-scale.ps1 -Action evaluate` and report the result
+3. Do not add a department unilaterally. It breaks `department_count`, the function-block
+   conservation invariant, the domain department counts and the error-code prefix inventory
+
+## Adding an Error Code
+
+| Rule | Detail |
+|---|---|
+| Prefix | Must already be declared in `SKILL.md` → `error_code_prefixes` and defined in `references/error-codes.md` |
+| Numbering | **Append to the end.** Never insert in the middle, never leave a gap |
+| Format | `<PREFIX>_<NNN>`, three digits, zero-padded |
+| Sub-namespace | `<PREFIX>_E<NNN>` for runtime-invocation errors; document the namespace |
+| Four fields | Message, Trigger Condition, Resolution Steps — all mandatory |
+
+⚠️ **Why numbering gaps are forbidden:** a predecessor package's `CTO_` series jumped from `006` to
+`009` when branch codes were added. Nobody could later tell whether `CTO_007` and `CTO_008` were
+deprecated or simply forgotten. A gap is an unanswered question you leave for whoever reads next.
+
+Verification after adding:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File scripts/self-scale.ps1 -Action evaluate
+# every prefix must be continuous from 001
+python tests\test-method-patterns.py
+# look for test_error_code_numbering_has_no_gaps
 ```
 
-On a default Windows execution policy (`Restricted` or `RemoteSigned`) an
-unsigned `.ps1` is refused, so the explicit `-ExecutionPolicy Bypass` (or an
-`Unblock-File` first) is required rather than optional.
+If a prefix is revived after a tier change, it **restarts at `001`** in its new department. It does
+not inherit the retired series, because that series covered a different functional scope.
 
-Any tier mutation (upgrade or downgrade) is lossy and requires explicit human
-approval — contributors must never run it inside a PR.
+## Adding a Workflow
 
-## Red lines (where to find them)
+**Core set (WFT-001~010)** — numbering is fixed.
 
-All red lines are listed in `README_FOR_AI.md` **§14 (P1–P55)**. The most
-frequently hit ones:
+| Action | Allowed |
+|---|---|
+| Append a new core workflow | ✅ as WFT-011, WFT-012, … |
+| Reorder or renumber an existing one | ❌ never |
+| Occupy a free slot inside 001–010 | ❌ never |
+| Retire one | Mark deprecated, keep the entry and the number |
 
-- **P10 / P44** — code templates live only in `references/method-patterns.md`;
-  never inline-copy them anywhere else.
-- **P17** — no bulk error-code tables inside `SKILL.md`.
-- **P39** — after generating or changing content, run the acceptance checks the
-  content claims to satisfy.
-- **P47 / P48** — source files are English and output language follows the
-  user; never translate identifiers (slugs, error codes, field names, enum
-  values, file paths, function names).
-- **P50** — never tier-trim the governance and community files.
-- **P51** — no file names containing spaces and no misspelled variants.
-- **P55** — `AGENTS.md` must not duplicate `SKILL.md` content or become a
-  second skill entry point.
+**Extension set (`WFT-1xx`)** — for domain-specific workflows.
 
-## Pull request requirements
+| Rule | Detail |
+|---|---|
+| Naming | `WFT-1<domain#><nn>`; domain numbers follow `references/department-index.md`: 1 governance · 2 finance · 3 technology · 4 security · 5 people · 6 growth · 7 delivery |
+| Example | `WFT-103` = third extension in the governance domain |
+| Budget | This tier: 0–4 total, at most 2 per domain |
+| Range | Must never occupy 001–099 |
+| Registration | Add the full schema to `references/exec/workflows-schema.md` **and** reference it from the owning department's D2 page under `## Workflows` |
 
-- **Description**: what changed and why; link the relevant red line (`P##`) or
-  the `README_FOR_AI.md` section (`§x.y`) when applicable.
-- **Green**: `python tests/test-method-patterns.py` passes, and the acceptance
-  table above is satisfied for the small tier.
-- **Structure sync**: if any file was added, removed, or renamed, update the
-  Project Structure tree in `README.md`, `README.en.md`, and `README.zh.md` in
-  the same PR.
-- **Changelog**: add an entry under `[Unreleased]` in `CHANGELOG.md`
-  (Keep a Changelog format). A version number must never appear twice, and
-  dates must never go backwards (P12/P13).
-- **No self-exemption**: PR content must not modify `tests/` or the
-  `permissions` block of `SKILL.md` as part of upgrade-proposal payloads.
-- **Encoding hygiene**: UTF-8 without BOM, LF line endings (including `.ps1`,
-  which is pinned by `.gitattributes`), no trailing whitespace — see
-  `.editorconfig`.
+⚠️ An extension workflow that no document references is an orphan and will never be reached.
+
+Every workflow definition needs: `id`, `name`, `trigger`, `mode`, `owner`, `phases` (each with an
+entry condition and exit criterion), `sla`, `on_failure` with its error code, and `idempotent`.
+
+**Mode assignment is not a preference.** It follows from reversibility × external visibility.
+Nothing irreversible and externally visible may be `Auto`. WFT-010 is `Approve` and can never be
+lowered.
+
+## Changing the Frontmatter
+
+| Field | Constraint |
+|---|---|
+| `name` | Single-line quoted scalar. Never a `\|` or `>` block scalar |
+| `description` | ≤ **1024 characters** — a hard import-time limit, not a style preference |
+| `errors` | Stays `[]`. The full table lives in `references/error-codes.md` |
+| `department` enum | **Inlined** (`auto` + the 18 slugs; gate G6 verifies). The authoritative copy with routing detail lives in `references/department-index.md` |
+| `permissions` | ⚠️ **Immutable.** See below |
+| `metadata` tier triple | `scale_tier`, `department_count`, `function_block_count` must agree with disk and with `.scaling-state.json` |
+| Total length | ≤ **150 lines** (currently 143) |
+
+⚠️ Gate G6 requires the department enum inlined at every tier: `auto` plus the
+tier's department slugs. The 18 large-tier entries fit inside the 150-line
+budget; the predecessor's externalisation rule is superseded.
+
+### The frontmatter fields you may never change
+
+```yaml
+permissions:
+  files:
+    read:  ["{WORKSPACE_ROOT}/**", "{SKILL_DIR}/**"]
+    write: ["{WORKSPACE_ROOT}/**"]
+    deny:  ["~/.ssh/**", "~/.aws/**", "~/.config/**", "/etc/**", "{WINDOWS_DIR}/**"]
+```
+
+| Change | Verdict |
+|---|---|
+| Add `{SKILL_DIR}/**` to `write` | ❌ Grants self-modification |
+| Remove any `deny` entry | ❌ Removes a P0 security boundary |
+| Narrow `read` | ⚠️ May break reference loading; justify explicitly |
+| Add a `network` entry | ⚠️ Requires a stated need and a review |
+
+These are enforced by upgrade gates G1 and G3 and by the test class D. **They are non-waivable,
+including by human approval** — an approval is a control for business scale change, not for a
+security boundary change.
+
+## Changing the Self-Scaling Mechanism
+
+| Component | Changeable? |
+|---|---|
+| Thresholds in `scaling-config.json` | ✅ with a recorded basis |
+| Evaluation interval | ✅ |
+| The six gate definitions | ⚠️ Only by regenerating the specification plus a human audit |
+| `upgrade_policy: propose-only` | ❌ There is no other legal value |
+| Adding an `install` action to `self-scale.ps1` | ❌ Never — see `references/scaling.md` §1 |
+| `immutable_paths` | ❌ Removing an entry disables a gate |
+
+## Running the Checks
+
+```powershell
+cd <package root>
+$env:SKILL_DIR = (Get-Location).Path
+$env:WORKSPACE_ROOT = (Get-Location).Path
+
+python tests\test-method-patterns.py          # must exit 0
+python -m py_compile models\adapters\adapter_interface.py
+python models\adapters\adapter_interface.py   # expect "config paths ok : 7/7"
+pwsh -File scripts\self-scale.ps1 -Action status
+```
+
+The suite has four classes:
+
+| Class | Guards |
+|---|---|
+| A — behaviour | The 10 templates do what their contracts say |
+| B — source integrity | The authoritative files exist and contain what they must |
+| C — structural consistency | Tier invariants: counts, conservation, links, file total |
+| D — immutable boundary | Nothing can alter `tests/` or `permissions` |
+
+⚠️ **Class B exists because of a real defect.** A predecessor's suite inlined its own copies of the
+10 templates and never read the source file it claimed to test. The authoritative source was
+missing an entire masking branch and the suite still reported 19/19 green. A test that cannot see
+its subject cannot fail.
+
+## What Not To Do
+
+| Mistake | Why it matters |
+|---|---|
+| Copy a template implementation into a department file | Creates a second authoritative source that will diverge |
+| Name a department sub-manifest `SKILL.md` | A recursive loader registers it as an independent skill |
+| Use a free-form function-block heading | Breaks mechanical counting, so conservation cannot be verified |
+| State a count you did not verify | A predecessor claimed 16 departments in five places while shipping 11; an AI following it invented the missing five |
+| Write a forbidden construct's literal name into any file | The security sweep scans documentation too — describe it instead |
+| Commit `__pycache__`, `.pyc`, `.skill-upgrade/` or a local review report | All are covered by `.gitignore`; do not force-add them |
+| Delete before copying during any rollback | If the copy fails, the data is gone with no recovery path |
+| Claim "fixed" or "verified" on an exit code alone | An exit code proves execution, not outcome |
+
+## License
+
+Contributions are licensed under GNU GPL v3 — see [LICENSE](LICENSE). Derivatives must remain
+GPL v3.
