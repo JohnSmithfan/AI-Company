@@ -68,6 +68,14 @@ history is preserved under "Predecessor project history" below.
   rewritten (default edge + any-target selection + scaffold contract);
   Section 4 retitled to the seven-edge dispatch table; Section 7 step 4 and
   Section 10 error-code semantics updated
+- Hygiene hardening (tech-debt review 2026-10-27): `README_FOR_AI.md` §14.5
+  Engineering Hygiene now carries an explicit "no crappy code, no
+  historical burden" clause (engineering level), and a new §14.6 File Hygiene
+  section codifies file-level anti-debt rules (no orphans / duplicates / empty /
+  "kept-for-history" files, no commented-out live content). The prohibition is
+  mirrored in `CONTRIBUTING.md` "What Not To Do" and `AGENTS.md` "Hard rules".
+  No package files added or removed — the 148-file invariant and the test suite
+  (110 tests) are unchanged
 
 ## [4.0.0] - 2026-10-20 - tier upgrade proposal (medium -> large)
 

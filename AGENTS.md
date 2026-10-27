@@ -100,6 +100,11 @@ points to the single authoritative location.
   exact report file names. (P39)
 - After generating or changing content, run the acceptance checks that the
   content claims to satisfy. (P39)
+- **No crappy code, no historical burden.** Every change must avoid
+  oversized monoliths, copy-paste duplication, dead/commented-out live code,
+  TODO/FIXME debt, and orphan/near-duplicate/empty/"kept-for-history" files.
+  Superseded content is marked deprecated with a pointer, never left as cruft.
+  (P8/P9/P10/P52/P53; `README_FOR_AI.md` §14.5/§14.6)
 
 ## When you are unsure
 

@@ -173,6 +173,8 @@ its subject cannot fail.
 | Commit `__pycache__`, `.pyc`, `.skill-upgrade/` or a local review report | All are covered by `.gitignore`; do not force-add them |
 | Delete before copying during any rollback | If the copy fails, the data is gone with no recovery path |
 | Claim "fixed" or "verified" on an exit code alone | An exit code proves execution, not outcome |
+| Build or keep crappy code (oversized monoliths, copy-paste duplication, dead branches, commented-out live blocks, TODO/FIXME/HACK debt) | Adds historical burden; explicit prohibition in `README_FOR_AI.md` §14.5/§14.6 |
+| Leave an orphan, near-duplicate, empty, or "kept for history" file in the package | Every file must earn its place; see File Hygiene (§14.6) and P8/P9/P10/P53 |
 
 ## License
 

@@ -1456,6 +1456,24 @@ Engineering requirements: `unittest` style, run directly with `python tests/test
 
 Never commit `__pycache__`/`.pyc`; never omit `.gitignore` or use exact names instead of wildcards (P39); never commit installer artifacts/local review reports (`REVIEW-*.md`)/`.skill-upgrade/` proposal packages; **never ignore `.scaling-state.json`** (it is package metadata); never let tests carry a self-contained copy instead of validating the real source file; never let README's Project Structure disagree with disk; never use bare code fences; never use non-UTF-8 or BOM-prefixed source files.
 
+**No crappy code, no historical burden (engineering level).** A change must never build or accept:
+- monolithic modules that blow the size/maintainability budget without a documented reason (P52: a main module over 300 lines is a clustering smell);
+- copy-paste or near-duplicate logic instead of linking the single authoritative source (P9/P10);
+- "temporary" workarounds, dead branches, or feature flags left in place "for later" — ship the cleanup or delete the dead path in the same change;
+- TODO/FIXME/HACK debt that silently accumulates — an unresolved item must be an open ticket, never a comment in shipped code;
+- commented-out live code/spec blocks kept "just in case" — delete them; history lives in version control, not in the source tree.
+
+### 14.6 File Hygiene
+
+Every file in the package file set must earn its place. Specifically:
+- **No orphan files** — every file is referenced by at least one other package file or by `SKILL.md`/`README*`; an unreferenced file is unreachable and must be removed (P8).
+- **No duplicate or near-duplicate files** — do not keep two files with similar names or content; keep one authoritative copy and link to it (P9/P10).
+- **No empty or placeholder files** — a generic file with no real content is forbidden (P53).
+- **No "kept for history" files** — if a file's only purpose is a historical record, either delete it (and note it in `CHANGELOG.md`) or keep it only as an explicitly deprecated, numbered entry; never leave a file whose sole value is "we might need it someday".
+- **No commented-out live content** — commented-out code/spec blocks in shipped files are historical burden; remove them. The Chinese-origin `<!-- 中文原文 -->` blocks in this file are the sole sanctioned exception (translation对照, per §16) and must stay.
+
+**No crappy code, no historical burden (file level).** A change must not grow the package file count with cruft, nor leave behind dead or superseded files. When content is superseded, mark it deprecated and point to the successor (never silently delete a referenced artifact); when it is truly dead, delete it and record the removal in `CHANGELOG.md`. Accumulating files "to be cleaned up later" is itself the historical burden this package forbids.
+
 <!-- 中文原文（2026-10-21 英译前版本，仅供对照）：
 ## 13. 测试（`tests/test-method-patterns.py`，四类断言）
 
@@ -1553,6 +1571,19 @@ Never commit `__pycache__`/`.pyc`; never omit `.gitignore` or use exact names in
 ### 14.5 工程卫生
 
 不提交 `__pycache__`/`.pyc`；不缺 `.gitignore` 或用精确名而非通配（P39）；不提交安装器产物/本地审核报告(`REVIEW-*.md`)/`.skill-upgrade/` 提案包；**不 ignore `.scaling-state.json`**（它是包元数据）；不让测试自包含副本而不校验真实源文件；不让 README 的 Project Structure 与磁盘不符；代码块不用裸围栏；源文件不用非 UTF-8 或带 BOM。
+
+**禁止搭建屎山代码、禁止给项目增加历史负担（工程级）。** 任何改动不得建造或纵容：超出体量/可维护预算却无文档说明的单体模块（P52：主模块超 300 行为集群化异味）；不链接唯一权威源而复制粘贴或近似复制的逻辑（P9/P10）；"临时"绕过、死分支、为"以后"保留的特性开关——同一改动内要么清理要么删除死路径；悄然累积的 TODO/FIXME/HACK 债——未决项必须是已开工单，而非发布代码里的注释；为"以防万一"保留的注释掉活代码块——删除它们，历史在版本库，不在源码树。
+
+### 14.6 文件卫生
+
+包文件集内每个文件都必须有其存在价值。具体而言：
+- **无孤儿文件**——每个文件都被至少一个其他包文件或 `SKILL.md`/`README*` 引用；不可达文件必须删除（P8）。
+- **无重复或近似重复文件**——不得保留同名或同内容的两份文件；保留唯一权威副本并链接（P9/P10）。
+- **无空文件或占位文件**——无实质内容的通用文件一律禁止（P53）。
+- **无"留作历史"的文件**——若文件唯一用途是历史记录，要么删除（并在 `CHANGELOG.md` 注明），要么仅作为显式弃用、带编号的条目保留；绝不留"也许以后用得上"的文件。
+- **无注释掉的活内容**——发布文件中的注释掉代码/规格块即历史负担，应删除。本文件的中文原文 `<!-- 中文原文 -->` 块是唯一特许例外（翻译对照，见 §16），必须保留。
+
+**禁止搭建屎山代码、禁止给项目增加历史负担（文件级）。** 任何改动不得以垃圾膨胀包文件数，也不得留下死亡或已被取代的文件。内容被取代时标记弃用并指向继承者（绝不静默删除被引用产物）；确属死代码则删除并在 `CHANGELOG.md` 记录移除。"留待以后清理"而堆积文件，正是本包禁止的历史负担本身。
 -->
 
 ---
